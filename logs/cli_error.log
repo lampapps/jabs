@@ -1,0 +1,50 @@
+2025-04-29 21:16:30,588 - ERROR - Fatal error during initialization or execution: [Errno 2] No such file or directory: 'config/documents.yaml'
+Traceback (most recent call last):
+  File "/home/jim2/jabs3/cli.py", line 162, in <module>
+    main()
+  File "/home/jim2/jabs3/cli.py", line 159, in main
+    run_job(args.config, backup_type, encrypt=args.encrypt, sync=args.sync)
+  File "/home/jim2/jabs3/cli.py", line 50, in run_job
+    with open(config_path) as f:
+FileNotFoundError: [Errno 2] No such file or directory: 'config/documents.yaml'
+2025-04-30 14:41:18,087 - ERROR - Fatal error during initialization or execution: 'str' object has no attribute 'get'
+Traceback (most recent call last):
+  File "/home/jim2/jabs3/cli.py", line 163, in <module>
+    main()
+  File "/home/jim2/jabs3/cli.py", line 160, in main
+    run_job(args.config, backup_type, encrypt=args.encrypt, sync=args.sync)
+  File "/home/jim2/jabs3/cli.py", line 86, in run_job
+    status = get_event_status(returned_event_id)
+  File "/home/jim2/jabs3/utils/event_logger.py", line 181, in get_event_status
+    if event.get("id") == event_id:
+AttributeError: 'str' object has no attribute 'get'
+2025-04-30 14:50:38,027 - ERROR - Fatal error during initialization or execution: invalid syntax. Perhaps you forgot a comma? (backup.py, line 272)
+Traceback (most recent call last):
+  File "/home/jim2/jabs3/cli.py", line 14, in <module>
+    from jobs.backup import run_backup
+  File "/home/jim2/jabs3/jobs/backup.py", line 272
+    status="error"
+           ^
+SyntaxError: invalid syntax. Perhaps you forgot a comma?
+2025-04-30 14:50:54,058 - ERROR - Fatal error during initialization or execution: update_event() got an unexpected keyword argument 'runtime'
+Traceback (most recent call last):
+  File "/home/jim2/jabs3/cli.py", line 163, in <module>
+    main()
+  File "/home/jim2/jabs3/cli.py", line 160, in main
+    run_job(args.config, backup_type, encrypt=args.encrypt, sync=args.sync)
+  File "/home/jim2/jabs3/cli.py", line 75, in run_job
+    latest_backup_set, returned_event_id, backup_set_id_str = run_backup(
+  File "/home/jim2/jabs3/jobs/backup.py", line 268, in run_backup
+    update_event(
+TypeError: update_event() got an unexpected keyword argument 'runtime'
+2025-04-30 14:52:24,404 - ERROR - Fatal error during initialization or execution: finalize_event() got an unexpected keyword argument 'backup_type'
+Traceback (most recent call last):
+  File "/home/jim2/jabs3/cli.py", line 163, in <module>
+    main()
+  File "/home/jim2/jabs3/cli.py", line 160, in main
+    run_job(args.config, backup_type, encrypt=args.encrypt, sync=args.sync)
+  File "/home/jim2/jabs3/cli.py", line 75, in run_job
+    latest_backup_set, returned_event_id, backup_set_id_str = run_backup(
+  File "/home/jim2/jabs3/jobs/backup.py", line 268, in run_backup
+    finalize_event(
+TypeError: finalize_event() got an unexpected keyword argument 'backup_type'

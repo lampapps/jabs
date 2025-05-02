@@ -1,0 +1,314 @@
+{
+  "job_name": "jabs3-app",
+  "backup_set_id": "20250430_150300",
+  "timestamp": "2025-05-02T01:00:03.296073",
+  "config": {
+    "job_name": "jabs3-app",
+    "source": "/home/jim2/jabs3",
+    "destination": "/media/jim2/backupdrive/jabs3",
+    "log_file": "logs/backup.log",
+    "keep_sets": 2,
+    "max_tarball_size": 1024,
+    "encryption": {
+      "enabled": false,
+      "method": "gpg",
+      "passphrase_env": "JABS_ENCRYPT_PASSPHRASE"
+    },
+    "exclude": [
+      "*.tmp",
+      "*.bak",
+      "*.swp",
+      "*.lock",
+      "cache/",
+      "node_modules/",
+      "venv/",
+      "build/",
+      ".*",
+      ".DS_Store",
+      "*.log",
+      "*.iso",
+      "*.tar.gz",
+      "README.md",
+      "docs/",
+      "__pycache__/",
+      "**/__pycache__/",
+      "**/__pycache__/**",
+      "**/*.class",
+      "**/temp/**"
+    ],
+    "aws": {
+      "profile": "default",
+      "region": "us-east-1",
+      "bucket": "lampapps-jabs3",
+      "prefix": "jim-imac"
+    },
+    "schedules": [
+      {
+        "cron": "0 1 * * 7",
+        "type": "full",
+        "sync": true,
+        "enabled": true
+      },
+      {
+        "cron": "0 1 * * 1-6",
+        "type": "diff",
+        "sync": true,
+        "enabled": true
+      },
+      {
+        "cron": "*/5 * * * *",
+        "type": "diff",
+        "sync": true,
+        "enabled": false
+      }
+    ]
+  },
+  "files": [
+    {
+      "tarball": "full_part_1_20250430_150300",
+      "path": "LICENSE.txt",
+      "size": "1.0KiB",
+      "modified": "2025-04-29 22:20:15"
+    },
+    {
+      "tarball": "full_part_1_20250430_150300",
+      "path": "scheduler.py",
+      "size": "10.8KiB",
+      "modified": "2025-04-27 16:15:01"
+    },
+    {
+      "tarball": "full_part_1_20250430_150300",
+      "path": "cli.py",
+      "size": "7.0KiB",
+      "modified": "2025-04-30 14:41:03"
+    },
+    {
+      "tarball": "full_part_1_20250430_150300",
+      "path": "restore.sh",
+      "size": "2.1KiB",
+      "modified": "2025-04-29 21:46:39"
+    },
+    {
+      "tarball": "full_part_1_20250430_150300",
+      "path": "app.py",
+      "size": "16.4KiB",
+      "modified": "2025-04-29 21:02:44"
+    },
+    {
+      "tarball": "full_part_1_20250430_150300",
+      "path": "requirements.txt",
+      "size": "48.0B",
+      "modified": "2025-04-21 10:12:20"
+    },
+    {
+      "tarball": "full_part_1_20250430_150300",
+      "path": "notes.md",
+      "size": "1.8KiB",
+      "modified": "2025-04-18 15:16:17"
+    },
+    {
+      "tarball": "full_part_1_20250430_150300",
+      "path": "templates/base.html",
+      "size": "8.9KiB",
+      "modified": "2025-04-29 22:23:49"
+    },
+    {
+      "tarball": "full_part_1_20250430_150300",
+      "path": "templates/logs.html",
+      "size": "2.1KiB",
+      "modified": "2025-04-27 10:33:37"
+    },
+    {
+      "tarball": "full_part_1_20250430_150300",
+      "path": "templates/manifest.html",
+      "size": "5.3KiB",
+      "modified": "2025-04-29 14:33:56"
+    },
+    {
+      "tarball": "full_part_1_20250430_150300",
+      "path": "templates/cronstatus.html",
+      "size": "302.0B",
+      "modified": "2025-04-20 14:52:23"
+    },
+    {
+      "tarball": "full_part_1_20250430_150300",
+      "path": "templates/index.html",
+      "size": "3.1KiB",
+      "modified": "2025-04-28 09:29:57"
+    },
+    {
+      "tarball": "full_part_1_20250430_150300",
+      "path": "templates/config.html",
+      "size": "1.2KiB",
+      "modified": "2025-04-27 10:33:55"
+    },
+    {
+      "tarball": "full_part_1_20250430_150300",
+      "path": "templates/manifest_archived.html",
+      "size": "6.2KiB",
+      "modified": "2025-04-29 22:48:20"
+    },
+    {
+      "tarball": "full_part_1_20250430_150300",
+      "path": "static/css/custom.css",
+      "size": "2.5KiB",
+      "modified": "2025-04-27 10:33:51"
+    },
+    {
+      "tarball": "full_part_1_20250430_150300",
+      "path": "static/js/global.js",
+      "size": "3.5KiB",
+      "modified": "2025-04-28 10:03:35"
+    },
+    {
+      "tarball": "full_part_1_20250430_150300",
+      "path": "static/js/dashboard.js",
+      "size": "16.2KiB",
+      "modified": "2025-04-28 09:55:47"
+    },
+    {
+      "tarball": "full_part_1_20250430_150300",
+      "path": "data/manifests/jim2_Documents/20250429_211702.json",
+      "size": "309.4KiB",
+      "modified": "2025-04-29 21:26:34"
+    },
+    {
+      "tarball": "full_part_1_20250430_150300",
+      "path": "data/manifests/jabs3-app/20250430_150136.json",
+      "size": "6.4KiB",
+      "modified": "2025-04-30 15:01:36"
+    },
+    {
+      "tarball": "full_part_1_20250430_150300",
+      "path": "data/manifests/jabs3-app/20250430_150124.json",
+      "size": "6.4KiB",
+      "modified": "2025-04-30 15:01:24"
+    },
+    {
+      "tarball": "full_part_1_20250430_150300",
+      "path": "data/dashboard/events.json",
+      "size": "5.4KiB",
+      "modified": "2025-04-30 15:03:00"
+    },
+    {
+      "tarball": "full_part_1_20250430_150300",
+      "path": "config/jim2-documents.yaml",
+      "size": "5.5KiB",
+      "modified": "2025-04-30 13:53:05"
+    },
+    {
+      "tarball": "full_part_1_20250430_150300",
+      "path": "config/drives.yaml",
+      "size": "177.0B",
+      "modified": "2025-04-26 22:26:03"
+    },
+    {
+      "tarball": "full_part_1_20250430_150300",
+      "path": "config/jabs3.yaml",
+      "size": "5.6KiB",
+      "modified": "2025-04-30 15:00:43"
+    },
+    {
+      "tarball": "full_part_1_20250430_150300",
+      "path": "config/default.yaml",
+      "size": "6.0KiB",
+      "modified": "2025-04-30 13:51:37"
+    },
+    {
+      "tarball": "full_part_1_20250430_150300",
+      "path": "logs/scheduler.status",
+      "size": "18.0B",
+      "modified": "2025-04-30 15:00:01"
+    },
+    {
+      "tarball": "full_part_1_20250430_150300",
+      "path": "jobs/backup.py",
+      "size": "16.7KiB",
+      "modified": "2025-04-30 14:53:20"
+    },
+    {
+      "tarball": "full_part_1_20250430_150300",
+      "path": "jobs/sync_s3.py",
+      "size": "5.2KiB",
+      "modified": "2025-04-27 11:17:59"
+    },
+    {
+      "tarball": "full_part_1_20250430_150300",
+      "path": "utils/logger.py",
+      "size": "1.5KiB",
+      "modified": "2025-04-27 10:59:13"
+    },
+    {
+      "tarball": "full_part_1_20250430_150300",
+      "path": "utils/event_logger.py",
+      "size": "6.3KiB",
+      "modified": "2025-04-30 14:45:28"
+    },
+    {
+      "tarball": "full_part_1_20250430_150300",
+      "path": "utils/encrypt.py",
+      "size": "939.0B",
+      "modified": "2025-04-28 19:56:44"
+    },
+    {
+      "tarball": "full_part_1_20250430_150300",
+      "path": "utils/manifest.py",
+      "size": "10.3KiB",
+      "modified": "2025-04-29 21:10:59"
+    },
+    {
+      "tarball": "diff_part_1_20250501_010001",
+      "path": "data/manifests/jabs3-app/20250430_150300.json",
+      "size": "6.4KiB",
+      "modified": "2025-04-30 15:03:01"
+    },
+    {
+      "tarball": "diff_part_1_20250501_010001",
+      "path": "data/dashboard/events.json",
+      "size": "5.8KiB",
+      "modified": "2025-05-01 01:00:01"
+    },
+    {
+      "tarball": "diff_part_1_20250501_010001",
+      "path": "logs/scheduler.status",
+      "size": "18.0B",
+      "modified": "2025-05-01 01:00:01"
+    },
+    {
+      "tarball": "diff_part_1_20250502_010003",
+      "path": "data/manifests/jim2_home/20250502_000002.json",
+      "size": "2.3MiB",
+      "modified": "2025-05-02 00:11:34"
+    },
+    {
+      "tarball": "diff_part_1_20250502_010003",
+      "path": "data/manifests/jabs3-app/20250430_150300.json",
+      "size": "7.0KiB",
+      "modified": "2025-05-01 01:00:01"
+    },
+    {
+      "tarball": "diff_part_1_20250502_010003",
+      "path": "data/dashboard/events.json",
+      "size": "6.8KiB",
+      "modified": "2025-05-02 01:00:03"
+    },
+    {
+      "tarball": "diff_part_1_20250502_010003",
+      "path": "config/jim2-documents.yaml",
+      "size": "5.5KiB",
+      "modified": "2025-05-01 07:59:52"
+    },
+    {
+      "tarball": "diff_part_1_20250502_010003",
+      "path": "config/jim2.yaml",
+      "size": "5.5KiB",
+      "modified": "2025-05-01 08:02:58"
+    },
+    {
+      "tarball": "diff_part_1_20250502_010003",
+      "path": "logs/scheduler.status",
+      "size": "18.0B",
+      "modified": "2025-05-02 01:00:02"
+    }
+  ]
+}

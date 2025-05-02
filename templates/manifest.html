@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+
+{% block title %}Manifest Viewer{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">Backup Manifest: {{ job_name }}</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item active">
+            Backup Set ID: {{ backup_set_id }} | Updated: {{ manifest_timestamp }}
+        </li>
+    </ol>
+
+    <!-- Accordion for backup info -->
+    <div class="accordion mb-4" id="backupInfoAccordion">
+        <div class="row">
+            <div class="col-md-6">
+                <div class="accordion-item">
+                    <h2 class="accordion-header" id="headingOne">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne" aria-expanded="false" aria-controls="collapseOne">
+                            Backup Configuration
+                        </button>
+                    </h2>
+                    <div id="collapseOne" class="accordion-collapse collapse" aria-labelledby="headingOne" data-bs-parent="#backupInfoAccordion">
+                        <div class="accordion-body">
+                            <pre>{{ config_content | default('Configuration not available.') }}</pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="accordion-item">
+                    <h2 class="accordion-header" id="headingTwo">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo" aria-expanded="false" aria-controls="collapseTwo">
+                            Backup Archives included in this Manifest
+                        </button>
+                    </h2>
+                    <div id="collapseTwo" class="accordion-collapse collapse" aria-labelledby="headingTwo" data-bs-parent="#backupInfoAccordion">
+                        <div class="accordion-body">
+                            <ul class="list-group list-group-flush">
+                                {% for tarball in tarball_summary %}
+                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                        {{ tarball.name }}
+                                        {% if tarball.encrypted %}
+                                            <span class="ms-2" title="Encrypted">
+                                                <i class="fa-solid fa-lock text-primary"></i>
+                                            </span>
+                                        {% endif %}
+                                        <span class="badge bg-secondary rounded-pill">{{ tarball.size }}</span>
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                            {% if tarball_summary|length == 0 %}
+                                <p class="text-center">No backup archives found or summary not available.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- END: Accordion -->
+
+    <!-- Table of all files in backup set -->
+    <div class="card mb-4">
+        <div class="card-header">
+            All Files in Backup Set
+        </div>
+        <div class="card-body">
+            <table id="manifestTable" class="table table-striped table-bordered table-hover display responsive">
+                <thead>
+                    <tr>
+                        <th>Tarball</th>
+                        <th>Path</th>
+                        <th>Size</th>
+                        <th>Last Modified</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {# Data is loaded dynamically via JS #}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- Make sure Font Awesome is loaded in your base.html or here -->
+<script>
+    $(document).ready(function () {
+        // Extract job_name and backup_set_id from URL for API call
+        const urlParts = window.location.pathname.split('/');
+        const jobName = urlParts[urlParts.length - 2];
+        const backupSetId = urlParts[urlParts.length - 1];
+        const apiUrl = `/api/manifest/${jobName}/${backupSetId}`;
+
+        // Fetch manifest data for the table
+        $.getJSON(apiUrl, function (data) {
+            $('#manifestTable').DataTable({
+                data: data.files || [],
+                columns: [
+                    { data: 'tarball' },
+                    { data: 'path' },
+                    { data: 'size' },
+                    { data: 'modified' }
+                ],
+                order: [[0, 'asc']],
+                responsive: true,
+                paging: true,
+                searching: true,
+                ordering: true,
+                lengthMenu: [25, 50, 100, 200]
+            });
+        }).fail(function (jqXHR, textStatus, errorThrown) {
+            console.error("Failed to load manifest JSON for table:", textStatus, errorThrown);
+            $('#manifestTable tbody').html('<tr><td colspan="4" class="text-center text-danger">Failed to load manifest file data.</td></tr>');
+        });
+    });
+</script>
+{% endblock %}

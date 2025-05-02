@@ -1,0 +1,252 @@
+# JABS - Just Another Backup Script (v3)
+
+JABS is a Python-based backup utility designed for creating local and cloud (AWS S3) backups with scheduling capabilities and a web-based monitoring dashboard.
+
+## Features
+
+*   **YAML Configuration:** Define backup jobs, sources, destinations, exclusions, and schedules using simple YAML files.
+*   **Full & Differential Backups:** Supports both full backups and differential backups (based on modification time since the last full backup).
+*   **Independent Tarballs:** Automatically starts a new archive (tarball) when the max size limit is reached creating independent tar archives, making partial restores easier. 
+*   **Local & S3 Storage:** Backs up to a local destination and optionally syncs to AWS S3.
+*   **Backup Rotation:** Automatically rotates local backup sets, keeping a specified number of recent sets.
+*   **Scheduling:** Includes a scheduler script (`scheduler.py`) designed to be run via cron to trigger backups based on cron expressions defined in the config files.
+*   **Web Dashboard (Flask):**
+    *   View recent backup events (status, runtime, type).
+    *   Monitor local disk usage and S3 bucket/prefix usage (requires `config/drives.yaml`).
+    *   View backup job configurations.
+    *   View application logs (`scheduler.log`, `backup.log`).
+    *   Monitor scheduler status (heartbeat).
+*   **Manifest Files:** Exports an independent HTML manifest for each backup set listing all files in all archives. It is searchable and sortable. The manifest also provides the backup job's configuration settings and a list of all archives in the set. This manifest is stored with the backup set and synced to AWS.
+*   **Encryption:** Optionally encrypts each tarball using GPG with a passphrase. Encrypted archives have a `.gpg` extension and can only be restored with the correct passphrase.
+
+## Installation
+
+1.  **Prerequisites:**
+    *   Python 3.x
+    *   pip (Python package installer)
+    *   `awscli` (AWS Command Line Interface) configured, if using S3 sync.
+    *   `gpg` (GNU Privacy Guard) for encryption/decryption (optional, but required for encrypted backups).
+
+2.  **Clone the Repository:**
+    ```bash
+    git clone <your-repository-url> jabs3
+    cd jabs3
+    ```
+
+3.  **Set up Virtual Environment (Recommended):**
+    ```bash
+    python3 -m venv venv
+    source venv/bin/activate
+    ```
+
+4.  **Install Dependencies:**
+    ```bash
+    pip install -r requirements.txt
+    ```
+
+5.  **AWS Configuration (Optional):**
+    If you plan to use S3 sync, ensure your AWS CLI is configured with the necessary credentials and default region, or specify a profile in your job config files.
+    ```bash
+    aws configure
+    ```
+
+## Configuration
+
+1.  **Job Configuration (`config/*.yaml`):**
+    *   Create one `.yaml` file in the `config/` directory for each backup job.
+    *   Copy and modify [`config/backup_example.yaml`](config/backup_example.yaml) as a template.
+    *   Key fields:
+        *   `job_name`: Unique name for the job.
+        *   `source`: Absolute path to the directory to back up.
+        *   `destination`: Absolute path to the *parent* directory for local backups (job-specific folder will be created inside).
+        *   `keep_sets`: Number of backup sets to retain locally.
+        *   `max_tarball_size`: Max size (MB) for individual tar archives.
+        *   `exclude`: List of glob patterns for files/directories to exclude.
+        *   `aws`: S3 configuration (`profile`, `region`, `bucket`, `prefix`).
+        *   `schedules`: List of schedules with `cron` expression, `type` (full/diff), `sync` (true/false), and `enabled` (true/false).
+        *   `encryption`: (Optional) Enable encryption for tarballs. Example:
+            ```yaml
+            encryption:
+              enabled: true
+              method: gpg
+              passphrase_env: JABS_ENCRYPT_PASSPHRASE
+            ```
+            - Set `enabled: true` to turn on encryption.
+            - `method: gpg` uses GPG symmetric encryption.
+            - `passphrase_env` is the name of the environment variable holding your GPG passphrase.
+
+2.  **Drive/S3 Monitoring (`config/drives.yaml`):**
+    *   (Optional) Create `config/drives.yaml` to configure which local drives and S3 buckets are monitored on the dashboard.
+    *   Example structure:
+        ```yaml
+        drives:
+          - /
+          - /media/backupdrive
+        s3_buckets:
+          - my-jabs-bucket-1
+          - another-s3-bucket
+        ```
+
+## Running JABS
+
+1.  **Web Interface:**
+    *   Start the Flask development server:
+        ```bash
+        python app.py
+        ```
+    *   Access the dashboard in your browser (usually `http://localhost:5000` or `http://<your-server-ip>:5000`).
+    *   For production, use a proper WSGI server like Gunicorn or Waitress.
+
+2.  **Manual Backups (CLI):**
+    *   Run a specific job using `cli.py`:
+        ```bash
+        # Full backup
+        python cli.py config/my_job.yaml --full
+
+        # Differential backup with S3 sync
+        python cli.py config/my_job.yaml --diff --sync
+
+        # Encrypted backup (if enabled in config)
+        JABS_ENCRYPT_PASSPHRASE='yourpassphrase' python cli.py config/my_job.yaml --full
+        ```
+        * If encryption is enabled, set the passphrase environment variable before running the backup.
+
+3.  **Scheduled Backups (Cron):**
+    *   Add the `scheduler.py` script to your system's crontab.
+    *   Edit the crontab: `crontab -e`
+    *   Add a line similar to this (adjust paths for your setup), assuming the scheduler should check every minute:
+        ```crontab
+        * * * * * /path/to/your/jabs3/venv/bin/python /path/to/your/jabs3/scheduler.py >> /path/to/your/jabs3/logs/cron.log 2>&1
+        ```
+        *   `* * * * *`: Run every minute. Adjust as needed (e.g., `0 * * * *` for hourly).
+        *   `/path/to/your/jabs3/venv/bin/python`: Absolute path to the Python interpreter in your virtual environment.
+        *   `/path/to/your/jabs3/scheduler.py`: Absolute path to the scheduler script.
+        *   `>> /path/to/your/jabs3/logs/cron.log 2>&1`: (Optional) Redirect cron output to a log file.
+
+## Restoring Backups
+
+JABS creates standard `.tar.gz` archives, optionally encrypted as `.tar.gz.gpg`, allowing you to restore files using common operating system tools like `tar` and `gpg`. The process depends on whether you are restoring from a full backup or applying differentials.
+
+**Using the Manifest:**
+
+*   Each backup set includes a HTML manifest. This manifest is also synced to AWS. A local copy the manifest is also linked from the dashboard.
+*   These manifests list every file included in the backup set and which specific `.tar.gz` archive contains that file.
+*   Use the manifest to identify which tarball(s) you need if you only want to restore specific files or directories.
+
+**1. Restoring a Full Backup Set:**
+
+*   Identify the directory of the full backup set you want to restore (e.g., `/path/to/storage/my-job-name/backup_set_YYYYMMDD_HHMMSS`).
+*   Navigate to a *temporary* or *target* directory where you want to restore the files.
+*   Extract all `.tar.gz` files from the backup set directory into your current location. The order usually doesn't matter for a full backup.
+
+    ```bash
+    # Example: Restore all tarballs from a specific full backup set
+    # Make sure you are in the directory where you want the files restored!
+    cd /path/to/restore/location/
+    find /path/to/jabs3/my-job-name/backup_set_YYYYMMDD_HHMMSS -name '*.tar.gz' -exec tar -xzvf {} \;
+    ```
+    *(Note: Adjust paths accordingly. The `find ... -exec` command extracts all tarballs found in the backup set directory.)*
+
+**2. Restoring from a Differential Backup:**
+
+*   **IMPORTANT:** You MUST first restore the corresponding **Full Backup** set that the differential is based on (see step 1).
+*   Identify the directory of the differential backup set you want to apply (e.g., `/path/to/my-job-name/backup_set_YYYYMMDD_HHMMSS_diff`).
+*   Ensure you are in the *same target directory* where you restored the full backup.
+*   Extract all `.tar.gz` files from the differential backup set directory. This will overwrite any files that were modified since the full backup.
+
+    ```bash
+    # Example: Apply a differential backup AFTER restoring the full backup
+    # Make sure you are in the SAME directory where the full backup was restored!
+    cd /path/to/restore/location/
+    find /media/backupdrive/jabs3/my-job-name/backup_set_YYYYMMDD_HHMMSS_diff -name '*.tar.gz' -exec tar -xzvf {} \;
+    ```
+    *   If you need to apply multiple differentials, apply them in chronological order after restoring the base full backup.
+
+**3. Restoring Encrypted Archives:**
+
+*   If your backup set contains `.tar.gz.gpg` files, you must decrypt them before extracting.
+*   You can use the provided `restore.sh` script or do it manually:
+
+    ```bash
+    # Decrypt an archive (you will be prompted for the passphrase)
+    gpg --output archive.tar.gz --decrypt archive.tar.gz.gpg
+
+    # Then extract as usual
+    tar -xzvf archive.tar.gz
+    ```
+
+*   To restore all encrypted and unencrypted archives in a folder, use the provided script:
+
+    ```bash
+    # Make the script executable
+    chmod +x restore.sh
+
+    # Run the script in the backup set directory
+    ./restore.sh
+    ```
+
+    The script will list all archives, let you choose to restore or decrypt, and prompt for the passphrase if needed.
+
+**4. Restoring Specific Files or Directories:**
+
+*   Use the manifest (HTML or JSON) for the desired backup set (full or differential) to find the exact `.tar.gz` file(s) containing the specific file(s) or directory you need.
+*   Locate the required tarball(s) in the backup set directory.
+*   If encrypted, decrypt first as above.
+*   Use the `tar` command, specifying the archive and the exact path(s) of the file(s)/directory(ies) inside the archive you want to extract.
+
+    ```bash
+    # Example: Restore a specific file from a single tarball
+    # Make sure you are in the directory where you want the file restored!
+    cd /path/to/restore/location/
+    tar -xzvf /media/backupdrive/jabs3/my-job-name/backup_set_YYYYMMDD_HHMMSS/001_archive.tar.gz path/inside/archive/to/your/file.txt
+
+    # Example: Restore a specific directory from a single tarball
+    tar -xzvf /media/backupdrive/jabs3/my-job-name/backup_set_YYYYMMDD_HHMMSS/002_archive.tar.gz path/inside/archive/to/your/directory/
+    ```
+    *   Remember that if restoring a specific file from a *differential* backup, it represents the state of the file *at the time of that differential backup*.
+
+## Directory Structure
+
+```
+jabs3/
+├── app.py              # Flask web application
+├── cli.py              # Command-line interface for running jobs
+├── scheduler.py        # Script to trigger jobs based on schedules (run via cron)
+├── requirements.txt    # Python dependencies
+├── config/             # Configuration files
+│   ├── default.yaml    # default configuration file for backup jobs, each backup job requires its own yaml file.
+│   └── drives.yaml     # (Optional) For dashboard monitoring
+├── data/               # Data generated by the application
+│   ├── dashboard/
+│   │   └── events.json # List of backup events for the dashboard
+│   └── manifests/      # JSON manifests for backup sets (organized by job)
+├── jobs/               # Core backup and sync logic
+│   ├── backup.py       # Core logic to run backups
+│   └── sync_s3.py      # Core logic to sync to AWS S3
+├── logs/               # Log files
+│   ├── backup.log
+│   ├── scheduler.log
+│   └── scheduler.status # Heartbeat file for scheduler monitoring
+├── static/             # Static files for the web interface (CSS, JS)
+│   ├── css/
+│   └── js/
+├── templates/          # HTML templates for the web interface
+│   ├── base.html
+│   ├── index.html      # Dashboard
+│   ├── config.html     # View all yaml files in /config/
+│   ├── logs.html       # View all log files in /logs/
+│   └── manifest.html   # View a backup job manifest within the Flask app. Source of data is /data/manifests/*.json
+│   └── manifest_archived.html  # A self contained html file that is stored at the destination folder with the archives. It has no dependencies.
+├── utils/              # Utility modules
+│   ├── event_logger.py # Logic to list events to /data/dashboard/events.json eg: Backup started, running, success, etc...
+│   ├── logger.py       # Logic for system logger
+│   └── manifest.py     # Logic to create manifests files for each backup job. 
+├── restore.sh          # Script to decrypt and/or extract backup archives
+└── venv/               # Python virtual environment (if created)
+```
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+

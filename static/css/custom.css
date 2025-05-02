@@ -1,0 +1,105 @@
+.card-body {
+    min-height: 200px;
+}
+
+/* Default (light mode) */
+thead th, tfoot th {
+    background-color: #f8f9fa; /* light gray */
+    color: #212529; /* dark text */
+}
+
+/* Dark mode overrides */
+@media (prefers-color-scheme: dark) {
+    thead th, tfoot th {
+        background-color: #212529; /* dark gray */
+        color: #dee2e6; /* light text */
+    }
+}
+
+@media (max-width: 767.98px) {
+    .navbar-collapse {
+      justify-content: center;
+      text-align: center;
+    }
+
+    .navbar-collapse .navbar-nav {
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+    }
+
+    .navbar-collapse .nav-item {
+      width: 100%;
+    }
+
+    .navbar-collapse .nav-link,
+    .navbar-collapse .dropdown-menu .dropdown-item {
+      padding-left: 0 !important;
+      padding-right: 0 !important;
+      text-align: center;
+    }
+
+    .navbar-collapse .dropdown-menu {
+      width: 100%;
+      text-align: center;
+    }
+  }
+
+  @media (max-width: 767.98px) {
+    .navbar-collapse .navbar-nav.ms-auto {
+      flex-direction: column;
+      align-items: center;
+      margin-left: 0 !important;
+      margin-right: 0 !important;
+      width: 100%;
+    }
+  
+    .navbar-collapse .navbar-nav.ms-auto .nav-link,
+    .navbar-collapse .navbar-nav.ms-auto .dropdown-menu .dropdown-item {
+      text-align: center;
+      padding-left: 0 !important;
+      padding-right: 0 !important;
+    }
+  
+    .navbar-collapse .navbar-nav.ms-auto .dropdown-menu {
+      text-align: center;
+      width: 100%;
+    }
+  }
+
+/* Override link colors for the entire table */
+
+#manifestTable a,
+#eventtable a {
+  color: #1212a1e1; /* Light color for visibility */
+  text-decoration: none; /* Optional: remove underline */
+}
+
+#manifestTable a:hover,
+#eventtable a:hover {
+  color: #1212a1e1; /* Change on hover (gold in this case) */
+  text-decoration: underline; /* Add underline on hover */
+}
+/* Styles for successful rows */
+#manifestTable tr.table-success td,
+#eventtable tr.table-success td {
+  border: 1px solid grey; /* Grey border for success rows */
+}
+
+/* Styles for failed rows */
+#manifestTable tr.table-danger td,
+#eventtable tr.table-danger td {
+  border: 1px solid grey; /* Grey border for failed rows */
+}
+
+/* Add padding to the top of the body when using fixed-top navbar */
+/* Adjust the 56px value if your navbar height is different */
+.body-padding-fix {
+  padding-top: 56px; 
+}
+
+/* Offset scroll position for fixed navbar */
+/* Adjust 60px if needed (should be >= navbar height) */
+#page-top, .scroll-anchor {
+  scroll-margin-top: 60px; 
+}

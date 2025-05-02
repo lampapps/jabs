@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block title %}Logs{% endblock %}
+
+{% block content %}
+    <div class="container-fluid px-4">
+        <h1 class="mt-4">Logs</h1>
+        <div class="mb-3">
+            <!-- Button to trim logs -->
+            <button id="trimLogsButton" class="btn btn-danger">Trim Logs</button>
+        </div>
+        <!-- Jump Links -->
+        <div class="mb-3">
+            <strong>Jump to end of:</strong>
+            {% for name, _ in logs %}
+                <a href="#log-{{ name|replace('.', '-') }}-end" class="btn btn-sm btn-outline-secondary mx-1">{{ name }}</a>
+            {% endfor %}
+        </div>
+        <div class="container-fluid px-4">
+            {% for name, content in logs %}
+                <h3>{{ name }}</h3>
+                <pre class="bg-dark text-light w-auto p-3 border rounded">{{ content }}</pre>
+                <!-- Anchor for jump link -->
+                <span id="log-{{ name|replace('.', '-') }}-end" class="scroll-anchor"></span>
+                <!-- Link back to top -->
+                <div class="text-end mb-3">
+                    <a href="#page-top" class="btn btn-sm btn-outline-secondary">Back to top</a>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.getElementById("trimLogsButton").addEventListener("click", function () {
+        if (confirm("Are you sure you want to trim the logs? This will keep only the last 1000 lines of each log file.")) {
+            fetch('/api/trim_logs', {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log("Trim Logs Response:", data); // Debugging statement
+                alert("Logs have been trimmed successfully!");
+                location.reload(); // Reload the page to reflect changes
+            })
+            .catch(error => {
+                console.error("Error trimming logs:", error);
+                alert("An error occurred while trimming the logs.");
+            });
+        }
+    });
+</script>
+{% endblock %}

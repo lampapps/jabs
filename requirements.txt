@@ -1,0 +1,6 @@
+Flask
+PyYAML
+flask-cors
+eventlet
+boto3
+cronitor

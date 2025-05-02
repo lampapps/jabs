@@ -1,0 +1,219 @@
+2025-04-29 22:00:01,876 - INFO - scheduler - --- Scheduler Check Started ---
+2025-04-29 22:00:01,911 - INFO - scheduler - Triggered 0 job(s) during this check.
+2025-04-29 22:00:01,911 - INFO - scheduler - --- Scheduler Check Finished ---
+2025-04-29 23:00:02,058 - INFO - scheduler - --- Scheduler Check Started ---
+2025-04-29 23:00:02,088 - INFO - scheduler - Triggered 0 job(s) during this check.
+2025-04-29 23:00:02,088 - INFO - scheduler - --- Scheduler Check Finished ---
+2025-04-30 00:00:01,086 - INFO - scheduler - --- Scheduler Check Started ---
+2025-04-30 00:00:01,094 - INFO - scheduler - MATCH FOUND for job 'jim2 Documents' (config: jim2-documents.yaml): Schedule '0 0 * * 2-7'
+2025-04-30 00:00:01,094 - INFO - scheduler - Executing command: /home/jim2/jabs3/venv/bin/python3 /home/jim2/jabs3/cli.py /home/jim2/jabs3/config/jim2-documents.yaml --diff --sync
+2025-04-30 00:00:01,109 - INFO - scheduler - Triggered 1 job(s) during this check.
+2025-04-30 00:00:01,109 - INFO - scheduler - --- Scheduler Check Finished ---
+2025-04-30 01:00:01,204 - INFO - scheduler - --- Scheduler Check Started ---
+2025-04-30 01:00:01,220 - INFO - scheduler - MATCH FOUND for job 'jabs3-app' (config: jabs3.yaml): Schedule '0 1 * * 1-6'
+2025-04-30 01:00:01,220 - INFO - scheduler - Executing command: /home/jim2/jabs3/venv/bin/python3 /home/jim2/jabs3/cli.py /home/jim2/jabs3/config/jabs3.yaml --diff --sync
+2025-04-30 01:00:01,226 - INFO - scheduler - Triggered 1 job(s) during this check.
+2025-04-30 01:00:01,227 - INFO - scheduler - --- Scheduler Check Finished ---
+2025-04-30 02:00:01,643 - INFO - scheduler - --- Scheduler Check Started ---
+2025-04-30 02:00:01,664 - INFO - scheduler - Triggered 0 job(s) during this check.
+2025-04-30 02:00:01,664 - INFO - scheduler - --- Scheduler Check Finished ---
+2025-04-30 03:00:01,392 - INFO - scheduler - --- Scheduler Check Started ---
+2025-04-30 03:00:01,413 - INFO - scheduler - Triggered 0 job(s) during this check.
+2025-04-30 03:00:01,413 - INFO - scheduler - --- Scheduler Check Finished ---
+2025-04-30 04:00:01,573 - INFO - scheduler - --- Scheduler Check Started ---
+2025-04-30 04:00:01,594 - INFO - scheduler - Triggered 0 job(s) during this check.
+2025-04-30 04:00:01,594 - INFO - scheduler - --- Scheduler Check Finished ---
+2025-04-30 05:00:01,270 - INFO - scheduler - --- Scheduler Check Started ---
+2025-04-30 05:00:01,292 - INFO - scheduler - Triggered 0 job(s) during this check.
+2025-04-30 05:00:01,292 - INFO - scheduler - --- Scheduler Check Finished ---
+2025-04-30 06:00:01,839 - INFO - scheduler - --- Scheduler Check Started ---
+2025-04-30 06:00:01,860 - INFO - scheduler - Triggered 0 job(s) during this check.
+2025-04-30 06:00:01,861 - INFO - scheduler - --- Scheduler Check Finished ---
+2025-04-30 07:00:01,136 - INFO - scheduler - --- Scheduler Check Started ---
+2025-04-30 07:00:01,157 - INFO - scheduler - Triggered 0 job(s) during this check.
+2025-04-30 07:00:01,158 - INFO - scheduler - --- Scheduler Check Finished ---
+2025-04-30 08:00:01,110 - INFO - scheduler - --- Scheduler Check Started ---
+2025-04-30 08:00:01,132 - INFO - scheduler - Triggered 0 job(s) during this check.
+2025-04-30 08:00:01,132 - INFO - scheduler - --- Scheduler Check Finished ---
+2025-04-30 09:00:01,779 - INFO - scheduler - --- Scheduler Check Started ---
+2025-04-30 09:00:01,800 - INFO - scheduler - Triggered 0 job(s) during this check.
+2025-04-30 09:00:01,800 - INFO - scheduler - --- Scheduler Check Finished ---
+2025-04-30 10:00:01,936 - INFO - scheduler - --- Scheduler Check Started ---
+2025-04-30 10:00:01,957 - INFO - scheduler - Triggered 0 job(s) during this check.
+2025-04-30 10:00:01,957 - INFO - scheduler - --- Scheduler Check Finished ---
+2025-04-30 11:00:01,817 - INFO - scheduler - --- Scheduler Check Started ---
+2025-04-30 11:00:01,838 - INFO - scheduler - Triggered 0 job(s) during this check.
+2025-04-30 11:00:01,838 - INFO - scheduler - --- Scheduler Check Finished ---
+2025-04-30 12:00:01,543 - INFO - scheduler - --- Scheduler Check Started ---
+2025-04-30 12:00:01,565 - INFO - scheduler - Triggered 0 job(s) during this check.
+2025-04-30 12:00:01,565 - INFO - scheduler - --- Scheduler Check Finished ---
+2025-04-30 13:00:01,432 - INFO - scheduler - --- Scheduler Check Started ---
+2025-04-30 13:00:01,454 - INFO - scheduler - Triggered 0 job(s) during this check.
+2025-04-30 13:00:01,454 - INFO - scheduler - --- Scheduler Check Finished ---
+2025-04-30 14:00:02,069 - INFO - scheduler - --- Scheduler Check Started ---
+2025-04-30 14:00:02,091 - INFO - scheduler - Triggered 0 job(s) during this check.
+2025-04-30 14:00:02,092 - INFO - scheduler - --- Scheduler Check Finished ---
+2025-04-30 15:00:01,703 - INFO - scheduler - --- Scheduler Check Started ---
+2025-04-30 15:00:01,725 - INFO - scheduler - Triggered 0 job(s) during this check.
+2025-04-30 15:00:01,725 - INFO - scheduler - --- Scheduler Check Finished ---
+2025-04-30 16:00:01,295 - INFO - scheduler - --- Scheduler Check Started ---
+2025-04-30 16:00:01,316 - INFO - scheduler - Triggered 0 job(s) during this check.
+2025-04-30 16:00:01,316 - INFO - scheduler - --- Scheduler Check Finished ---
+2025-04-30 17:00:01,270 - INFO - scheduler - --- Scheduler Check Started ---
+2025-04-30 17:00:01,292 - INFO - scheduler - Triggered 0 job(s) during this check.
+2025-04-30 17:00:01,292 - INFO - scheduler - --- Scheduler Check Finished ---
+2025-04-30 18:00:01,398 - INFO - scheduler - --- Scheduler Check Started ---
+2025-04-30 18:00:01,420 - INFO - scheduler - Triggered 0 job(s) during this check.
+2025-04-30 18:00:01,420 - INFO - scheduler - --- Scheduler Check Finished ---
+2025-04-30 19:00:02,061 - INFO - scheduler - --- Scheduler Check Started ---
+2025-04-30 19:00:02,083 - INFO - scheduler - Triggered 0 job(s) during this check.
+2025-04-30 19:00:02,083 - INFO - scheduler - --- Scheduler Check Finished ---
+2025-04-30 20:00:01,443 - INFO - scheduler - --- Scheduler Check Started ---
+2025-04-30 20:00:01,465 - INFO - scheduler - Triggered 0 job(s) during this check.
+2025-04-30 20:00:01,465 - INFO - scheduler - --- Scheduler Check Finished ---
+2025-04-30 21:00:01,488 - INFO - scheduler - --- Scheduler Check Started ---
+2025-04-30 21:00:01,510 - INFO - scheduler - Triggered 0 job(s) during this check.
+2025-04-30 21:00:01,510 - INFO - scheduler - --- Scheduler Check Finished ---
+2025-04-30 22:00:01,362 - INFO - scheduler - --- Scheduler Check Started ---
+2025-04-30 22:00:01,385 - INFO - scheduler - Triggered 0 job(s) during this check.
+2025-04-30 22:00:01,385 - INFO - scheduler - --- Scheduler Check Finished ---
+2025-04-30 23:00:01,573 - INFO - scheduler - --- Scheduler Check Started ---
+2025-04-30 23:00:01,596 - INFO - scheduler - Triggered 0 job(s) during this check.
+2025-04-30 23:00:01,596 - INFO - scheduler - --- Scheduler Check Finished ---
+2025-05-01 00:00:01,558 - INFO - scheduler - --- Scheduler Check Started ---
+2025-05-01 00:00:01,566 - INFO - scheduler - MATCH FOUND for job 'jim2 Documents' (config: jim2-documents.yaml): Schedule '0 0 * * 2-7'
+2025-05-01 00:00:01,566 - INFO - scheduler - Executing command: /home/jim2/jabs3/venv/bin/python3 /home/jim2/jabs3/cli.py /home/jim2/jabs3/config/jim2-documents.yaml --diff --sync
+2025-05-01 00:00:01,581 - INFO - scheduler - Triggered 1 job(s) during this check.
+2025-05-01 00:00:01,581 - INFO - scheduler - --- Scheduler Check Finished ---
+2025-05-01 01:00:01,541 - INFO - scheduler - --- Scheduler Check Started ---
+2025-05-01 01:00:01,556 - INFO - scheduler - MATCH FOUND for job 'jabs3-app' (config: jabs3.yaml): Schedule '0 1 * * 1-6'
+2025-05-01 01:00:01,556 - INFO - scheduler - Executing command: /home/jim2/jabs3/venv/bin/python3 /home/jim2/jabs3/cli.py /home/jim2/jabs3/config/jabs3.yaml --diff --sync
+2025-05-01 01:00:01,563 - INFO - scheduler - Triggered 1 job(s) during this check.
+2025-05-01 01:00:01,563 - INFO - scheduler - --- Scheduler Check Finished ---
+2025-05-01 02:00:01,360 - INFO - scheduler - --- Scheduler Check Started ---
+2025-05-01 02:00:01,382 - INFO - scheduler - Triggered 0 job(s) during this check.
+2025-05-01 02:00:01,382 - INFO - scheduler - --- Scheduler Check Finished ---
+2025-05-01 03:00:01,989 - INFO - scheduler - --- Scheduler Check Started ---
+2025-05-01 03:00:02,010 - INFO - scheduler - Triggered 0 job(s) during this check.
+2025-05-01 03:00:02,010 - INFO - scheduler - --- Scheduler Check Finished ---
+2025-05-01 04:00:01,180 - INFO - scheduler - --- Scheduler Check Started ---
+2025-05-01 04:00:01,202 - INFO - scheduler - Triggered 0 job(s) during this check.
+2025-05-01 04:00:01,202 - INFO - scheduler - --- Scheduler Check Finished ---
+2025-05-01 05:00:01,398 - INFO - scheduler - --- Scheduler Check Started ---
+2025-05-01 05:00:01,420 - INFO - scheduler - Triggered 0 job(s) during this check.
+2025-05-01 05:00:01,420 - INFO - scheduler - --- Scheduler Check Finished ---
+2025-05-01 06:00:01,724 - INFO - scheduler - --- Scheduler Check Started ---
+2025-05-01 06:00:01,747 - INFO - scheduler - Triggered 0 job(s) during this check.
+2025-05-01 06:00:01,747 - INFO - scheduler - --- Scheduler Check Finished ---
+2025-05-01 07:00:01,899 - INFO - scheduler - --- Scheduler Check Started ---
+2025-05-01 07:00:01,921 - INFO - scheduler - Triggered 0 job(s) during this check.
+2025-05-01 07:00:01,921 - INFO - scheduler - --- Scheduler Check Finished ---
+2025-05-01 08:00:02,039 - INFO - scheduler - --- Scheduler Check Started ---
+2025-05-01 08:00:02,075 - INFO - scheduler - Triggered 0 job(s) during this check.
+2025-05-01 08:00:02,075 - INFO - scheduler - --- Scheduler Check Finished ---
+2025-05-01 09:00:01,539 - INFO - scheduler - --- Scheduler Check Started ---
+2025-05-01 09:00:01,567 - INFO - scheduler - Triggered 0 job(s) during this check.
+2025-05-01 09:00:01,567 - INFO - scheduler - --- Scheduler Check Finished ---
+2025-05-01 10:00:02,025 - INFO - scheduler - --- Scheduler Check Started ---
+2025-05-01 10:00:02,053 - INFO - scheduler - Triggered 0 job(s) during this check.
+2025-05-01 10:00:02,053 - INFO - scheduler - --- Scheduler Check Finished ---
+2025-05-01 11:00:01,729 - INFO - scheduler - --- Scheduler Check Started ---
+2025-05-01 11:00:01,760 - INFO - scheduler - Triggered 0 job(s) during this check.
+2025-05-01 11:00:01,760 - INFO - scheduler - --- Scheduler Check Finished ---
+2025-05-01 12:00:02,053 - INFO - scheduler - --- Scheduler Check Started ---
+2025-05-01 12:00:02,081 - INFO - scheduler - Triggered 0 job(s) during this check.
+2025-05-01 12:00:02,081 - INFO - scheduler - --- Scheduler Check Finished ---
+2025-05-01 13:00:01,892 - INFO - scheduler - --- Scheduler Check Started ---
+2025-05-01 13:00:01,920 - INFO - scheduler - Triggered 0 job(s) during this check.
+2025-05-01 13:00:01,920 - INFO - scheduler - --- Scheduler Check Finished ---
+2025-05-01 14:00:02,074 - INFO - scheduler - --- Scheduler Check Started ---
+2025-05-01 14:00:02,101 - INFO - scheduler - Triggered 0 job(s) during this check.
+2025-05-01 14:00:02,102 - INFO - scheduler - --- Scheduler Check Finished ---
+2025-05-01 15:00:01,629 - INFO - scheduler - --- Scheduler Check Started ---
+2025-05-01 15:00:01,657 - INFO - scheduler - Triggered 0 job(s) during this check.
+2025-05-01 15:00:01,657 - INFO - scheduler - --- Scheduler Check Finished ---
+2025-05-01 16:00:02,020 - INFO - scheduler - --- Scheduler Check Started ---
+2025-05-01 16:00:02,048 - INFO - scheduler - Triggered 0 job(s) during this check.
+2025-05-01 16:00:02,048 - INFO - scheduler - --- Scheduler Check Finished ---
+2025-05-01 17:00:01,289 - INFO - scheduler - --- Scheduler Check Started ---
+2025-05-01 17:00:01,317 - INFO - scheduler - Triggered 0 job(s) during this check.
+2025-05-01 17:00:01,317 - INFO - scheduler - --- Scheduler Check Finished ---
+2025-05-01 18:00:01,235 - INFO - scheduler - --- Scheduler Check Started ---
+2025-05-01 18:00:01,263 - INFO - scheduler - Triggered 0 job(s) during this check.
+2025-05-01 18:00:01,263 - INFO - scheduler - --- Scheduler Check Finished ---
+2025-05-01 19:00:02,043 - INFO - scheduler - --- Scheduler Check Started ---
+2025-05-01 19:00:02,071 - INFO - scheduler - Triggered 0 job(s) during this check.
+2025-05-01 19:00:02,071 - INFO - scheduler - --- Scheduler Check Finished ---
+2025-05-01 20:00:01,109 - INFO - scheduler - --- Scheduler Check Started ---
+2025-05-01 20:00:01,136 - INFO - scheduler - Triggered 0 job(s) during this check.
+2025-05-01 20:00:01,136 - INFO - scheduler - --- Scheduler Check Finished ---
+2025-05-01 21:00:01,685 - INFO - scheduler - --- Scheduler Check Started ---
+2025-05-01 21:00:01,713 - INFO - scheduler - Triggered 0 job(s) during this check.
+2025-05-01 21:00:01,713 - INFO - scheduler - --- Scheduler Check Finished ---
+2025-05-01 22:00:01,577 - INFO - scheduler - --- Scheduler Check Started ---
+2025-05-01 22:00:01,606 - INFO - scheduler - Triggered 0 job(s) during this check.
+2025-05-01 22:00:01,606 - INFO - scheduler - --- Scheduler Check Finished ---
+2025-05-01 23:00:01,160 - INFO - scheduler - --- Scheduler Check Started ---
+2025-05-01 23:00:01,204 - INFO - scheduler - Triggered 0 job(s) during this check.
+2025-05-01 23:00:01,204 - INFO - scheduler - --- Scheduler Check Finished ---
+2025-05-02 00:00:01,962 - INFO - scheduler - --- Scheduler Check Started ---
+2025-05-02 00:00:01,990 - INFO - scheduler - MATCH FOUND for job 'jim2 home' (config: jim2.yaml): Schedule '0 0 * * 2-7'
+2025-05-02 00:00:01,990 - INFO - scheduler - Executing command: /home/jim2/jabs3/venv/bin/python3 /home/jim2/jabs3/cli.py /home/jim2/jabs3/config/jim2.yaml --diff --sync
+2025-05-02 00:00:01,991 - INFO - scheduler - Triggered 1 job(s) during this check.
+2025-05-02 00:00:01,991 - INFO - scheduler - --- Scheduler Check Finished ---
+2025-05-02 01:00:02,509 - INFO - scheduler - --- Scheduler Check Started ---
+2025-05-02 01:00:02,628 - INFO - scheduler - MATCH FOUND for job 'jabs3-app' (config: jabs3.yaml): Schedule '0 1 * * 1-6'
+2025-05-02 01:00:02,628 - INFO - scheduler - Executing command: /home/jim2/jabs3/venv/bin/python3 /home/jim2/jabs3/cli.py /home/jim2/jabs3/config/jabs3.yaml --diff --sync
+2025-05-02 01:00:02,760 - INFO - scheduler - Triggered 1 job(s) during this check.
+2025-05-02 01:00:02,760 - INFO - scheduler - --- Scheduler Check Finished ---
+2025-05-02 02:00:01,104 - INFO - scheduler - --- Scheduler Check Started ---
+2025-05-02 02:00:01,133 - INFO - scheduler - Triggered 0 job(s) during this check.
+2025-05-02 02:00:01,133 - INFO - scheduler - --- Scheduler Check Finished ---
+2025-05-02 03:00:02,080 - INFO - scheduler - --- Scheduler Check Started ---
+2025-05-02 03:00:02,108 - INFO - scheduler - Triggered 0 job(s) during this check.
+2025-05-02 03:00:02,108 - INFO - scheduler - --- Scheduler Check Finished ---
+2025-05-02 04:00:01,603 - INFO - scheduler - --- Scheduler Check Started ---
+2025-05-02 04:00:01,631 - INFO - scheduler - Triggered 0 job(s) during this check.
+2025-05-02 04:00:01,631 - INFO - scheduler - --- Scheduler Check Finished ---
+2025-05-02 05:00:01,210 - INFO - scheduler - --- Scheduler Check Started ---
+2025-05-02 05:00:01,240 - INFO - scheduler - Triggered 0 job(s) during this check.
+2025-05-02 05:00:01,240 - INFO - scheduler - --- Scheduler Check Finished ---
+2025-05-02 06:00:01,439 - INFO - scheduler - --- Scheduler Check Started ---
+2025-05-02 06:00:01,467 - INFO - scheduler - Triggered 0 job(s) during this check.
+2025-05-02 06:00:01,467 - INFO - scheduler - --- Scheduler Check Finished ---
+2025-05-02 07:00:01,474 - INFO - scheduler - --- Scheduler Check Started ---
+2025-05-02 07:00:01,502 - INFO - scheduler - Triggered 0 job(s) during this check.
+2025-05-02 07:00:01,502 - INFO - scheduler - --- Scheduler Check Finished ---
+2025-05-02 08:00:01,265 - INFO - scheduler - --- Scheduler Check Started ---
+2025-05-02 08:00:01,371 - INFO - scheduler - Triggered 0 job(s) during this check.
+2025-05-02 08:00:01,371 - INFO - scheduler - --- Scheduler Check Finished ---
+2025-05-02 09:00:02,048 - INFO - scheduler - --- Scheduler Check Started ---
+2025-05-02 09:00:02,076 - INFO - scheduler - Triggered 0 job(s) during this check.
+2025-05-02 09:00:02,076 - INFO - scheduler - --- Scheduler Check Finished ---
+2025-05-02 10:00:01,382 - INFO - scheduler - --- Scheduler Check Started ---
+2025-05-02 10:00:01,412 - INFO - scheduler - Triggered 0 job(s) during this check.
+2025-05-02 10:00:01,412 - INFO - scheduler - --- Scheduler Check Finished ---
+2025-05-02 11:00:01,806 - INFO - scheduler - --- Scheduler Check Started ---
+2025-05-02 11:00:01,835 - INFO - scheduler - Triggered 0 job(s) during this check.
+2025-05-02 11:00:01,835 - INFO - scheduler - --- Scheduler Check Finished ---
+2025-05-02 12:00:02,029 - INFO - scheduler - --- Scheduler Check Started ---
+2025-05-02 12:00:02,057 - INFO - scheduler - Triggered 0 job(s) during this check.
+2025-05-02 12:00:02,057 - INFO - scheduler - --- Scheduler Check Finished ---
+2025-05-02 13:00:01,706 - INFO - scheduler - --- Scheduler Check Started ---
+2025-05-02 13:00:01,735 - INFO - scheduler - Triggered 0 job(s) during this check.
+2025-05-02 13:00:01,735 - INFO - scheduler - --- Scheduler Check Finished ---
+2025-05-02 14:00:01,602 - INFO - scheduler - --- Scheduler Check Started ---
+2025-05-02 14:00:01,630 - INFO - scheduler - Triggered 0 job(s) during this check.
+2025-05-02 14:00:01,630 - INFO - scheduler - --- Scheduler Check Finished ---
+2025-05-02 15:00:01,631 - INFO - scheduler - --- Scheduler Check Started ---
+2025-05-02 15:00:01,659 - INFO - scheduler - Triggered 0 job(s) during this check.
+2025-05-02 15:00:01,660 - INFO - scheduler - --- Scheduler Check Finished ---
+2025-05-02 16:00:01,234 - INFO - scheduler - --- Scheduler Check Started ---
+2025-05-02 16:00:01,262 - INFO - scheduler - Triggered 0 job(s) during this check.
+2025-05-02 16:00:01,262 - INFO - scheduler - --- Scheduler Check Finished ---
+2025-05-02 17:00:02,083 - INFO - scheduler - --- Scheduler Check Started ---
+2025-05-02 17:00:02,112 - INFO - scheduler - Triggered 0 job(s) during this check.
+2025-05-02 17:00:02,112 - INFO - scheduler - --- Scheduler Check Finished ---
+2025-05-02 18:00:01,347 - INFO - scheduler - --- Scheduler Check Started ---
+2025-05-02 18:00:01,376 - INFO - scheduler - Triggered 0 job(s) during this check.
+2025-05-02 18:00:01,376 - INFO - scheduler - --- Scheduler Check Finished ---
