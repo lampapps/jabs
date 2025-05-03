@@ -6,7 +6,7 @@ JABS is a Python-based backup utility designed for creating local and cloud (AWS
 
 *   **YAML Configuration:** Define backup jobs, sources, destinations, exclusions, and schedules using simple YAML files.
 *   **Full & Differential Backups:** Supports both full backups and differential backups (based on modification time since the last full backup).
-*   **Independent Tarballs:** Automatically starts a new archive (tarball) when the max size limit is reached creating independent tar archives, making partial restores easier. 
+*   **Independent Tarballs:** Automatically starts a new archive (tarball) when the max size limit is reached, creating independent tar archives for easier partial restores.
 *   **Local & S3 Storage:** Backs up to a local destination and optionally syncs to AWS S3.
 *   **Backup Rotation:** Automatically rotates local backup sets, keeping a specified number of recent sets.
 *   **Scheduling:** Includes a scheduler script (`scheduler.py`) designed to be run via cron to trigger backups based on cron expressions defined in the config files.
@@ -16,21 +16,21 @@ JABS is a Python-based backup utility designed for creating local and cloud (AWS
     *   View backup job configurations.
     *   View application logs (`scheduler.log`, `backup.log`).
     *   Monitor scheduler status (heartbeat).
-*   **Manifest Files:** Exports an independent HTML manifest for each backup set listing all files in all archives. It is searchable and sortable. The manifest also provides the backup job's configuration settings and a list of all archives in the set. This manifest is stored with the backup set and synced to AWS.
+*   **Manifest Files:** Exports an independent HTML manifest for each backup set listing all files in all archives. The manifest also provides the backup job's configuration settings and a list of all archives in the set. This manifest is stored with the backup set and synced to AWS.
 *   **Encryption:** Optionally encrypts each tarball using GPG with a passphrase. Encrypted archives have a `.gpg` extension and can only be restored with the correct passphrase.
 
 ## Installation
 
 1.  **Prerequisites:**
-    *   Python 3.7
+    *   Python 3.7+
     *   pip (Python package installer)
     *   `awscli` (AWS Command Line Interface) configured, if using S3 sync.
     *   `gpg` (GNU Privacy Guard) for encryption/decryption (optional, but required for encrypted backups).
 
 2.  **Clone the Repository:**
     ```bash
-    git clone <your-repository-url> jabs3
-    cd jabs3
+    git clone <your-repository-url> jabs4
+    cd jabs4
     ```
 
 3.  **Set up Virtual Environment (Recommended):**
@@ -116,12 +116,12 @@ JABS is a Python-based backup utility designed for creating local and cloud (AWS
     *   Edit the crontab: `crontab -e`
     *   Add a line similar to this (adjust paths for your setup), assuming the scheduler should check every minute:
         ```crontab
-        * * * * * /path/to/your/jabs3/venv/bin/python /path/to/your/jabs3/scheduler.py >> /path/to/your/jabs3/logs/cron.log 2>&1
+        * * * * * /path/to/your/jabs4/venv/bin/python /path/to/your/jabs4/scheduler.py >> /path/to/your/jabs4/logs/cron.log 2>&1
         ```
         *   `* * * * *`: Run every minute. Adjust as needed (e.g., `0 * * * *` for hourly).
-        *   `/path/to/your/jabs3/venv/bin/python`: Absolute path to the Python interpreter in your virtual environment.
-        *   `/path/to/your/jabs3/scheduler.py`: Absolute path to the scheduler script.
-        *   `>> /path/to/your/jabs3/logs/cron.log 2>&1`: (Optional) Redirect cron output to a log file.
+        *   `/path/to/your/jabs4/venv/bin/python`: Absolute path to the Python interpreter in your virtual environment.
+        *   `/path/to/your/jabs4/scheduler.py`: Absolute path to the scheduler script.
+        *   `>> /path/to/your/jabs4/logs/cron.log 2>&1`: (Optional) Redirect cron output to a log file.
 
 ## Restoring Backups
 
@@ -129,7 +129,7 @@ JABS creates standard `.tar.gz` archives, optionally encrypted as `.tar.gz.gpg`,
 
 **Using the Manifest:**
 
-*   Each backup set includes a HTML manifest. This manifest is also synced to AWS. A local copy the manifest is also linked from the dashboard.
+*   Each backup set includes an HTML manifest. This manifest is also synced to AWS. A local copy of the manifest is also linked from the dashboard.
 *   These manifests list every file included in the backup set and which specific `.tar.gz` archive contains that file.
 *   Use the manifest to identify which tarball(s) you need if you only want to restore specific files or directories.
 
@@ -141,11 +141,9 @@ JABS creates standard `.tar.gz` archives, optionally encrypted as `.tar.gz.gpg`,
 
     ```bash
     # Example: Restore all tarballs from a specific full backup set
-    # Make sure you are in the directory where you want the files restored!
     cd /path/to/restore/location/
-    find /path/to/jabs3/my-job-name/backup_set_YYYYMMDD_HHMMSS -name '*.tar.gz' -exec tar -xzvf {} \;
+    find /path/to/jabs4/my-job-name/backup_set_YYYYMMDD_HHMMSS -name '*.tar.gz' -exec tar -xzvf {} \;
     ```
-    *(Note: Adjust paths accordingly. The `find ... -exec` command extracts all tarballs found in the backup set directory.)*
 
 **2. Restoring from a Differential Backup:**
 
@@ -156,10 +154,10 @@ JABS creates standard `.tar.gz` archives, optionally encrypted as `.tar.gz.gpg`,
 
     ```bash
     # Example: Apply a differential backup AFTER restoring the full backup
-    # Make sure you are in the SAME directory where the full backup was restored!
     cd /path/to/restore/location/
-    find /media/backupdrive/jabs3/my-job-name/backup_set_YYYYMMDD_HHMMSS_diff -name '*.tar.gz' -exec tar -xzvf {} \;
+    find /media/backupdrive/jabs4/my-job-name/backup_set_YYYYMMDD_HHMMSS_diff -name '*.tar.gz' -exec tar -xzvf {} \;
     ```
+
     *   If you need to apply multiple differentials, apply them in chronological order after restoring the base full backup.
 
 **3. Restoring Encrypted Archives:**
@@ -178,10 +176,7 @@ JABS creates standard `.tar.gz` archives, optionally encrypted as `.tar.gz.gpg`,
 *   To restore all encrypted and unencrypted archives in a folder, use the provided script:
 
     ```bash
-    # Make the script executable
     chmod +x restore.sh
-
-    # Run the script in the backup set directory
     ./restore.sh
     ```
 
@@ -196,31 +191,31 @@ JABS creates standard `.tar.gz` archives, optionally encrypted as `.tar.gz.gpg`,
 
     ```bash
     # Example: Restore a specific file from a single tarball
-    # Make sure you are in the directory where you want the file restored!
     cd /path/to/restore/location/
-    tar -xzvf /media/backupdrive/jabs3/my-job-name/backup_set_YYYYMMDD_HHMMSS/001_archive.tar.gz path/inside/archive/to/your/file.txt
+    tar -xzvf /media/backupdrive/jabs4/my-job-name/backup_set_YYYYMMDD_HHMMSS/001_archive.tar.gz path/inside/archive/to/your/file.txt
 
     # Example: Restore a specific directory from a single tarball
-    tar -xzvf /media/backupdrive/jabs3/my-job-name/backup_set_YYYYMMDD_HHMMSS/002_archive.tar.gz path/inside/archive/to/your/directory/
+    tar -xzvf /media/backupdrive/jabs4/my-job-name/backup_set_YYYYMMDD_HHMMSS/002_archive.tar.gz path/inside/archive/to/your/directory/
     ```
-    *   Remember that if restoring a specific file from a *differential* backup, it represents the state of the file *at the time of that differential backup*.
+
+    *   If restoring a specific file from a *differential* backup, it represents the state of the file *at the time of that differential backup*.
 
 ## Directory Structure
 
 ```
-jabs3/
+jabs4/
 ├── app.py              # Flask web application
 ├── cli.py              # Command-line interface for running jobs
 ├── scheduler.py        # Script to trigger jobs based on schedules (run via cron)
 ├── requirements.txt    # Python dependencies
-├── config/             # Configuration files
-│   ├── default.yaml    # default configuration file for backup jobs, each backup job requires its own yaml file.
-│   └── drives.yaml     # (Optional) For dashboard monitoring
+├── config/             # YAML configuration files for backup jobs and dashboard
+│   ├── default.yaml
+│   └── drives.yaml
 ├── data/               # Data generated by the application
 │   ├── dashboard/
 │   │   └── events.json # List of backup events for the dashboard
 │   └── manifests/      # JSON manifests for backup sets (organized by job)
-├── core/               # Core backup and sync logic
+├── core/               # Core backup and sync logic (was 'jobs/')
 ├── logs/               # Log files
 │   ├── backup.log
 │   ├── scheduler.log
@@ -230,15 +225,15 @@ jabs3/
 │   └── js/
 ├── templates/          # HTML templates for the web interface
 │   ├── base.html
-│   ├── index.html      # Dashboard
-│   ├── config.html     # View all yaml files in /config/
-│   ├── logs.html       # View all log files in /logs/
-│   └── manifest.html   # View a backup job manifest within the Flask app. Source of data is /data/manifests/*.json
-│   └── manifest_archived.html  # A self contained html file that is stored at the destination folder with the archives. It has no dependencies.
+│   ├── index.html
+│   ├── config.html
+│   ├── logs.html
+│   ├── manifest.html
+│   └── manifest_archived.html
 ├── utils/              # Utility modules
-│   ├── event_logger.py # Logic to list events to /data/dashboard/events.json eg: Backup started, running, success, etc...
-│   ├── logger.py       # Logic for system logger
-│   └── manifest.py     # Logic to create manifests files for each backup job. 
+│   ├── event_logger.py
+│   ├── logger.py
+│   └── manifest.py
 ├── restore.sh          # Script to decrypt and/or extract backup archives
 └── venv/               # Python virtual environment (if created)
 ```

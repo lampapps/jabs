@@ -4,14 +4,14 @@
 # The file should be named according to the job name (e.g., "my_job.yaml").
 
 # Job-specific settings
-job_name: "jim2 home"  # The name of the backup job (used for logging and organization)
-source: "/home/jim2/"  # The source directory to back up
-destination: "/media/jim2/backupdrive/jabs3"  # The destination directory for local backups
+job_name: "My Documents"  # The name of the backup job (used for logging and organization)
+source: "/home/user/Documents"  # The source directory to back up
+destination: "/path/to/local/storage"  # The destination directory for local backups
 log_file: "logs/backup.log"  # Path to the log file (leave empty to use the default logs/default.log)
 
 # Backup retention and size settings
-keep_sets: 5  # Number of backup sets to retain (older sets will be deleted automatically)
-max_tarball_size: 2048  # Maximum size of each tarball in MB (e.g., 1024 MB = 1 GB)
+keep_sets: 2  # Number of backup sets to retain (older sets will be deleted automatically)
+max_tarball_size: 1024  # Maximum size of each tarball in MB (e.g., 1024 MB = 1 GB)
 
 # GPG symmetric encryption for tarballs
 encryption:
@@ -32,12 +32,6 @@ exclude:
   - "node_modules/"  # Exclude Node.js dependencies
   - "venv/"  # Exclude Python virtual environments
   - "build/"  # Exclude build directories (e.g., for compiled code)
-  - "Downloads/"
-  - "gems/"
-  - "GoogleImages/"
-  - "Pictures/"
-  - "Raw_images/"
-  - "Videos/"
   
   # Hidden files and directories
   - ".*"  # Exclude all hidden files and directories (e.g., .git, .env)
@@ -47,9 +41,10 @@ exclude:
   - "*.log"  # Exclude log files
   - "*.iso"  # Exclude ISO disk images
   - "*.tar.gz"  # Exclude tarball archives
+  - "*.tar"
   
   # Specific files or directories
-  #- "README.md"  # Exclude a specific file
+  - "README.md"  # Exclude a specific file
   - "docs/"  # Exclude a specific directory
   
   # Advanced patterns
@@ -63,8 +58,8 @@ exclude:
 aws:
   profile: "default"  # AWS CLI profile to use (default if not specified)
   region: "us-east-1"  # AWS region (overrides profile region if specified)
-  bucket: "lampapps-jabs3"  # S3 bucket name (required for cloud backups)
-  prefix: "jim-imac"  # Prefix for S3 objects (e.g., machine name or user name)
+  bucket: "my-bucket"  # S3 bucket name (required for cloud backups)
+  prefix: "my-machine"  # Prefix for S3 objects (e.g., machine name or user name)
 
 # --- Scheduling ---
 # Define when and how backups should run automatically.
@@ -91,15 +86,24 @@ aws:
 # |  |  |  |  |                          Both 0 and 7 represent Sunday in many cron versions for historical reasons. 0 is standard.
 # *  *  *  *  *
 schedules:
-  - cron: "0 0 * * 1"  
+  - cron: "0 2 * * 7"  # Minute 0, Hour 2 (2:00 AM), Any Day of Month, Any Month, Day of Week 7 (Sunday)
+    # Runs every Sunday at 2:00 AM
     type: "full"       # full or diff
     sync: true         # Sync to S3 after backup, true or false
-    enabled: true      # Set to false to disable this schedule
+    enabled: false      # Set to false to disable this schedule
 
-  - cron: "0 0 * * 2-7" 
+  - cron: "0 2 * * 1-6" # Minute 0, Hour 2 (2:00 AM), Any Day of Month, Any Month, Day of Week 1 through 6 (Monday to Saturday)
+    # Runs every Monday, Tuesday, Wednesday, Thursday, Friday, Saturday at 2:00 AM
     type: "diff"       # Run a differential backup
-    sync: true        # Do not sync differential backups by default
-    enabled: true    # This schedule is active
+    sync: false        # Do not sync differential backups by default
+    enabled: false     # This schedule is active
+
+# Example disabled schedule:
+#  - cron: "0 0 1 * *"  # Minute 0, Hour 0 (midnight), Day of Month 1, Any Month, Any Day of Week
+#    # Runs on the 1st day of every month at midnight (00:00)
+#    type: "full"
+#    sync: true
+#    enabled: false     # This schedule is currently inactive
 
 # Notes:
 # - Ensure the `source` directory exists and contains the files you want to back up.

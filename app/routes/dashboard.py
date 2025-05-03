@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, jsonify, request, send_from_directory, abort
+from flask import Blueprint, render_template, jsonify, request, send_from_directory, abort, redirect, url_for
 import os
 import glob
 import json
@@ -44,6 +44,34 @@ def config():
                 config_data = yaml.safe_load(raw_data)
                 configs.append({"file_name": yaml_file, "data": config_data, "raw_data": raw_data})
     return render_template("config.html", configs=configs)
+
+@dashboard_bp.route("/config/edit/<filename>", methods=["GET"])
+def edit_config(filename):
+    # Sanitize filename
+    if not filename.endswith(".yaml") or "/" in filename or ".." in filename:
+        abort(400, "Invalid filename")
+    file_path = os.path.join(CONFIG_DIR, filename)
+    if not os.path.exists(file_path):
+        abort(404, "Config file not found")
+    with open(file_path) as f:
+        content = f.read()
+    return render_template("edit_config.html", filename=filename, content=content)
+
+@dashboard_bp.route("/config/save/<filename>", methods=["POST"])
+def save_config(filename):
+    if not filename.endswith(".yaml") or "/" in filename or ".." in filename:
+        abort(400, "Invalid filename")
+    file_path = os.path.join(CONFIG_DIR, filename)
+    new_content = request.form.get("content", "")
+    # Validate YAML
+    try:
+        yaml.safe_load(new_content)
+    except yaml.YAMLError as e:
+        return render_template("edit_config.html", filename=filename, content=new_content, error=str(e))
+    # Save file
+    with open(file_path, "w") as f:
+        f.write(new_content)
+    return redirect(url_for("dashboard.config"))
 
 @dashboard_bp.route("/api/events")
 def get_events():

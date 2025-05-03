@@ -17,8 +17,11 @@
         {% for config in configs %}
             <!-- Anchor for jump link (start of section) -->
             <span id="job-{{ config.file_name|replace('.', '-') }}-start" class="scroll-anchor"></span>
-            <h2>{{ config.file_name }}</h2>
-            <pre class="bg-dark text-light w-auto p-3 border rounded">{{ config.raw_data }}</pre>
+            <div class="d-flex align-items-center mb-2">
+                <h2 class="d-inline mb-0">{{ config.file_name }}</h2>
+                <a href="{{ url_for('dashboard.edit_config', filename=config.file_name) }}" class="btn btn-sm btn-warning ms-3 align-baseline">Edit</a>
+            </div>
+            <pre class="bg-dark text-light w-auto p-3 border rounded mb-4">{{ config.raw_data }}</pre>
             <!-- Link back to top -->
             <div class="text-end mb-3">
                 <a href="#page-top" class="btn btn-sm btn-outline-secondary">Back to top</a>

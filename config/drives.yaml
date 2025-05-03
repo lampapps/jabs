@@ -1,10 +1,11 @@
 drives:
   - "/media/jim2/backupdrive"  # Example drive
-  - "/"  # Root drive"
+  - "/"  # Root drive
 
 s3_buckets:
   - "lampapps-jabs1"
   - "lampapps-jabs2"
   - "lampapps-jabs3"
+  - "lampapps-jabs4"
   - "lampapps-backup"
  
