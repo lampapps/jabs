@@ -7,7 +7,7 @@ import sys
 import errno
 from datetime import datetime, timedelta
 from croniter import croniter
-from utils.logger import setup_logger
+from app.utils.logger import setup_logger
 import time  # Add time import
 
 # --- Constants ---

@@ -26,3 +26,4 @@ def encrypt_file_gpg(input_path, output_path, passphrase_env):
     result = subprocess.run(cmd, capture_output=True)
     if result.returncode != 0:
         raise RuntimeError(f"GPG encryption failed: {result.stderr.decode()}")
+    

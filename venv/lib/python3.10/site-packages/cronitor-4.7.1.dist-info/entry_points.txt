@@ -1,0 +1,3 @@
+[console_scripts]
+cronitor = cronitor.__main__:main
+

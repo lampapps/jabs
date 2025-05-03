@@ -1,9 +1,9 @@
 #/jobs/sync_s3.py
-from utils.event_logger import finalize_event
+from app.utils.event_logger import finalize_event
 import os
 import subprocess
 import json
-from utils.logger import setup_logger
+from app.utils.logger import setup_logger
 
 def sync_to_s3(backup_set_path, config, event_id=None):
     """

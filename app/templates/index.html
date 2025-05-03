@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <div class="row pb-0">
+        <div class="col-md-6">
+            <h1 class="mt-4">Dashboard - JABS</h1>
+            <ol class="breadcrumb mb-4S">
+                <li class="breadcrumb-item active">Just Another Backup Script {JABS} v4.0</li>
+            </ol>
+        </div>
+        <!-- Modified Column for Badges -->
+        <div class="col-md-6 mb-4 mb-ms-0">
+            <!-- Use flexbox to align items horizontally -->
+            <div class="mt-4 mt-ms-0 d-flex align-items-center justify-content-md-end">
+                <!-- Cronitor Badge -->
+                <img src="https://cronitor.io/badges/KLrCh0/production/wLW3ZcGEKKogN1auD-k2sxJiy5U.svg" alt="Cronitor Status" class="me-2" />
+                <!-- Scheduler Status Icon -->
+            </div>
+        </div>
+        <!-- End Modified Column -->
+    </div>
+    <div class="row pb-3">
+        <div class="col-md-6 mb-3 mb-md-0 d-flex">
+            <div class="card flex-fill d-flex flex-column">
+                <div class="card-header" id="headingOne">
+                    <i class="fa-regular fa-hard-drive"></i> Local Storage
+                </div>
+                <div class="card-body d-flex flex-column text-center">
+                    <canvas id="diskUsageChart" height="100"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 d-flex">
+            <div class="card flex-fill d-flex flex-column">
+                <div class="card-header" id="headingTwo">
+                    <i class="fa-brands fa-aws"></i> Cloud Storage
+                </div>
+                <div class="card-body d-flex flex-column text-center">
+                    <canvas id="s3UsageChart" height="100"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fa-regular fa-clock"></i> Event Log
+        </div>
+        <div class="card-body">
+            <table id="eventsTable" class="table table-striped table-bordered table-hover display responsive">
+    <thead>
+        <tr>
+            <th>Start</th>
+            <th>Hostname</th>
+            <th>Backup Title</th>
+            <th>Type</th>
+            <th>Event</th>
+            <th>Encrypt</th>
+            <th>Sync</th>
+            <th>Run Time</th>
+            <th>Status</th>
+        </tr>
+    </thead>
+    <tbody>                              
+    </tbody>
+    <tfoot>
+        <tr>
+            <th>Start</th>
+            <th>Hostname</th>
+            <th>Backup Title</th>
+            <th>Type</th>
+            <th>Event</th>
+            <th>Encrypt</th>
+            <th>Sync</th>
+            <th>Run Time</th>
+            <th>Status</th>
+        </tr>
+    </tfoot>
+</table>
+</div>
+</div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
+{% endblock %}

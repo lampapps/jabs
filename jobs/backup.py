@@ -8,9 +8,9 @@ import glob
 import shutil
 import json
 from datetime import datetime, timedelta
-from utils.logger import setup_logger, timestamp, ensure_dir
-from utils.manifest import write_manifest_files, MANIFEST_BASE, extract_tar_info
-from utils.event_logger import remove_event_by_backup_set_id, update_event, finalize_event
+from app.utils.logger import setup_logger, timestamp, ensure_dir
+from app.utils.manifest import write_manifest_files, MANIFEST_BASE, extract_tar_info
+from app.utils.event_logger import remove_event_by_backup_set_id, update_event, finalize_event
 from utils.encrypt import encrypt_file_gpg
 
 def load_job_config(path):
