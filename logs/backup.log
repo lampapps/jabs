@@ -120,3 +120,200 @@
 2025-05-03 11:10:41,548 - INFO - jabs4-app - Deleted old backup set: jim-imac/jabs4-app/backup_set_20250503_104544/manifest_20250503_104544.html
 2025-05-03 11:10:41,548 - INFO - jabs4-app - Sync and cleanup completed successfully.
 2025-05-03 11:10:41,549 - INFO - Completed backup successfully
+2025-05-03 16:31:49,516 - INFO - Starting FULL backup
+2025-05-03 16:31:49,524 - INFO - jabs4-app - Starting backup job 'jabs4-app' from config: config/jabs.yaml
+2025-05-03 16:31:49,524 - INFO - jabs4-app - Backup type: full, Encrypt: True, Sync: True
+2025-05-03 16:31:49,524 - ERROR - jabs4-app - Passphrase environment variable 'JABS_ENCRYPT_PASSPHRASE' is not set. Backup aborted.
+2025-05-03 16:32:17,891 - INFO - Starting FULL backup
+2025-05-03 16:32:17,898 - INFO - jabs4-app - Starting backup job 'jabs4-app' from config: config/jabs.yaml
+2025-05-03 16:32:17,899 - INFO - jabs4-app - Backup type: full, Encrypt: True, Sync: True
+2025-05-03 16:32:17,899 - INFO - jabs4-app - Starting FULL backup: /home/jim2/jabs4 -> /media/jim2/backupdrive/jabs4/jabs4-app
+2025-05-03 16:32:17,926 - INFO - jabs4-app - Tarball created: /media/jim2/backupdrive/jabs4/jabs4-app/backup_set_20250503_163217/full_part_1_20250503_163217.tar.gz (size: 186309 bytes)
+2025-05-03 16:32:18,316 - INFO - jabs4-app - Encrypted and removed: /media/jim2/backupdrive/jabs4/jabs4-app/backup_set_20250503_163217/full_part_1_20250503_163217.tar.gz
+2025-05-03 16:32:18,316 - INFO - jabs4-app - Writing manifest files...
+2025-05-03 16:32:18,331 - INFO - jabs4-app - JSON Manifest written to: /home/jim2/jabs4/data/manifests/jabs4-app/20250503_163217.json
+2025-05-03 16:32:18,331 - INFO - jabs4-app - HTML Manifest written to: /media/jim2/backupdrive/jabs4/jabs4-app/backup_set_20250503_163217/manifest_20250503_163217.html
+2025-05-03 16:32:18,331 - INFO - jabs4-app - Full backup SUCCESS: 1 tarballs created.
+2025-05-03 16:32:18,332 - INFO - jabs4-app - Deleted old backup set: /media/jim2/backupdrive/jabs4/jabs4-app/backup_set_20250503_104544
+2025-05-03 16:32:18,332 - INFO - jabs4-app - Deleted JSON file: data/manifests/jabs4-app/20250503_104544.json
+2025-05-03 16:32:18,332 - INFO - jabs4-app - Attempting to remove event for backup set ID: 20250503_104544
+2025-05-03 16:32:18,332 - INFO - jabs4-app - Removed event for backup set ID: 20250503_104544 (Event ID: jim-imac/jabs4-app/2025-05-03 10:45:44)
+2025-05-03 16:32:18,332 - INFO - jabs4-app - Removed event for backup set ID: 20250503_104544 (Event ID: jim-imac/jabs4-app/2025-05-03 10:46:09)
+2025-05-03 16:32:18,332 - INFO - Starting sync to S3
+2025-05-03 16:32:18,333 - INFO - jabs4-app - Backup set path: /media/jim2/backupdrive/jabs4/jabs4-app/backup_set_20250503_163217
+2025-05-03 16:32:18,333 - INFO - jabs4-app - Bucket: lampapps-jabs4
+2025-05-03 16:32:18,333 - INFO - jabs4-app - Prefix: jim-imac
+2025-05-03 16:32:18,333 - INFO - jabs4-app - Checking if bucket 'lampapps-jabs4' exists...
+2025-05-03 16:32:19,253 - INFO - jabs4-app - Bucket 'lampapps-jabs4' exists.
+2025-05-03 16:32:19,253 - INFO - jabs4-app - Syncing /media/jim2/backupdrive/jabs4/jabs4-app/backup_set_20250503_163217 to s3://lampapps-jabs4/jim-imac/jabs4-app/backup_set_20250503_163217...
+2025-05-03 16:32:20,512 - INFO - jabs4-app - Sync to AWS S3 completed successfully for backup set: /media/jim2/backupdrive/jabs4/jabs4-app/backup_set_20250503_163217
+2025-05-03 16:32:20,512 - INFO - jabs4-app - Removing older backup sets from S3 under prefix 'jim-imac/jabs4-app'...
+2025-05-03 16:32:22,316 - INFO - jabs4-app - Deleted old backup set: jim-imac/jabs4-app/backup_set_20250503_111035/full_part_1_20250503_111035.tar.gz.gpg
+2025-05-03 16:32:23,195 - INFO - jabs4-app - Deleted old backup set: jim-imac/jabs4-app/backup_set_20250503_111035/manifest_20250503_111035.html
+2025-05-03 16:32:23,195 - INFO - jabs4-app - Sync and cleanup completed successfully.
+2025-05-03 16:32:23,195 - INFO - Completed backup successfully
+2025-05-03 16:39:54,372 - INFO - Starting FULL backup
+2025-05-03 16:39:54,380 - INFO - jabs4-app - Starting backup job 'jabs4-app' from config: /home/jim2/jabs4/config/jabs.yaml
+2025-05-03 16:39:54,380 - INFO - jabs4-app - Backup type: full, Encrypt: False, Sync: False
+2025-05-03 16:39:54,380 - INFO - jabs4-app - Starting FULL backup: /home/jim2/jabs4 -> /media/jim2/backupdrive/jabs4/jabs4-app
+2025-05-03 16:39:54,408 - INFO - jabs4-app - Tarball created: /media/jim2/backupdrive/jabs4/jabs4-app/backup_set_20250503_163954/full_part_1_20250503_163954.tar.gz (size: 186088 bytes)
+2025-05-03 16:39:54,413 - INFO - jabs4-app - Writing manifest files...
+2025-05-03 16:39:54,427 - INFO - jabs4-app - JSON Manifest written to: /home/jim2/jabs4/data/manifests/jabs4-app/20250503_163954.json
+2025-05-03 16:39:54,428 - INFO - jabs4-app - HTML Manifest written to: /media/jim2/backupdrive/jabs4/jabs4-app/backup_set_20250503_163954/manifest_20250503_163954.html
+2025-05-03 16:39:54,428 - INFO - jabs4-app - Full backup SUCCESS: 1 tarballs created.
+2025-05-03 16:39:54,428 - INFO - jabs4-app - Deleted old backup set: /media/jim2/backupdrive/jabs4/jabs4-app/backup_set_20250503_111035
+2025-05-03 16:39:54,428 - INFO - jabs4-app - Deleted JSON file: data/manifests/jabs4-app/20250503_111035.json
+2025-05-03 16:39:54,429 - INFO - jabs4-app - Attempting to remove event for backup set ID: 20250503_111035
+2025-05-03 16:39:54,429 - INFO - jabs4-app - Removed event for backup set ID: 20250503_111035 (Event ID: jim-imac/jabs4-app/2025-05-03 11:10:35)
+2025-05-03 16:39:54,429 - INFO - Completed backup successfully
+2025-05-03 16:41:41,406 - INFO - Starting FULL backup
+2025-05-03 16:41:41,413 - INFO - jabs4-app - Starting backup job 'jabs4-app' from config: /home/jim2/jabs4/config/jabs.yaml
+2025-05-03 16:41:41,413 - INFO - jabs4-app - Backup type: full, Encrypt: True, Sync: False
+2025-05-03 16:41:41,413 - ERROR - jabs4-app - Passphrase environment variable 'JABS_ENCRYPT_PASSPHRASE' is not set. Backup aborted.
+2025-05-03 17:23:16,063 - INFO - Starting FULL backup
+2025-05-03 17:23:16,070 - INFO - jabs4-app - Starting backup job 'jabs4-app' from config: /home/jim2/jabs4/config/jabs.yaml
+2025-05-03 17:23:16,070 - INFO - jabs4-app - Backup type: full, Encrypt: False, Sync: False
+2025-05-03 17:23:16,070 - INFO - jabs4-app - Starting FULL backup: /home/jim2/jabs4 -> /media/jim2/backupdrive/jabs4/jabs4-app
+2025-05-03 17:23:16,100 - INFO - jabs4-app - Tarball created: /media/jim2/backupdrive/jabs4/jabs4-app/backup_set_20250503_172316/full_part_1_20250503_172316.tar.gz (size: 188205 bytes)
+2025-05-03 17:23:16,104 - INFO - jabs4-app - Writing manifest files...
+2025-05-03 17:23:16,121 - INFO - jabs4-app - JSON Manifest written to: /home/jim2/jabs4/data/manifests/jabs4-app/20250503_172316.json
+2025-05-03 17:23:16,121 - INFO - jabs4-app - HTML Manifest written to: /media/jim2/backupdrive/jabs4/jabs4-app/backup_set_20250503_172316/manifest_20250503_172316.html
+2025-05-03 17:23:16,121 - INFO - jabs4-app - Full backup SUCCESS: 1 tarballs created.
+2025-05-03 17:23:16,122 - INFO - jabs4-app - Deleted old backup set: /media/jim2/backupdrive/jabs4/jabs4-app/backup_set_20250503_163217
+2025-05-03 17:23:16,122 - INFO - jabs4-app - Deleted JSON file: data/manifests/jabs4-app/20250503_163217.json
+2025-05-03 17:23:16,122 - INFO - jabs4-app - Attempting to remove event for backup set ID: 20250503_163217
+2025-05-03 17:23:16,122 - INFO - jabs4-app - Removed event for backup set ID: 20250503_163217 (Event ID: jim-imac/jabs4-app/2025-05-03 16:32:17)
+2025-05-03 17:23:16,122 - INFO - Completed backup successfully
+2025-05-03 17:23:41,470 - INFO - Starting FULL backup
+2025-05-03 17:23:41,477 - INFO - jabs4-app - Starting backup job 'jabs4-app' from config: /home/jim2/jabs4/config/jabs.yaml
+2025-05-03 17:23:41,478 - INFO - jabs4-app - Backup type: full, Encrypt: False, Sync: False
+2025-05-03 17:23:41,478 - INFO - jabs4-app - Starting FULL backup: /home/jim2/jabs4 -> /media/jim2/backupdrive/jabs4/jabs4-app
+2025-05-03 17:23:41,507 - INFO - jabs4-app - Tarball created: /media/jim2/backupdrive/jabs4/jabs4-app/backup_set_20250503_172341/full_part_1_20250503_172341.tar.gz (size: 188207 bytes)
+2025-05-03 17:23:41,512 - INFO - jabs4-app - Writing manifest files...
+2025-05-03 17:23:41,527 - INFO - jabs4-app - JSON Manifest written to: /home/jim2/jabs4/data/manifests/jabs4-app/20250503_172341.json
+2025-05-03 17:23:41,528 - INFO - jabs4-app - HTML Manifest written to: /media/jim2/backupdrive/jabs4/jabs4-app/backup_set_20250503_172341/manifest_20250503_172341.html
+2025-05-03 17:23:41,528 - INFO - jabs4-app - Full backup SUCCESS: 1 tarballs created.
+2025-05-03 17:23:41,528 - INFO - jabs4-app - Deleted old backup set: /media/jim2/backupdrive/jabs4/jabs4-app/backup_set_20250503_163954
+2025-05-03 17:23:41,528 - INFO - jabs4-app - Deleted JSON file: data/manifests/jabs4-app/20250503_163954.json
+2025-05-03 17:23:41,529 - INFO - jabs4-app - Attempting to remove event for backup set ID: 20250503_163954
+2025-05-03 17:23:41,529 - INFO - jabs4-app - Removed event for backup set ID: 20250503_163954 (Event ID: jim-imac/jabs4-app/2025-05-03 16:39:54)
+2025-05-03 17:23:41,529 - INFO - Completed backup successfully
+2025-05-03 17:25:55,793 - INFO - Starting DIFF backup
+2025-05-03 17:25:55,800 - INFO - jabs4-app - Starting backup job 'jabs4-app' from config: /home/jim2/jabs4/config/jabs.yaml
+2025-05-03 17:25:55,800 - INFO - jabs4-app - Backup type: diff, Encrypt: False, Sync: False
+2025-05-03 17:25:55,800 - INFO - jabs4-app - Starting DIFF backup: /home/jim2/jabs4 -> /media/jim2/backupdrive/jabs4/jabs4-app
+2025-05-03 17:25:55,808 - INFO - jabs4-app - Tarball created: /media/jim2/backupdrive/jabs4/jabs4-app/backup_set_20250503_172341/diff_part_1_20250503_172555.tar.gz (size: 10158 bytes)
+2025-05-03 17:25:55,808 - INFO - jabs4-app - Writing manifest files...
+2025-05-03 17:25:55,823 - INFO - jabs4-app - JSON Manifest written to: /home/jim2/jabs4/data/manifests/jabs4-app/20250503_172341.json
+2025-05-03 17:25:55,823 - INFO - jabs4-app - HTML Manifest written to: /media/jim2/backupdrive/jabs4/jabs4-app/backup_set_20250503_172341/manifest_20250503_172341.html
+2025-05-03 17:25:55,823 - INFO - jabs4-app - Differential backup SUCCESS: 2 files in 1 tarballs.
+2025-05-03 17:25:55,823 - INFO - Completed backup successfully
+2025-05-03 17:26:10,095 - INFO - Starting DIFF backup
+2025-05-03 17:26:10,103 - INFO - jabs4-app - Starting backup job 'jabs4-app' from config: /home/jim2/jabs4/config/jabs.yaml
+2025-05-03 17:26:10,103 - INFO - jabs4-app - Backup type: diff, Encrypt: False, Sync: False
+2025-05-03 17:26:10,103 - INFO - jabs4-app - Starting DIFF backup: /home/jim2/jabs4 -> /media/jim2/backupdrive/jabs4/jabs4-app
+2025-05-03 17:26:10,112 - INFO - jabs4-app - Tarball created: /media/jim2/backupdrive/jabs4/jabs4-app/backup_set_20250503_172341/diff_part_1_20250503_172610.tar.gz (size: 10988 bytes)
+2025-05-03 17:26:10,112 - INFO - jabs4-app - Writing manifest files...
+2025-05-03 17:26:10,129 - INFO - jabs4-app - JSON Manifest written to: /home/jim2/jabs4/data/manifests/jabs4-app/20250503_172341.json
+2025-05-03 17:26:10,129 - INFO - jabs4-app - HTML Manifest written to: /media/jim2/backupdrive/jabs4/jabs4-app/backup_set_20250503_172341/manifest_20250503_172341.html
+2025-05-03 17:26:10,129 - INFO - jabs4-app - Differential backup SUCCESS: 2 files in 1 tarballs.
+2025-05-03 17:26:10,129 - INFO - Completed backup successfully
+2025-05-03 17:27:51,985 - INFO - Starting FULL backup
+2025-05-03 17:27:51,992 - INFO - jabs4-app - Starting backup job 'jabs4-app' from config: /home/jim2/jabs4/config/jabs.yaml
+2025-05-03 17:27:51,992 - INFO - jabs4-app - Backup type: full, Encrypt: False, Sync: False
+2025-05-03 17:27:51,992 - INFO - jabs4-app - Starting FULL backup: /home/jim2/jabs4 -> /media/jim2/backupdrive/jabs4/jabs4-app
+2025-05-03 17:27:52,024 - INFO - jabs4-app - Tarball created: /media/jim2/backupdrive/jabs4/jabs4-app/backup_set_20250503_172751/full_part_1_20250503_172751.tar.gz (size: 190075 bytes)
+2025-05-03 17:27:52,028 - INFO - jabs4-app - Writing manifest files...
+2025-05-03 17:27:52,044 - INFO - jabs4-app - JSON Manifest written to: /home/jim2/jabs4/data/manifests/jabs4-app/20250503_172751.json
+2025-05-03 17:27:52,044 - INFO - jabs4-app - HTML Manifest written to: /media/jim2/backupdrive/jabs4/jabs4-app/backup_set_20250503_172751/manifest_20250503_172751.html
+2025-05-03 17:27:52,044 - INFO - jabs4-app - Full backup SUCCESS: 1 tarballs created.
+2025-05-03 17:27:52,044 - INFO - jabs4-app - Deleted old backup set: /media/jim2/backupdrive/jabs4/jabs4-app/backup_set_20250503_172316
+2025-05-03 17:27:52,044 - INFO - jabs4-app - Deleted JSON file: data/manifests/jabs4-app/20250503_172316.json
+2025-05-03 17:27:52,045 - INFO - jabs4-app - Attempting to remove event for backup set ID: 20250503_172316
+2025-05-03 17:27:52,045 - INFO - jabs4-app - Removed event for backup set ID: 20250503_172316 (Event ID: jim-imac/jabs4-app/2025-05-03 17:23:16)
+2025-05-03 17:27:52,045 - INFO - Completed backup successfully
+2025-05-03 17:30:58,492 - INFO - Starting FULL backup
+2025-05-03 17:30:58,499 - INFO - jabs4-app - Starting backup job 'jabs4-app' from config: /home/jim2/jabs4/config/jabs.yaml
+2025-05-03 17:30:58,499 - INFO - jabs4-app - Backup type: full, Encrypt: False, Sync: False
+2025-05-03 17:30:58,499 - INFO - jabs4-app - Starting FULL backup: /home/jim2/jabs4 -> /media/jim2/backupdrive/jabs4/jabs4-app
+2025-05-03 17:30:58,528 - INFO - jabs4-app - Tarball created: /media/jim2/backupdrive/jabs4/jabs4-app/backup_set_20250503_173058/full_part_1_20250503_173058.tar.gz (size: 190075 bytes)
+2025-05-03 17:30:58,532 - INFO - jabs4-app - Writing manifest files...
+2025-05-03 17:30:58,547 - INFO - jabs4-app - JSON Manifest written to: /home/jim2/jabs4/data/manifests/jabs4-app/20250503_173058.json
+2025-05-03 17:30:58,547 - INFO - jabs4-app - HTML Manifest written to: /media/jim2/backupdrive/jabs4/jabs4-app/backup_set_20250503_173058/manifest_20250503_173058.html
+2025-05-03 17:30:58,547 - INFO - jabs4-app - Full backup SUCCESS: 1 tarballs created.
+2025-05-03 17:30:58,548 - INFO - jabs4-app - Deleted old backup set: /media/jim2/backupdrive/jabs4/jabs4-app/backup_set_20250503_172341
+2025-05-03 17:30:58,548 - INFO - jabs4-app - Deleted JSON file: data/manifests/jabs4-app/20250503_172341.json
+2025-05-03 17:30:58,548 - INFO - jabs4-app - Attempting to remove event for backup set ID: 20250503_172341
+2025-05-03 17:30:58,548 - INFO - jabs4-app - Removed event for backup set ID: 20250503_172341 (Event ID: jim-imac/jabs4-app/2025-05-03 17:23:41)
+2025-05-03 17:30:58,548 - INFO - jabs4-app - Removed event for backup set ID: 20250503_172341 (Event ID: jim-imac/jabs4-app/2025-05-03 17:25:55)
+2025-05-03 17:30:58,548 - INFO - jabs4-app - Removed event for backup set ID: 20250503_172341 (Event ID: jim-imac/jabs4-app/2025-05-03 17:26:10)
+2025-05-03 17:30:58,549 - INFO - Completed backup successfully
+2025-05-03 17:33:10,780 - INFO - Starting --FULL backup
+2025-05-03 17:33:10,787 - INFO - jabs4-app - Starting backup job 'jabs4-app' from config: /home/jim2/jabs4/config/jabs.yaml
+2025-05-03 17:33:10,787 - INFO - jabs4-app - Backup type: --full, Encrypt: False, Sync: False
+2025-05-03 17:33:10,787 - INFO - jabs4-app - Starting --FULL backup: /home/jim2/jabs4 -> /media/jim2/backupdrive/jabs4/jabs4-app
+2025-05-03 17:33:10,787 - ERROR - jabs4-app - An error occurred during the backup process: Unsupported backup type: --full
+Traceback (most recent call last):
+  File "/home/jim2/jabs4/core/backup.py", line 410, in run_backup
+    raise ValueError(f"Unsupported backup type: {backup_type}")
+ValueError: Unsupported backup type: --full
+2025-05-03 17:33:10,788 - ERROR - Backup failed: Unsupported backup type: --full
+Traceback (most recent call last):
+  File "/home/jim2/jabs4/cli.py", line 75, in run_job
+    latest_backup_set, returned_event_id, backup_set_id_str = run_backup(
+  File "/home/jim2/jabs4/core/backup.py", line 410, in run_backup
+    raise ValueError(f"Unsupported backup type: {backup_type}")
+ValueError: Unsupported backup type: --full
+2025-05-03 17:39:16,215 - INFO - Starting FULL backup
+2025-05-03 17:39:16,223 - INFO - jabs4-app - Starting backup job 'jabs4-app' from config: /home/jim2/jabs4/config/jabs.yaml
+2025-05-03 17:39:16,223 - INFO - jabs4-app - Backup type: full, Encrypt: False, Sync: True
+2025-05-03 17:39:16,223 - INFO - jabs4-app - Starting FULL backup: /home/jim2/jabs4 -> /media/jim2/backupdrive/jabs4/jabs4-app
+2025-05-03 17:39:16,253 - INFO - jabs4-app - Tarball created: /media/jim2/backupdrive/jabs4/jabs4-app/backup_set_20250503_173916/full_part_1_20250503_173916.tar.gz (size: 188675 bytes)
+2025-05-03 17:39:16,257 - INFO - jabs4-app - Writing manifest files...
+2025-05-03 17:39:16,273 - INFO - jabs4-app - JSON Manifest written to: /home/jim2/jabs4/data/manifests/jabs4-app/20250503_173916.json
+2025-05-03 17:39:16,273 - INFO - jabs4-app - HTML Manifest written to: /media/jim2/backupdrive/jabs4/jabs4-app/backup_set_20250503_173916/manifest_20250503_173916.html
+2025-05-03 17:39:16,273 - INFO - jabs4-app - Full backup SUCCESS: 1 tarballs created.
+2025-05-03 17:39:16,274 - INFO - jabs4-app - Deleted old backup set: /media/jim2/backupdrive/jabs4/jabs4-app/backup_set_20250503_172751
+2025-05-03 17:39:16,274 - INFO - jabs4-app - Deleted JSON file: data/manifests/jabs4-app/20250503_172751.json
+2025-05-03 17:39:16,274 - INFO - jabs4-app - Attempting to remove event for backup set ID: 20250503_172751
+2025-05-03 17:39:16,274 - INFO - jabs4-app - Removed event for backup set ID: 20250503_172751 (Event ID: jim-imac/jabs4-app/2025-05-03 17:27:51)
+2025-05-03 17:39:16,274 - INFO - Starting sync to S3
+2025-05-03 17:39:16,356 - INFO - jabs4-app - Backup set path: /media/jim2/backupdrive/jabs4/jabs4-app/backup_set_20250503_173916
+2025-05-03 17:39:16,356 - INFO - jabs4-app - Bucket: lampapps-jabs4
+2025-05-03 17:39:16,356 - INFO - jabs4-app - Prefix: jim-imac
+2025-05-03 17:39:16,356 - INFO - jabs4-app - Checking if bucket 'lampapps-jabs4' exists...
+2025-05-03 17:39:17,307 - INFO - jabs4-app - Bucket 'lampapps-jabs4' exists.
+2025-05-03 17:39:17,307 - INFO - jabs4-app - Syncing /media/jim2/backupdrive/jabs4/jabs4-app/backup_set_20250503_173916 to s3://lampapps-jabs4/jim-imac/jabs4-app/backup_set_20250503_173916...
+2025-05-03 17:39:18,654 - INFO - jabs4-app - Sync to AWS S3 completed successfully for backup set: /media/jim2/backupdrive/jabs4/jabs4-app/backup_set_20250503_173916
+2025-05-03 17:39:18,654 - INFO - jabs4-app - Removing older backup sets from S3 under prefix 'jim-imac/jabs4-app'...
+2025-05-03 17:39:20,510 - INFO - jabs4-app - Deleted old backup set: jim-imac/jabs4-app/backup_set_20250503_163217/full_part_1_20250503_163217.tar.gz.gpg
+2025-05-03 17:39:21,462 - INFO - jabs4-app - Deleted old backup set: jim-imac/jabs4-app/backup_set_20250503_163217/manifest_20250503_163217.html
+2025-05-03 17:39:21,462 - INFO - jabs4-app - Sync and cleanup completed successfully.
+2025-05-03 17:39:21,462 - INFO - Completed backup successfully
+2025-05-03 17:39:55,551 - INFO - Starting FULL backup
+2025-05-03 17:39:55,557 - INFO - jabs4-app - Starting backup job 'jabs4-app' from config: config/jabs.yaml
+2025-05-03 17:39:55,558 - INFO - jabs4-app - Backup type: full, Encrypt: True, Sync: True
+2025-05-03 17:39:55,558 - INFO - jabs4-app - Starting FULL backup: /home/jim2/jabs4 -> /media/jim2/backupdrive/jabs4/jabs4-app
+2025-05-03 17:39:55,585 - INFO - jabs4-app - Tarball created: /media/jim2/backupdrive/jabs4/jabs4-app/backup_set_20250503_173955/full_part_1_20250503_173955.tar.gz (size: 188673 bytes)
+2025-05-03 17:39:55,982 - INFO - jabs4-app - Encrypted and removed: /media/jim2/backupdrive/jabs4/jabs4-app/backup_set_20250503_173955/full_part_1_20250503_173955.tar.gz
+2025-05-03 17:39:55,982 - INFO - jabs4-app - Writing manifest files...
+2025-05-03 17:39:55,997 - INFO - jabs4-app - JSON Manifest written to: /home/jim2/jabs4/data/manifests/jabs4-app/20250503_173955.json
+2025-05-03 17:39:55,997 - INFO - jabs4-app - HTML Manifest written to: /media/jim2/backupdrive/jabs4/jabs4-app/backup_set_20250503_173955/manifest_20250503_173955.html
+2025-05-03 17:39:55,997 - INFO - jabs4-app - Full backup SUCCESS: 1 tarballs created.
+2025-05-03 17:39:55,997 - INFO - jabs4-app - Deleted old backup set: /media/jim2/backupdrive/jabs4/jabs4-app/backup_set_20250503_173058
+2025-05-03 17:39:55,998 - INFO - jabs4-app - Deleted JSON file: data/manifests/jabs4-app/20250503_173058.json
+2025-05-03 17:39:55,998 - INFO - jabs4-app - Attempting to remove event for backup set ID: 20250503_173058
+2025-05-03 17:39:55,998 - INFO - jabs4-app - Removed event for backup set ID: 20250503_173058 (Event ID: jim-imac/jabs4-app/2025-05-03 17:30:58)
+2025-05-03 17:39:55,998 - INFO - Starting sync to S3
+2025-05-03 17:39:55,999 - INFO - jabs4-app - Backup set path: /media/jim2/backupdrive/jabs4/jabs4-app/backup_set_20250503_173955
+2025-05-03 17:39:55,999 - INFO - jabs4-app - Bucket: lampapps-jabs4
+2025-05-03 17:39:55,999 - INFO - jabs4-app - Prefix: jim-imac
+2025-05-03 17:39:55,999 - INFO - jabs4-app - Checking if bucket 'lampapps-jabs4' exists...
+2025-05-03 17:39:56,922 - INFO - jabs4-app - Bucket 'lampapps-jabs4' exists.
+2025-05-03 17:39:56,923 - INFO - jabs4-app - Syncing /media/jim2/backupdrive/jabs4/jabs4-app/backup_set_20250503_173955 to s3://lampapps-jabs4/jim-imac/jabs4-app/backup_set_20250503_173955...
+2025-05-03 17:39:58,169 - INFO - jabs4-app - Sync to AWS S3 completed successfully for backup set: /media/jim2/backupdrive/jabs4/jabs4-app/backup_set_20250503_173955
+2025-05-03 17:39:58,170 - INFO - jabs4-app - Removing older backup sets from S3 under prefix 'jim-imac/jabs4-app'...
+2025-05-03 17:39:59,987 - INFO - jabs4-app - Deleted old backup set: jim-imac/jabs4-app/backup_set_20250503_173916/full_part_1_20250503_173916.tar.gz
+2025-05-03 17:40:00,858 - INFO - jabs4-app - Deleted old backup set: jim-imac/jabs4-app/backup_set_20250503_173916/manifest_20250503_173916.html
+2025-05-03 17:40:00,858 - INFO - jabs4-app - Sync and cleanup completed successfully.
+2025-05-03 17:40:00,858 - INFO - Completed backup successfully

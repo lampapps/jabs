@@ -1,6 +1,7 @@
+# configure the drives and buckets that appear in the dashboard
+
 drives:
-  - "/media/jim2/backupdrive"  # Example drive
-  - "/"  # Root drive
+  - "/media/jim2/backupdrive"
 
 s3_buckets:
   - "lampapps-jabs1"

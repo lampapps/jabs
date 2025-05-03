@@ -1,6 +1,3 @@
-# Configuration file for the JABS3 backup application
-
-# Job-specific settings
 job_name: "jabs4-app"  # The name of the backup job (used for logging and organization)
 source: "/home/jim2/jabs4"  # The source directory to back up
 destination: "/media/jim2/backupdrive/jabs4"  # The destination directory for local backups

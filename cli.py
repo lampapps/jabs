@@ -143,20 +143,15 @@ try:
     def main():
         parser = argparse.ArgumentParser(description="Run a backup job.")
         parser.add_argument("config", help="Path to the YAML config file")
-
         group = parser.add_mutually_exclusive_group(required=True)
         group.add_argument("-f", "--full", action="store_true", help="Run full backup")
         group.add_argument("-d", "--diff", action="store_true", help="Run differential backup")
-
         parser.add_argument("--encrypt", action="store_true", help="Encrypt backup archives (tarballs) after creation")
         parser.add_argument("--sync", action="store_true", help="Sync to cloud (e.g., AWS S3)")
-
         args = parser.parse_args()
 
         # Determine backup type
         backup_type = "full" if args.full else "diff"
-
-        # Run the job
         run_job(args.config, backup_type, encrypt=args.encrypt, sync=args.sync)
 
     if __name__ == "__main__":

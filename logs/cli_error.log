@@ -5,3 +5,12 @@ Traceback (most recent call last):
   File "/home/jim2/jabs4/jobs/backup.py", line 14, in <module>
     from utils.encrypt import encrypt_file_gpg
 ModuleNotFoundError: No module named 'utils'
+2025-05-03 17:33:10,788 - ERROR - Fatal error during initialization or execution: Unsupported backup type: --full
+Traceback (most recent call last):
+  File "/home/jim2/jabs4/cli.py", line 169, in <module>
+    run_job(config_path, backup_type)
+  File "/home/jim2/jabs4/cli.py", line 75, in run_job
+    latest_backup_set, returned_event_id, backup_set_id_str = run_backup(
+  File "/home/jim2/jabs4/core/backup.py", line 410, in run_backup
+    raise ValueError(f"Unsupported backup type: {backup_type}")
+ValueError: Unsupported backup type: --full

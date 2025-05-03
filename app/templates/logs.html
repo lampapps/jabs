@@ -3,32 +3,54 @@
 {% block title %}Logs{% endblock %}
 
 {% block content %}
-    <div class="container-fluid px-4">
-        <h1 class="mt-4">Logs</h1>
-        <div class="mb-3">
-            <!-- Button to trim logs -->
-            <button id="trimLogsButton" class="btn btn-danger">Trim Logs</button>
-        </div>
-        <!-- Jump Links -->
-        <div class="mb-3">
-            <strong>Jump to end of:</strong>
-            {% for name, _ in logs %}
-                <a href="#log-{{ name|replace('.', '-') }}-end" class="btn btn-sm btn-outline-secondary mx-1">{{ name }}</a>
-            {% endfor %}
-        </div>
-        <div class="container-fluid px-4">
-            {% for name, content in logs %}
-                <h3>{{ name }}</h3>
-                <pre class="bg-dark text-light w-auto p-3 border rounded">{{ content }}</pre>
-                <!-- Anchor for jump link -->
-                <span id="log-{{ name|replace('.', '-') }}-end" class="scroll-anchor"></span>
-                <!-- Link back to top -->
-                <div class="text-end mb-3">
-                    <a href="#page-top" class="btn btn-sm btn-outline-secondary">Back to top</a>
-                </div>
-            {% endfor %}
-        </div>
+<div class="container my-5">
+    <h1 class="mb-4">JABS Logs</h1>
+    <div class="mb-3 text-end">
+        <!-- Button to trim logs -->
+        <button id="trimLogsButton" class="btn btn-danger btn-sm">Trim Logs</button>
     </div>
+    <div class="table-responsive">
+        <table class="table table-striped align-middle">
+            <thead>
+                <tr>
+                    <th>Log File</th>
+                    <th>Preview</th>
+                    <th style="width: 120px;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for name, content in logs %}
+                <tr>
+                    <td>{{ name }}</td>
+                    <td>
+                        <pre class="bg-dark text-light p-2 rounded" style="max-height: 120px; min-width: 200px; overflow:auto; font-size: 0.9em; white-space: pre-wrap; word-break: break-all;">{{ content[:1000] }}{% if content|length > 1000 %}...{% endif %}</pre>
+                    </td>
+                    <td>
+                        <!-- View Full Button -->
+                        <button type="button" class="btn btn-info btn-sm mb-1" data-bs-toggle="modal" data-bs-target="#viewLogModal-{{ name|replace('.', '-') }}">
+                            View
+                        </button>
+                    </td>
+                </tr>
+                <!-- View Modal -->
+                <div class="modal fade" id="viewLogModal-{{ name|replace('.', '-') }}" tabindex="-1" aria-labelledby="viewLogModalLabel-{{ name|replace('.', '-') }}" aria-hidden="true">
+                  <div class="modal-dialog modal-fullscreen">
+                    <div class="modal-content">
+                      <div class="modal-header">
+                        <h5 class="modal-title" id="viewLogModalLabel-{{ name|replace('.', '-') }}">View {{ name }}</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                      </div>
+                      <div class="modal-body">
+                        <pre class="bg-dark text-light p-3 rounded" style="height: 80vh; min-width: 100vw; overflow:auto; white-space: pre-wrap; word-break: break-all;">{{ content }}</pre>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -40,12 +62,10 @@
             })
             .then(response => response.json())
             .then(data => {
-                console.log("Trim Logs Response:", data); // Debugging statement
                 alert("Logs have been trimmed successfully!");
-                location.reload(); // Reload the page to reflect changes
+                location.reload();
             })
             .catch(error => {
-                console.error("Error trimming logs:", error);
                 alert("An error occurred while trimming the logs.");
             });
         }

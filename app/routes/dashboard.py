@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, jsonify, request, send_from_directory, abort, redirect, url_for
+from flask import Blueprint, render_template, jsonify, request, send_from_directory, abort, redirect, url_for, flash
 import os
 import glob
 import json
@@ -14,6 +14,7 @@ import time
 import math
 from app.settings import BASE_DIR, CONFIG_DIR, LOG_DIR, MANIFEST_BASE, EVENTS_FILE
 from app.utils.dashboard_helpers import find_config_path_by_job_name, load_config
+import sys
 
 dashboard_bp = Blueprint('dashboard', __name__)
 
@@ -41,8 +42,18 @@ def config():
             file_path = os.path.join(CONFIG_DIR, yaml_file)
             with open(file_path, "r") as f:
                 raw_data = f.read()
-                config_data = yaml.safe_load(raw_data)
-                configs.append({"file_name": yaml_file, "data": config_data, "raw_data": raw_data})
+                try:
+                    config_data = yaml.safe_load(raw_data)
+                except Exception:
+                    config_data = {}
+                configs.append({
+                    "file_name": yaml_file,
+                    "job_name": config_data.get("job_name", yaml_file.replace(".yaml", "")),
+                    "source": config_data.get("source", ""),
+                    "destination": config_data.get("destination", ""),
+                    "data": config_data,
+                    "raw_data": raw_data,
+                })
     return render_template("config.html", configs=configs)
 
 @dashboard_bp.route("/config/edit/<filename>", methods=["GET"])
@@ -71,6 +82,62 @@ def save_config(filename):
     # Save file
     with open(file_path, "w") as f:
         f.write(new_content)
+    return redirect(url_for("dashboard.config"))
+
+@dashboard_bp.route("/config/copy", methods=["POST"])
+def copy_config():
+    source = request.form.get("copy_source")
+    new_filename = request.form.get("new_filename")
+    # Basic validation
+    if not source or not new_filename or "/" in new_filename or ".." in new_filename or not new_filename.endswith(".yaml"):
+        flash("Invalid filename.", "danger")
+        return redirect(url_for("dashboard.config"))
+    src_path = os.path.join(CONFIG_DIR, source)
+    dest_path = os.path.join(CONFIG_DIR, new_filename)
+    if not os.path.exists(src_path):
+        flash("Source file does not exist.", "danger")
+        return redirect(url_for("dashboard.config"))
+    if os.path.exists(dest_path):
+        flash("A file with that name already exists.", "danger")
+        return redirect(url_for("dashboard.config"))
+    # Copy file
+    with open(src_path, "r") as src, open(dest_path, "w") as dst:
+        dst.write(src.read())
+    flash(f"Copied {source} to {new_filename}.", "success")
+    return redirect(url_for("dashboard.edit_config", filename=new_filename))
+
+@dashboard_bp.route("/config/rename/<filename>", methods=["POST"])
+def rename_config(filename):
+    if not filename.endswith(".yaml") or "/" in filename or ".." in filename:
+        flash("Invalid original filename.", "danger")
+        return redirect(url_for("dashboard.config"))
+    new_filename = request.form.get("new_filename")
+    if not new_filename or "/" in new_filename or ".." in new_filename or not new_filename.endswith(".yaml"):
+        flash("Invalid new filename.", "danger")
+        return redirect(url_for("dashboard.config"))
+    src_path = os.path.join(CONFIG_DIR, filename)
+    dest_path = os.path.join(CONFIG_DIR, new_filename)
+    if not os.path.exists(src_path):
+        flash("Original file does not exist.", "danger")
+        return redirect(url_for("dashboard.config"))
+    if os.path.exists(dest_path):
+        flash("A file with that name already exists.", "danger")
+        return redirect(url_for("dashboard.config"))
+    os.rename(src_path, dest_path)
+    flash(f"Renamed {filename} to {new_filename}.", "success")
+    return redirect(url_for("dashboard.config"))
+
+@dashboard_bp.route("/config/delete/<filename>", methods=["POST"])
+def delete_config(filename):
+    if filename in ("drives.yaml", "example.yaml") or "/" in filename or ".." in filename or not filename.endswith(".yaml"):
+        flash("This file cannot be deleted.", "danger")
+        return redirect(url_for("dashboard.config"))
+    file_path = os.path.join(CONFIG_DIR, filename)
+    if not os.path.exists(file_path):
+        flash("File does not exist.", "danger")
+        return redirect(url_for("dashboard.config"))
+    os.remove(file_path)
+    flash(f"Deleted {filename}.", "success")
     return redirect(url_for("dashboard.config"))
 
 @dashboard_bp.route("/api/events")
@@ -316,3 +383,87 @@ def get_scheduler_status():
         "message": message,
         "threshold_seconds": stale_threshold_seconds
     })
+
+@dashboard_bp.route("/jobs")
+def jobs():
+    # Load all configs except drives.yaml and example.yaml
+    configs = []
+    for fname in os.listdir(CONFIG_DIR):
+        if fname.endswith(".yaml") and fname not in ("drives.yaml", "example.yaml"):
+            fpath = os.path.join(CONFIG_DIR, fname)
+            with open(fpath) as f:
+                raw_data = f.read()
+
+            try:
+                import yaml
+                data = yaml.safe_load(raw_data)
+                job_name = data.get("job_name", fname.replace(".yaml", ""))
+                source = data.get("source", "")
+                destination = data.get("destination", "")
+            except Exception:
+                job_name = fname.replace(".yaml", "")
+                source = ""
+                destination = ""
+                data = {}
+            configs.append({
+                "file_name": fname,
+                "job_name": job_name,
+                "source": source,
+                "destination": destination,
+                "data": data,  # <-- This fixes your template error!
+                "raw_data": raw_data,
+            })
+    return render_template("jobs.html", configs=configs)
+
+@dashboard_bp.route("/jobs/run/<filename>", methods=["POST"])
+def run_job(filename):
+    # Validate filename
+    if (
+        not filename.endswith(".yaml")
+        or filename in ("drives.yaml", "example.yaml")
+        or "/" in filename
+        or ".." in filename
+    ):
+        flash("Invalid job file.", "danger")
+        return redirect(url_for("dashboard.jobs"))
+
+    config_path = os.path.join(CONFIG_DIR, filename)
+    if not os.path.exists(config_path):
+        flash("Config file does not exist.", "danger")
+        return redirect(url_for("dashboard.jobs"))
+
+    # Get backup type from form
+    backup_type = request.form.get("backup_type", "full").lower()
+    if backup_type not in ("full", "diff"):
+        flash("Invalid backup type.", "danger")
+        return redirect(url_for("dashboard.jobs"))
+
+    # Get sync from form
+    sync = request.form.get("sync", "0")
+
+    # Path to cli.py
+    cli_path = os.path.join(BASE_DIR, "cli.py")
+
+    # Build argument list
+    args = [sys.executable, cli_path, config_path]
+    if backup_type == "full":
+        args.append("--full")
+    else:
+        args.append("--diff")
+    if sync == "1":
+        args.append("--sync")
+
+    # Call cli.py as a subprocess
+    try:
+        subprocess.Popen(
+            args,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            start_new_session=True,
+            cwd=BASE_DIR
+        )
+        flash(f"{backup_type.capitalize()} backup for {filename} has been started.", "success")
+    except Exception as e:
+        flash(f"Failed to start backup: {e}", "danger")
+
+    return redirect(url_for("dashboard.jobs"))

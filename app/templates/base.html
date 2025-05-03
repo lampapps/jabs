@@ -33,18 +33,10 @@
                 <a class="nav-link {% if request.endpoint == 'dashboard.dashboard' %}active{% endif %}" href="{{ url_for('dashboard.dashboard') }}">Dashboard</a>
               </li>
               <li class="nav-item">
-                <a class="nav-link {% if request.endpoint == 'dashboard.config' %}active{% endif %}" href="{{ url_for('dashboard.config') }}">Config</a>
+                <a class="nav-link {% if request.endpoint == 'dashboard.jobs' %}active{% endif %}" href="{{ url_for('dashboard.jobs') }}">Jobs</a>
               </li>
-              <li class="nav-item dropdown">
-                <a class="nav-link dropdown-toggle {% if request.endpoint == 'cronstatus' %}active{% endif %}" href="#" id="navbarDropdownMenuLink2" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                  Links
-                </a>
-                <ul class="dropdown-menu" aria-labelledby="navbarDropdownMenuLink2">
-                  <li><a class="dropdown-item" href="https://aws.amazon.com/" target="_blank">AWS</a></li>
-                  <li><a class="dropdown-item" href="https://www.backblaze.com/" target="_blank">Back Blaze</a></li>
-                  <li><a class="dropdown-item" href="https://cronitor.io/app/?env=production&time=24h" target="_blank">Cronitor Dashboard</a></li>
-                  <li><a class="dropdown-item {% if request.endpoint == 'dashboard.cronstatus' %}active{% endif %}" href="{{ url_for('dashboard.cronstatus') }}">Cron Status</a></li>
-                </ul>
+              <li class="nav-item">
+                <a class="nav-link {% if request.endpoint == 'dashboard.config' %}active{% endif %}" href="{{ url_for('dashboard.config') }}">Config</a>
               </li>
               <li class="nav-item">
                 <a class="nav-link {% if request.endpoint == 'dashboard.logs' %}active{% endif %}" href="{{ url_for('dashboard.logs') }}">Logs</a>

@@ -1,9 +1,3 @@
-# Copy and rename the file to create a new job.
-# One file per job is required.
-# The configuration file must be in YAML format and follow the structure below.
-# The file should be named according to the job name (e.g., "my_job.yaml").
-
-# Job-specific settings
 job_name: "jim2 home"  # The name of the backup job (used for logging and organization)
 source: "/home/jim2/"  # The source directory to back up
 destination: "/media/jim2/backupdrive/jabs3"  # The destination directory for local backups
