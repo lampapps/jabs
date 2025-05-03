@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 try:
-    from jobs.backup import run_backup
+    from core.backup import run_backup
     # Removed sync_s3 import from here, it's imported conditionally later
 
     def setup_logger(job_name):
@@ -106,7 +106,7 @@ try:
                     status="running"
                 )
                 # Import sync_s3 here to avoid circular dependency issues if sync_s3 imports cli elements
-                from jobs.sync_s3 import sync_to_s3
+                from core.sync_s3 import sync_to_s3
                 # Pass config and event_id to sync_s3.py for potential error finalization within sync
                 sync_to_s3(latest_backup_set, config, returned_event_id)
 

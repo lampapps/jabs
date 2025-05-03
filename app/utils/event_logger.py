@@ -4,7 +4,7 @@ import os
 import socket
 import time
 from datetime import datetime, timedelta
-from app.config import BASE_DIR, CONFIG_DIR, LOG_DIR, MANIFEST_BASE, EVENTS_FILE
+from app.settings import BASE_DIR, CONFIG_DIR, LOG_DIR, MANIFEST_BASE, EVENTS_FILE
 
 def load_events():
     """Load the events from the JSON file."""

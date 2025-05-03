@@ -1,5 +1,5 @@
 from flask import Flask
-from .config import TEMPLATE_DIR, STATIC_DIR
+from .settings import TEMPLATE_DIR, STATIC_DIR
 
 def create_app():
     app = Flask(__name__, template_folder=TEMPLATE_DIR, static_folder=STATIC_DIR)

@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 from app.utils.logger import setup_logger, timestamp, ensure_dir
 from app.utils.manifest import write_manifest_files, MANIFEST_BASE, extract_tar_info
 from app.utils.event_logger import remove_event_by_backup_set_id, update_event, finalize_event
-from utils.encrypt import encrypt_file_gpg
+from app.utils.encrypt import encrypt_file_gpg
 
 def load_job_config(path):
     with open(path) as f:
@@ -211,7 +211,7 @@ def encrypt_tarballs(tarball_paths, config, logger):
     Encrypts each tarball in tarball_paths using GPG and removes the original.
     Returns a list of encrypted tarball paths.
     """
-    from utils.encrypt import encrypt_file_gpg
+    from app.utils.encrypt import encrypt_file_gpg
 
     passphrase_env = (
         config.get("encryption", {}).get("passphrase_env")

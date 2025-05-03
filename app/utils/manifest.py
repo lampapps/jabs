@@ -8,7 +8,7 @@ import glob
 from jinja2 import Template
 from datetime import datetime
 from app.utils.logger import ensure_dir, setup_logger
-from app.config import BASE_DIR, CONFIG_DIR, LOG_DIR, MANIFEST_BASE, EVENTS_FILE
+from app.settings import BASE_DIR, CONFIG_DIR, LOG_DIR, MANIFEST_BASE, EVENTS_FILE
 
 
 def extract_tar_info(tar_path):

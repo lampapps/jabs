@@ -22,7 +22,7 @@ JABS is a Python-based backup utility designed for creating local and cloud (AWS
 ## Installation
 
 1.  **Prerequisites:**
-    *   Python 3.x
+    *   Python 3.7
     *   pip (Python package installer)
     *   `awscli` (AWS Command Line Interface) configured, if using S3 sync.
     *   `gpg` (GNU Privacy Guard) for encryption/decryption (optional, but required for encrypted backups).
@@ -220,9 +220,7 @@ jabs3/
 │   ├── dashboard/
 │   │   └── events.json # List of backup events for the dashboard
 │   └── manifests/      # JSON manifests for backup sets (organized by job)
-├── jobs/               # Core backup and sync logic
-│   ├── backup.py       # Core logic to run backups
-│   └── sync_s3.py      # Core logic to sync to AWS S3
+├── core/               # Core backup and sync logic
 ├── logs/               # Log files
 │   ├── backup.log
 │   ├── scheduler.log

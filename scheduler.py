@@ -3,20 +3,14 @@ import glob
 import yaml
 import subprocess
 import fcntl  # For file locking (Unix-specific)
-import sys
 import errno
 from datetime import datetime, timedelta
 from croniter import croniter
 from app.utils.logger import setup_logger
-import time  # Add time import
+import time
+from app.settings import BASE_DIR, CONFIG_DIR, LOCK_DIR, LOG_DIR, CLI_SCRIPT, PYTHON_EXECUTABLE
 
 # --- Constants ---
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-CONFIG_DIR = os.path.join(BASE_DIR, "config")
-LOCK_DIR = os.path.join(BASE_DIR, "locks")
-LOG_DIR = os.path.join(BASE_DIR, "logs")
-CLI_SCRIPT = os.path.join(BASE_DIR, "cli.py")
-PYTHON_EXECUTABLE = sys.executable or "python3" # Use the same python or default to python3
 # How far back to check for missed schedules (e.g., if cron runs every minute)
 SCHEDULE_TOLERANCE = timedelta(seconds=15)
 # Maximum number of lines to keep in the scheduler log file
