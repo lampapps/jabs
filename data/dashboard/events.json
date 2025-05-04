@@ -40,30 +40,95 @@
             "backup_set_id": null
         },
         {
-            "id": "jim-imac/jabs4-app/2025-05-03 17:39:16",
-            "starttimestamp": "2025-05-03 17:39:16",
+            "id": "jim-imac/jabs4-app/2025-05-03 22:42:55",
+            "starttimestamp": "2025-05-03 22:42:55",
             "hostname": "jim-imac",
             "job_name": "jabs4-app",
-            "event": "Backup Set ID: 20250503_173916",
+            "event": "Backup Set ID: 20250503_224255",
+            "backup_type": "full",
+            "encrypt": "false",
+            "sync": "false",
+            "status": "success",
+            "runtime": "00:00:00",
+            "backup_set_id": "20250503_224255"
+        },
+        {
+            "id": "jim-imac/jabs4-app/2025-05-03 22:44:03",
+            "starttimestamp": "2025-05-03 22:44:03",
+            "hostname": "jim-imac",
+            "job_name": "jabs4-app",
+            "event": "Backup Set ID: 20250503_224403",
             "backup_type": "full",
             "encrypt": "false",
             "sync": "true",
             "status": "success",
             "runtime": "00:00:05",
-            "backup_set_id": "20250503_173916"
+            "backup_set_id": "20250503_224403"
         },
         {
-            "id": "jim-imac/jabs4-app/2025-05-03 17:39:55",
-            "starttimestamp": "2025-05-03 17:39:55",
+            "id": "jim-imac/jim2 home/2025-05-03 22:48:09",
+            "starttimestamp": "2025-05-03 22:48:09",
             "hostname": "jim-imac",
-            "job_name": "jabs4-app",
-            "event": "Backup Set ID: 20250503_173955",
+            "job_name": "jim2 home",
+            "event": "Backup Set ID: 20250503_224809",
+            "backup_type": "full",
+            "encrypt": "false",
+            "sync": "false",
+            "status": "success",
+            "runtime": "00:07:56",
+            "backup_set_id": "20250503_224809"
+        },
+        {
+            "id": "jim-imac/jim2 home/2025-05-03 22:50:21",
+            "starttimestamp": "2025-05-03 22:50:21",
+            "hostname": "jim-imac",
+            "job_name": "jim2 home",
+            "event": "Backup Set ID: 20250502_000002",
+            "backup_type": "diff",
+            "encrypt": "false",
+            "sync": "false",
+            "status": "success",
+            "runtime": "00:00:09",
+            "backup_set_id": "20250502_000002"
+        },
+        {
+            "id": "jim-imac/jim2 home/2025-05-03 22:56:10",
+            "starttimestamp": "2025-05-03 22:56:10",
+            "hostname": "jim-imac",
+            "job_name": "jim2 home",
+            "event": "Backup Set ID: 20250503_225610",
+            "backup_type": "full",
+            "encrypt": "false",
+            "sync": "false",
+            "status": "success",
+            "runtime": "00:20:07",
+            "backup_set_id": "20250503_225610"
+        },
+        {
+            "id": "jim-imac/jim2 home/2025-05-03 22:57:24",
+            "starttimestamp": "2025-05-03 22:57:24",
+            "hostname": "jim-imac",
+            "job_name": "jim2 home",
+            "event": "Backup Set ID: 20250503_225724",
+            "backup_type": "full",
+            "encrypt": "false",
+            "sync": "false",
+            "status": "success",
+            "runtime": "00:19:00",
+            "backup_set_id": "20250503_225724"
+        },
+        {
+            "id": "jim-imac/My Documents/2025-05-04 06:51:37",
+            "starttimestamp": "2025-05-04 06:51:37",
+            "hostname": "jim-imac",
+            "job_name": "My Documents",
+            "event": "Passphrase environment variable 'JABS_ENCRYPT_PASSPHRASE' is not set. Backup aborted.",
             "backup_type": "full",
             "encrypt": "true",
-            "sync": "true",
-            "status": "success",
-            "runtime": "00:00:05",
-            "backup_set_id": "20250503_173955"
+            "sync": "false",
+            "status": "error",
+            "runtime": "00:00:00",
+            "backup_set_id": null
         }
     ]
 }

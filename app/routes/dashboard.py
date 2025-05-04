@@ -15,6 +15,8 @@ import math
 from app.settings import BASE_DIR, CONFIG_DIR, LOG_DIR, MANIFEST_BASE, EVENTS_FILE
 from app.utils.dashboard_helpers import find_config_path_by_job_name, load_config
 import sys
+import markdown
+from markupsafe import Markup
 
 dashboard_bp = Blueprint('dashboard', __name__)
 
@@ -66,7 +68,8 @@ def edit_config(filename):
         abort(404, "Config file not found")
     with open(file_path) as f:
         content = f.read()
-    return render_template("edit_config.html", filename=filename, content=content)
+    next_url = request.args.get("next", url_for("dashboard.config"))
+    return render_template("edit_config.html", filename=filename, content=content, next_url=next_url)
 
 @dashboard_bp.route("/config/save/<filename>", methods=["POST"])
 def save_config(filename):
@@ -82,7 +85,8 @@ def save_config(filename):
     # Save file
     with open(file_path, "w") as f:
         f.write(new_content)
-    return redirect(url_for("dashboard.config"))
+    next_url = request.form.get("next") or url_for("dashboard.config")
+    return redirect(next_url)
 
 @dashboard_bp.route("/config/copy", methods=["POST"])
 def copy_config():
@@ -466,4 +470,15 @@ def run_job(filename):
     except Exception as e:
         flash(f"Failed to start backup: {e}", "danger")
 
-    return redirect(url_for("dashboard.jobs"))
+    return redirect(url_for("dashboard.dashboard"))
+
+@dashboard_bp.route("/help")
+def help():
+    readme_path = os.path.join(BASE_DIR, "README.md")
+    if not os.path.exists(readme_path):
+        content = "<p>README.md not found.</p>"
+    else:
+        with open(readme_path, "r") as f:
+            md_content = f.read()
+        content = Markup(markdown.markdown(md_content, extensions=["fenced_code", "tables"]))
+    return render_template("help.html", content=content)

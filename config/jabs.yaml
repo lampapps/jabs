@@ -20,25 +20,16 @@ exclude:
   - "*.bak"  # Exclude backup files (e.g., file.bak)
   - "*.swp"  # Exclude swap files (e.g., Vim swap files)
   - "*.lock"  # Exclude lock files (e.g., file.lock)
-  
-  # Directory-specific exclusions
   - "cache/"  # Exclude cache directories
   - "node_modules/"  # Exclude Node.js dependencies
   - "venv/"  # Exclude Python virtual environments
   - "build/"  # Exclude build directories (e.g., for compiled code)
-  
-  # Hidden files and directories
   - ".*"  # Exclude all hidden files and directories (e.g., .git, .env)
   - ".DS_Store"  # Exclude macOS-specific metadata files
-  
-  # File types
   - "*.log"  # Exclude log files
   - "*.iso"  # Exclude ISO disk images
   - "*.tar.gz"  # Exclude tarball archives
   - "*.tar"
-  
-  # Specific files or directories
-  - "README.md"  # Exclude a specific file
   - "docs/"  # Exclude a specific directory
   
   # Advanced patterns

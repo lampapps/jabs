@@ -41,8 +41,10 @@
               <li class="nav-item">
                 <a class="nav-link {% if request.endpoint == 'dashboard.logs' %}active{% endif %}" href="{{ url_for('dashboard.logs') }}">Logs</a>
               </li>
+              <li class="nav-item">
+                <a class="nav-link {% if request.endpoint == 'dashboard.help' %}active{% endif %}" href="{{ url_for('dashboard.help') }}">Help</a>
+              </li>
             </ul>
-
             <!-- Theme switcher: mobile only -->
             <ul class="navbar-nav d-md-none w-100 text-center mt-3">
                 <li class="nav-item dropdown">

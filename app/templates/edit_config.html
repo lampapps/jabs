@@ -7,11 +7,12 @@
         <div class="alert alert-danger">{{ error }}</div>
     {% endif %}
     <form method="post" action="{{ url_for('dashboard.save_config', filename=filename) }}">
+        <input type="hidden" name="next" value="{{ next_url }}">
         <div id="editor" style="height: 700px; width: 100%;">{{ content }}</div>
         <div id="yaml-error" class="text-danger mt-2"></div>
         <textarea name="content" id="content" style="display:none;"></textarea>
         <button type="submit" class="btn btn-primary mt-3">Save</button>
-        <a href="{{ url_for('dashboard.config') }}" class="btn btn-secondary mt-3">Cancel</a>
+        <a href="{{ next_url }}" class="btn btn-secondary mt-3">Cancel</a>
     </form>
 </div>
 {% endblock %}

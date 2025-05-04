@@ -2,6 +2,7 @@
 
 drives:
   - "/media/jim2/backupdrive"
+  - "/"
 
 s3_buckets:
   - "lampapps-jabs1"

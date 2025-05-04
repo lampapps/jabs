@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block title %}Help{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <div class="row pb-0">
+        <div class="col-md-12">
+            <h1 class="mt-4">Help & Documentation</h1>
+            <ol class="breadcrumb mb-4">
+                <li class="breadcrumb-item active">README.md</li>
+            </ol>
+        </div>
+    </div>
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="markdown-body">
+                {{ content|safe }}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.8.1/github-markdown-dark.min.css">
+<style>
+.markdown-body {
+    box-sizing: border-box;
+    min-width: 200px;
+    max-width: 100%;
+    margin: 0 auto;
+    padding: 20px;
+    background-color: #212429;
+}
+</style>
+{% endblock %}
