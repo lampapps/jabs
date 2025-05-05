@@ -1,7 +1,7 @@
 {
   "job_name": "jabs4-app",
-  "backup_set_id": "20250503_224255",
-  "timestamp": "2025-05-03T22:42:55.564094",
+  "backup_set_id": "20250504_202925",
+  "timestamp": "2025-05-04T20:29:25.737837",
   "config": {
     "job_name": "jabs4-app",
     "source": "/home/jim2/jabs4",
@@ -65,241 +65,259 @@
   },
   "files": [
     {
-      "tarball": "full_part_1_20250503_224255",
+      "tarball": "full_part_1_20250504_202925",
       "path": "LICENSE.txt",
       "size": "1.0KiB",
       "modified": "2025-04-29 22:20:15"
     },
     {
-      "tarball": "full_part_1_20250503_224255",
+      "tarball": "full_part_1_20250504_202925",
       "path": "scheduler.py",
       "size": "10.6KiB",
       "modified": "2025-05-03 10:44:52"
     },
     {
-      "tarball": "full_part_1_20250503_224255",
+      "tarball": "full_part_1_20250504_202925",
       "path": "cli.py",
       "size": "7.0KiB",
       "modified": "2025-05-03 17:37:54"
     },
     {
-      "tarball": "full_part_1_20250503_224255",
+      "tarball": "full_part_1_20250504_202925",
       "path": "README.md",
       "size": "11.5KiB",
       "modified": "2025-05-03 11:31:46"
     },
     {
-      "tarball": "full_part_1_20250503_224255",
+      "tarball": "full_part_1_20250504_202925",
       "path": "requirements.txt",
       "size": "37.0B",
       "modified": "2025-05-03 18:42:35"
     },
     {
-      "tarball": "full_part_1_20250503_224255",
+      "tarball": "full_part_1_20250504_202925",
       "path": "run.py",
       "size": "296.0B",
       "modified": "2025-05-03 22:32:07"
     },
     {
-      "tarball": "full_part_1_20250503_224255",
+      "tarball": "full_part_1_20250504_202925",
       "path": "app/settings.py",
       "size": "629.0B",
       "modified": "2025-05-03 10:26:53"
     },
     {
-      "tarball": "full_part_1_20250503_224255",
+      "tarball": "full_part_1_20250504_202925",
       "path": "app/__init__.py",
       "size": "357.0B",
       "modified": "2025-05-03 14:59:22"
     },
     {
-      "tarball": "full_part_1_20250503_224255",
+      "tarball": "full_part_1_20250504_202925",
       "path": "app/templates/base.html",
-      "size": "8.4KiB",
-      "modified": "2025-05-03 20:58:34"
+      "size": "9.0KiB",
+      "modified": "2025-05-04 20:21:03"
     },
     {
-      "tarball": "full_part_1_20250503_224255",
+      "tarball": "full_part_1_20250504_202925",
       "path": "app/templates/logs.html",
       "size": "4.4KiB",
       "modified": "2025-05-03 18:26:46"
     },
     {
-      "tarball": "full_part_1_20250503_224255",
+      "tarball": "full_part_1_20250504_202925",
       "path": "app/templates/manifest.html",
       "size": "5.3KiB",
       "modified": "2025-04-29 14:33:56"
     },
     {
-      "tarball": "full_part_1_20250503_224255",
+      "tarball": "full_part_1_20250504_202925",
       "path": "app/templates/help.html",
       "size": "924.0B",
       "modified": "2025-05-03 20:10:28"
     },
     {
-      "tarball": "full_part_1_20250503_224255",
+      "tarball": "full_part_1_20250504_202925",
       "path": "app/templates/cronstatus.html",
       "size": "302.0B",
       "modified": "2025-04-20 14:52:23"
     },
     {
-      "tarball": "full_part_1_20250503_224255",
+      "tarball": "full_part_1_20250504_202925",
       "path": "app/templates/index.html",
       "size": "3.1KiB",
       "modified": "2025-05-02 18:49:30"
     },
     {
-      "tarball": "full_part_1_20250503_224255",
+      "tarball": "full_part_1_20250504_202925",
       "path": "app/templates/jobs.html",
       "size": "6.7KiB",
       "modified": "2025-05-03 18:13:48"
     },
     {
-      "tarball": "full_part_1_20250503_224255",
+      "tarball": "full_part_1_20250504_202925",
       "path": "app/templates/config.html",
       "size": "10.3KiB",
       "modified": "2025-05-03 18:24:04"
     },
     {
-      "tarball": "full_part_1_20250503_224255",
+      "tarball": "full_part_1_20250504_202925",
       "path": "app/templates/manifest_archived.html",
       "size": "6.2KiB",
       "modified": "2025-04-29 22:48:20"
     },
     {
-      "tarball": "full_part_1_20250503_224255",
+      "tarball": "full_part_1_20250504_202925",
       "path": "app/templates/edit_config.html",
       "size": "1.7KiB",
       "modified": "2025-05-03 20:22:26"
     },
     {
-      "tarball": "full_part_1_20250503_224255",
+      "tarball": "full_part_1_20250504_202925",
       "path": "app/static/css/custom.css",
       "size": "2.5KiB",
       "modified": "2025-05-03 18:37:35"
     },
     {
-      "tarball": "full_part_1_20250503_224255",
+      "tarball": "full_part_1_20250504_202925",
       "path": "app/static/js/global.js",
       "size": "3.5KiB",
       "modified": "2025-04-28 10:03:35"
     },
     {
-      "tarball": "full_part_1_20250503_224255",
+      "tarball": "full_part_1_20250504_202925",
       "path": "app/static/js/dashboard.js",
       "size": "16.2KiB",
       "modified": "2025-04-28 09:55:47"
     },
     {
-      "tarball": "full_part_1_20250503_224255",
+      "tarball": "full_part_1_20250504_202925",
       "path": "app/routes/__init__.py",
       "size": "0.0B",
       "modified": "2025-05-02 18:30:09"
     },
     {
-      "tarball": "full_part_1_20250503_224255",
+      "tarball": "full_part_1_20250504_202925",
       "path": "app/routes/dashboard.py",
-      "size": "20.1KiB",
-      "modified": "2025-05-03 20:58:15"
+      "size": "21.0KiB",
+      "modified": "2025-05-04 20:28:42"
     },
     {
-      "tarball": "full_part_1_20250503_224255",
+      "tarball": "full_part_1_20250504_202925",
       "path": "app/utils/logger.py",
       "size": "1.5KiB",
       "modified": "2025-05-02 18:44:49"
     },
     {
-      "tarball": "full_part_1_20250503_224255",
+      "tarball": "full_part_1_20250504_202925",
       "path": "app/utils/event_logger.py",
       "size": "6.1KiB",
       "modified": "2025-05-03 10:44:50"
     },
     {
-      "tarball": "full_part_1_20250503_224255",
+      "tarball": "full_part_1_20250504_202925",
       "path": "app/utils/encrypt.py",
       "size": "944.0B",
       "modified": "2025-05-02 18:44:42"
     },
     {
-      "tarball": "full_part_1_20250503_224255",
+      "tarball": "full_part_1_20250504_202925",
       "path": "app/utils/__init__.py",
       "size": "0.0B",
       "modified": "2025-05-02 18:31:11"
     },
     {
-      "tarball": "full_part_1_20250503_224255",
+      "tarball": "full_part_1_20250504_202925",
       "path": "app/utils/dashboard_helpers.py",
       "size": "1.3KiB",
       "modified": "2025-05-03 11:00:46"
     },
     {
-      "tarball": "full_part_1_20250503_224255",
+      "tarball": "full_part_1_20250504_202925",
       "path": "app/utils/manifest.py",
       "size": "10.3KiB",
       "modified": "2025-05-03 10:44:38"
     },
     {
-      "tarball": "full_part_1_20250503_224255",
-      "path": "data/manifests/jabs4-app/20250503_203234.json",
-      "size": "8.0KiB",
-      "modified": "2025-05-03 20:33:08"
+      "tarball": "full_part_1_20250504_202925",
+      "path": "data/manifests/jabs4-app/20250504_202414.json",
+      "size": "8.3KiB",
+      "modified": "2025-05-04 20:24:15"
     },
     {
-      "tarball": "full_part_1_20250503_224255",
-      "path": "data/manifests/jabs4-app/20250503_180906.json",
-      "size": "7.5KiB",
-      "modified": "2025-05-03 18:09:06"
+      "tarball": "full_part_1_20250504_202925",
+      "path": "data/manifests/jabs4-app/20250504_200042.json",
+      "size": "8.5KiB",
+      "modified": "2025-05-04 20:00:43"
     },
     {
-      "tarball": "full_part_1_20250503_224255",
+      "tarball": "full_part_1_20250504_202925",
+      "path": "data/manifests/jim2_home/20250504_200150.json",
+      "size": "3.2MiB",
+      "modified": "2025-05-04 20:10:35"
+    },
+    {
+      "tarball": "full_part_1_20250504_202925",
+      "path": "data/manifests/jim2_home/20250503_225724.json",
+      "size": "3.2MiB",
+      "modified": "2025-05-03 23:16:25"
+    },
+    {
+      "tarball": "full_part_1_20250504_202925",
+      "path": "data/manifests/jim2_home/20250503_225610.json",
+      "size": "3.2MiB",
+      "modified": "2025-05-03 23:16:17"
+    },
+    {
+      "tarball": "full_part_1_20250504_202925",
       "path": "data/dashboard/events.json",
-      "size": "3.4KiB",
-      "modified": "2025-05-03 22:42:55"
+      "size": "6.3KiB",
+      "modified": "2025-05-04 20:29:25"
     },
     {
-      "tarball": "full_part_1_20250503_224255",
+      "tarball": "full_part_1_20250504_202925",
       "path": "config/drives.yaml",
-      "size": "234.0B",
-      "modified": "2025-05-03 15:28:00"
+      "size": "243.0B",
+      "modified": "2025-05-04 11:09:25"
     },
     {
-      "tarball": "full_part_1_20250503_224255",
+      "tarball": "full_part_1_20250504_202925",
       "path": "config/jabs.yaml",
       "size": "5.5KiB",
       "modified": "2025-05-03 20:38:01"
     },
     {
-      "tarball": "full_part_1_20250503_224255",
+      "tarball": "full_part_1_20250504_202925",
       "path": "config/example_min.yaml",
       "size": "2.8KiB",
       "modified": "2025-05-03 15:31:11"
     },
     {
-      "tarball": "full_part_1_20250503_224255",
+      "tarball": "full_part_1_20250504_202925",
       "path": "config/jim2.yaml",
       "size": "5.4KiB",
-      "modified": "2025-05-03 15:30:11"
+      "modified": "2025-05-03 22:47:33"
     },
     {
-      "tarball": "full_part_1_20250503_224255",
+      "tarball": "full_part_1_20250504_202925",
       "path": "config/example.yaml",
       "size": "6.1KiB",
       "modified": "2025-05-03 15:28:31"
     },
     {
-      "tarball": "full_part_1_20250503_224255",
+      "tarball": "full_part_1_20250504_202925",
       "path": "logs/scheduler.status",
       "size": "18.0B",
       "modified": "2025-05-03 10:45:38"
     },
     {
-      "tarball": "full_part_1_20250503_224255",
+      "tarball": "full_part_1_20250504_202925",
       "path": "core/backup.py",
-      "size": "16.7KiB",
-      "modified": "2025-05-03 10:14:07"
+      "size": "17.7KiB",
+      "modified": "2025-05-04 19:58:21"
     },
     {
-      "tarball": "full_part_1_20250503_224255",
+      "tarball": "full_part_1_20250504_202925",
       "path": "core/sync_s3.py",
       "size": "5.2KiB",
       "modified": "2025-05-02 18:44:52"

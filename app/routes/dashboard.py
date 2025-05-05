@@ -12,13 +12,31 @@ import traceback
 import re
 import time
 import math
-from app.settings import BASE_DIR, CONFIG_DIR, LOG_DIR, MANIFEST_BASE, EVENTS_FILE
+from app.settings import BASE_DIR, CONFIG_DIR, LOG_DIR, MANIFEST_BASE, EVENTS_FILE, LOCK_DIR
 from app.utils.dashboard_helpers import find_config_path_by_job_name, load_config
 import sys
 import markdown
 from markupsafe import Markup
+import fcntl
 
 dashboard_bp = Blueprint('dashboard', __name__)
+
+def is_job_locked(lock_path):
+    try:
+        lock_file = open(lock_path, 'a+')
+        try:
+            fcntl.flock(lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            # Lock acquired, so job is NOT running
+            fcntl.flock(lock_file, fcntl.LOCK_UN)
+            lock_file.close()
+            return False
+        except BlockingIOError:
+            # Lock is held by another process
+            lock_file.close()
+            return True
+    except Exception:
+        # If we can't open the file, assume locked
+        return True
 
 # --- Routes ---
 @dashboard_bp.route("/")
@@ -434,6 +452,14 @@ def run_job(filename):
     config_path = os.path.join(CONFIG_DIR, filename)
     if not os.path.exists(config_path):
         flash("Config file does not exist.", "danger")
+        return redirect(url_for("dashboard.jobs"))
+
+    with open(config_path) as f:
+        config = yaml.safe_load(f)
+    job_name = config.get("job_name", filename.replace(".yaml", ""))
+    lock_path = os.path.join(LOCK_DIR, f"{job_name}.lock")
+    if os.path.exists(lock_path) and is_job_locked(lock_path):
+        flash(f"Backup already running for job '{job_name}'.", "warning")
         return redirect(url_for("dashboard.jobs"))
 
     # Get backup type from form

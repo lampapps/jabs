@@ -1,4 +1,4 @@
-# /jobs/backup.py
+# /core/backup.py
 import os
 import time
 import fnmatch
@@ -7,11 +7,13 @@ import yaml
 import glob
 import shutil
 import json
+import fcntl
 from datetime import datetime, timedelta
 from app.utils.logger import setup_logger, timestamp, ensure_dir
 from app.utils.manifest import write_manifest_files, MANIFEST_BASE, extract_tar_info
 from app.utils.event_logger import remove_event_by_backup_set_id, update_event, finalize_event
 from app.utils.encrypt import encrypt_file_gpg
+from app.settings import LOCK_DIR
 
 def load_job_config(path):
     with open(path) as f:
@@ -57,6 +59,22 @@ def is_excluded(path, exclude_patterns, src_base):
                 return True
 
     return False
+
+def acquire_lock(lock_path):
+    lock_file = open(lock_path, 'w')
+    try:
+        fcntl.flock(lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        return lock_file
+    except BlockingIOError:
+        lock_file.close()
+        return None
+
+def release_lock(lock_file):
+    try:
+        fcntl.flock(lock_file, fcntl.LOCK_UN)
+        lock_file.close()
+    except Exception:
+        pass
 
 def create_tar_archives(src, dest_tar_dir, exclude_patterns, max_tarball_size_mb, logger, backup_type, config):
     """
@@ -274,6 +292,20 @@ def run_backup(job_config_path, backup_type, encrypt=False, sync=False, event_id
             )
             return None, event_id, None
 
+    # --- ACQUIRE LOCK ---
+    os.makedirs(LOCK_DIR, exist_ok=True)
+    lock_path = os.path.join(LOCK_DIR, f"{job_name}.lock")
+    lock_file = acquire_lock(lock_path)
+    if not lock_file:
+        logger.error(f"Backup already running for job '{job_name}'. Exiting.")
+        finalize_event(
+            event_id=event_id,
+            status="skipped",
+            event=f"Backup already running for job '{job_name}'.",
+            backup_set_id=None
+        )
+        return None, event_id, None
+
     backup_set_id_string = None
     latest_backup_set_path = None
 
@@ -422,4 +454,6 @@ def run_backup(job_config_path, backup_type, encrypt=False, sync=False, event_id
             backup_set_id=None
         )
         raise
+    finally:
+        release_lock(lock_file)
 
