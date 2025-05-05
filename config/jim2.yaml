@@ -13,6 +13,7 @@ encryption:
   method: gpg            # Only 'gpg' supported for now
   passphrase_env: JABS_ENCRYPT_PASSPHRASE  # Name of env var holding passphrase
 
+
 # Exclusion rules
 exclude:
   # General patterns
