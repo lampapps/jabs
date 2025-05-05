@@ -1,0 +1,23 @@
+.flask_secret_key
+notes.md
+__pycache__/
+*.pyc
+venv/
+.vscode
+
+# Ignore all files in config/
+config/*
+
+# But keep these two specific files
+!config/drives.yaml
+!config/example.yaml
+!config/example_min.yaml
+
+/data/*
+!/data/.gitkeep
+
+/logs/*
+!/logs/.gitkeep
+
+/locks/*
+!.locks/.gitkeep

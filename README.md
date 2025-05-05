@@ -1,4 +1,4 @@
-# JABS - Just Another Backup Script (v3)
+# JABS - Just Another Backup Script
 
 JABS is a Python-based backup utility designed for creating local and cloud (AWS S3) backups with scheduling capabilities and a web-based monitoring dashboard.
 
