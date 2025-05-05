@@ -8,6 +8,6 @@ s3_buckets:
   - "lampapps-jabs1"
   - "lampapps-jabs2"
   - "lampapps-jabs3"
-  - "lampapps-jabs4"
+  - "lampapps-jabs_dev"
   - "lampapps-backup"
  
