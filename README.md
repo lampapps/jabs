@@ -253,20 +253,74 @@ jabs4/
 ├── scheduler.py
 
 
-# Structure of a local destination folder (for each backup job)
+# Structure of a local destination folder
 (destination_path)/
-└── (job_name)/
-    ├── backup_set_YYYYMMDD_HHMMSS/
-    │   ├── full_part_1_YYYYMMDD_HHMMSS.tar.gz
-    │   ├── full_part_2_YYYYMMDD_HHMMSS.tar.gz
-    │   ├── ... (other tarballs)
-    │   └── manifest_YYYYMMDD_HHMMSS.html
-    ├── last_full.txt
-    └── ... (other backup_set_*/ folders)
+    ├──(machine_name)/
+    |   ├── (job_name)/
+    |   |    ├── backup_set_YYYYMMDD_HHMMSS/
+    |   |    │   ├── full_part_1_YYYYMMDD_HHMMSS.tar.gz
+    |   |    │   ├── full_part_2_YYYYMMDD_HHMMSS.tar.gz
+    |   |    │   ├── ... (other tarballs)
+    |   |    │   └── manifest_YYYYMMDD_HHMMSS.html
+    |   |    ├── backup_set_YYYYMMDD_HHMMSS/
+    |   |    │   ├── full_part_1_YYYYMMDD_HHMMSS.tar.gz
+    |   |    │   ├── full_part_2_YYYYMMDD_HHMMSS.tar.gz
+    |   |    │   ├── ... (other tarballs)
+    |   |    │   └── manifest_YYYYMMDD_HHMMSS.html
+    |   |    ├── ... (other backup_sets)
+    |   |    └── last_full.txt
+    |   ├── (job_name)/
+    |   |    ├── backup_set_YYYYMMDD_HHMMSS/
+    |   |    │   ├── full_part_1_YYYYMMDD_HHMMSS.tar.gz
+    |   |    │   ├── full_part_2_YYYYMMDD_HHMMSS.tar.gz
+    |   |    │   ├── ... (other tarballs)
+    |   |    │   └── manifest_YYYYMMDD_HHMMSS.html
+    |   |    ├── backup_set_YYYYMMDD_HHMMSS/
+    |   |    │   ├── full_part_1_YYYYMMDD_HHMMSS.tar.gz
+    |   |    │   ├── full_part_2_YYYYMMDD_HHMMSS.tar.gz
+    |   |    │   ├── ... (other tarballs)
+    |   |    │   └── manifest_YYYYMMDD_HHMMSS.html
+    |   |    ├── ... (other backup_sets)
+    |   |    └── last_full.txt
+    |   └── ... (other jobs on same machine_name)
+    ├──(machine_name)/
+    |   ├── (job_name)/
+    |   |    ├── backup_set_YYYYMMDD_HHMMSS/
+    |   |    │   ├── full_part_1_YYYYMMDD_HHMMSS.tar.gz
+    |   |    │   ├── full_part_2_YYYYMMDD_HHMMSS.tar.gz
+    |   |    │   ├── ... (other tarballs)
+    |   |    │   └── manifest_YYYYMMDD_HHMMSS.html
+    |   |    └── ...
+    |   └── ...
+    └── ...
 
+# Structure of S3 Destination - Only latest set to sync'd to S3
+s3://<bucket>/
+    ├──(machine_name)/
+    |   ├── (job_name)/
+    |   |    └── backup_set_YYYYMMDD_HHMMSS/
+    |   |        ├── full_part_1_YYYYMMDD_HHMMSS.tar.gz
+    |   |        ├── full_part_2_YYYYMMDD_HHMMSS.tar.gz
+    |   |        ├── ... (other tarballs)
+    |   |        └── manifest_YYYYMMDD_HHMMSS.html
+    |   ├── (job_name)/
+    |   |    └── backup_set_YYYYMMDD_HHMMSS/
+    |   |        ├── full_part_1_YYYYMMDD_HHMMSS.tar.gz
+    |   |        ├── full_part_2_YYYYMMDD_HHMMSS.tar.gz
+    |   |        ├── ... (other tarballs)
+    |   |        └── manifest_YYYYMMDD_HHMMSS.html
+    |   └── ... (other jobs on same machine_name)
+    ├──(<machine_name)/
+    |   ├── (job_name)/
+    |   |    └── backup_set_YYYYMMDD_HHMMSS/
+    |   |        ├── full_part_1_YYYYMMDD_HHMMSS.tar.gz
+    |   |        ├── full_part_2_YYYYMMDD_HHMMSS.tar.gz
+    |   |        ├── ... (other tarballs)
+    |   |        └── manifest_YYYYMMDD_HHMMSS.html
+    |   └── ...
+    └── ...
 
 ```
-
 
 
 

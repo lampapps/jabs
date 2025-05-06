@@ -1,7 +1,7 @@
-# Example config file with most comments removed
+# Big Test of PiShare
 
 # Job-specific settings
-job_name: "example_min"  # The name of the backup job (used for logging and organization)
+job_name: "Pi Big Test"  # The name of the backup job (used for logging and organization)
 source: "/home/jim2"  # The source directory to back up
 destination: "/media/jim2/pishare/backups"  # The destination directory for local backups
 log_file: "logs/backup.log"  # Path to the log file (leave empty to use the default logs/default.log)

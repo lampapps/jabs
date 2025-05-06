@@ -4,6 +4,7 @@ import os
 import subprocess
 import json
 from app.utils.logger import setup_logger
+import socket
 
 def sync_to_s3(backup_set_path, config, event_id=None):
     """
@@ -27,7 +28,9 @@ def sync_to_s3(backup_set_path, config, event_id=None):
     profile = aws_config.get("profile", "default")
     region = aws_config.get("region", None)
     bucket = aws_config.get("bucket")
-    prefix = aws_config.get("prefix", "").rstrip("/")  # Ensure no trailing slash
+    # Always use the machine name as the prefix
+    machine_name = socket.gethostname()
+    prefix = machine_name 
 
     if not bucket:
         raise ValueError("AWS S3 bucket name is not specified in the configuration.")
@@ -64,9 +67,9 @@ def sync_to_s3(backup_set_path, config, event_id=None):
         # Construct the S3 destination path
         destination_base = config["destination"]
         relative_path = os.path.relpath(backup_set_path, destination_base)  # Get relative path from destination
-        # Extract the remainder of the path after the job_name
-        remainder_path = "/".join(relative_path.split("/")[1:])  # Remove the first part (job_name)
-        s3_path = f"s3://{bucket}/{prefix}/{job_name}/{remainder_path}".rstrip("/")  # Use prefix/job_name explicitly
+        # Remove the first part (machine_name) from relative_path, since prefix is now machine_name
+        remainder_path = "/".join(relative_path.split("/")[1:])  # Remove machine_name
+        s3_path = f"s3://{bucket}/{prefix}/{remainder_path}".rstrip("/")  # Use prefix explicitly
 
         # Build the AWS CLI command for syncing
         cmd = ["aws", "s3", "sync", backup_set_path, s3_path, "--profile", profile]
@@ -78,9 +81,14 @@ def sync_to_s3(backup_set_path, config, event_id=None):
         subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         logger.info(f"Sync to AWS S3 completed successfully for backup set: {backup_set_path}")
 
-        # Remove older backup sets from S3 within the job_name directory
-        logger.info(f"Removing older backup sets from S3 under prefix '{prefix}/{job_name}'...")
-        list_cmd = ["aws", "s3api", "list-objects-v2", "--bucket", bucket, "--prefix", f"{prefix}/{job_name}/", "--profile", profile]
+        # Remove older backup sets from S3 within the machine_name directory, but keep latest for each job
+        logger.info(f"Removing older backup sets from S3 under prefix '{prefix}' (keeping latest for each job)...")
+        list_cmd = [
+            "aws", "s3api", "list-objects-v2",
+            "--bucket", bucket,
+            "--prefix", f"{prefix}/",
+            "--profile", profile
+        ]
         if region:
             list_cmd.extend(["--region", region])
         result = subprocess.run(list_cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
@@ -88,19 +96,39 @@ def sync_to_s3(backup_set_path, config, event_id=None):
 
         # Parse the list of objects
         objects_data = json.loads(objects)
+        job_latest = {}  # {job_name: latest_backup_set_id}
+        job_backup_sets = {}  # {job_name: set([backup_set_id, ...])}
         if "Contents" in objects_data:
             for obj in objects_data["Contents"]:
                 key = obj["Key"]
-                if remainder_path not in key:  # Keep only the latest backup set
-                    delete_cmd = ["aws", "s3", "rm", f"s3://{bucket}/{key}", "--profile", profile]
-                    if region:
-                        delete_cmd.extend(["--region", region])
-                    subprocess.run(delete_cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-                    logger.info(f"Deleted old backup set: {key}")
+                # Example key: jim-imac/PI_Test/backup_set_20250506_100504/manifest_20250506_100504.html
+                parts = key.split("/")
+                if len(parts) >= 3 and parts[2].startswith("backup_set_"):
+                    job_name = parts[1]
+                    backup_set_id = parts[2][len("backup_set_"):]
+                    if job_name not in job_backup_sets:
+                        job_backup_sets[job_name] = set()
+                    job_backup_sets[job_name].add(backup_set_id)
+                    # Track latest backup_set_id for each job
+                    if (job_name not in job_latest) or (backup_set_id > job_latest[job_name]):
+                        job_latest[job_name] = backup_set_id
+
+            # Now, delete all backup sets except the latest for each job
+            for obj in objects_data["Contents"]:
+                key = obj["Key"]
+                parts = key.split("/")
+                if len(parts) >= 3 and parts[2].startswith("backup_set_"):
+                    job_name = parts[1]
+                    backup_set_id = parts[2][len("backup_set_"):]
+                    if backup_set_id != job_latest.get(job_name):
+                        delete_cmd = ["aws", "s3", "rm", f"s3://{bucket}/{key}", "--profile", profile]
+                        if region:
+                            delete_cmd.extend(["--region", region])
+                        subprocess.run(delete_cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+                        logger.info(f"Deleted old backup set: {key}")
         else:
             logger.info("No older backup sets found to delete.")
 
-        # Log final success message
         logger.info("Sync and cleanup completed successfully.")
 
     except Exception as e:

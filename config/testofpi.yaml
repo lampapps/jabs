@@ -1,12 +1,11 @@
-# Example config file with most comments removed
+# Test Backup to Pishare
 
 # Job-specific settings
-job_name: "example_min"  # The name of the backup job (used for logging and organization)
-source: "/home/jim2"  # The source directory to back up
+job_name: "PI Test"  # The name of the backup job (used for logging and organization)
+source: "/home/jim2/jabs_dev/"  # The source directory to back up
 destination: "/media/jim2/pishare/backups"  # The destination directory for local backups
-log_file: "logs/backup.log"  # Path to the log file (leave empty to use the default logs/default.log)
 keep_sets: 2  # Number of backup sets to retain (older sets will be deleted automatically)
-max_tarball_size: 2048  # Maximum size of each tarball in MB (e.g., 1024 MB = 1 GB)
+max_tarball_size: 1024  # Maximum size of each tarball in MB (e.g., 1024 MB = 1 GB)
 
 encryption:
   enabled: false         # Default, false can be overridden by CLI
@@ -25,7 +24,7 @@ exclude:
   - "build/"  # Exclude build directories (e.g., for compiled code)
   - ".*"  # Exclude all hidden files and directories (e.g., .git, .env)
   - ".DS_Store"  # Exclude macOS-specific metadata files
-  - "*.log"  # Exclude log files
+#  - "*.log"  # Exclude log files
   - "*.iso"  # Exclude ISO disk images
   - "*.tar.gz"  # Exclude tarball archives
   - "*.tar"
@@ -35,17 +34,11 @@ exclude:
   - "**/__pycache__/**"  # Exclude all files and subdirectories within any `__pycache__` directory
   - "**/*.class"  # Exclude Java compiled class files recursively
   - "**/temp/**"  # Exclude any directory named "temp" at any level
-  - "Downloads/"
-  - "gems/"
-  - "GoogleImages/"
-  - "Pictures/"
-  - "Raw_images/"
-  - "Videos/"
 
 aws:
   profile: "default"  # AWS CLI profile to use (default if not specified)
   region: "us-east-1"  # AWS region (overrides profile region if specified)
-  bucket: "my-bucket"  # S3 bucket name (required for cloud backups)
+  bucket: "lampapps-jabs-dev"  # S3 bucket name (required for cloud backups)
 
 schedules:
   - cron: "0 2 * * 7"  # Minute 0, Hour 2 (2:00 AM), Any Day of Month, Any Month, Day of Week 7 (Sunday)

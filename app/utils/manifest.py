@@ -7,7 +7,7 @@ import re
 import glob
 from jinja2 import Template
 from datetime import datetime
-from app.utils.logger import ensure_dir, setup_logger
+from app.utils.logger import ensure_dir, setup_logger, sizeof_fmt
 from app.settings import BASE_DIR, CONFIG_DIR, LOG_DIR, MANIFEST_BASE, EVENTS_FILE
 
 
@@ -37,14 +37,6 @@ def extract_tar_info(tar_path):
     except FileNotFoundError:
         print(f"Tar file not found: {tar_path}")  # Or use logger
     return files_info
-
-def sizeof_fmt(num, suffix="B"):
-    """Formats file sizes."""
-    for unit in ["", "Ki", "Mi", "Gi", "Ti", "Pi", "Ei", "Zi"]:
-        if abs(num) < 1024.0:
-            return f"{num:3.1f}{unit}{suffix}"
-        num /= 1024.0
-    return f"{num:.1f}Yi{suffix}"
 
 def _remove_yaml_comments(yaml_string):
     """Removes full-line and end-of-line comments from a YAML string."""
@@ -240,27 +232,41 @@ def get_cleaned_yaml_config(job_config_path):
         return f"# Error reading config file {job_config_path}: {e}"
 
 def get_tarball_summary(backup_set_path):
-    """
-    Calculates the total size and count of tarballs in a backup set directory.
-    :param backup_set_path: The full path to the backup_set_* directory.
-    :return: A dictionary {'count': int, 'total_size': int, 'total_size_fmt': str}
-    """
-    count = 0
-    total_size = 0
-    tarball_pattern = os.path.join(backup_set_path, '*.tar.gz')
-    tarball_files = glob.glob(tarball_pattern)
+    import re
+    from .logger import sizeof_fmt
 
-    count = len(tarball_files)
-    for tarball in tarball_files:
+    tarball_files = []
+    if not os.path.isdir(backup_set_path):
+        return []
+    tarball_files = [
+        os.path.join(backup_set_path, f)
+        for f in os.listdir(backup_set_path)
+        if f.endswith('.tar.gz') or f.endswith('.tar.gz.gpg')
+    ]
+    summary_data_for_sorting = []
+    timestamp_pattern = re.compile(r'_(\d{8}_\d{6})\.tar\.gz')
+    for tar_path in tarball_files:
+        basename = os.path.basename(tar_path)
+        timestamp_str = '00000000_000000'
+        match = timestamp_pattern.search(basename)
+        if match:
+            timestamp_str = match.group(1)
+        is_encrypted = basename.endswith('.gpg')
         try:
-            total_size += os.path.getsize(tarball)
-        except OSError as e:
-            print(f"Warning: Could not get size of {tarball}: {e}") # Log a warning
-
-    return {
-        "count": count,
-        "total_size": total_size,
-        "total_size_fmt": sizeof_fmt(total_size)
-    }
+            size_bytes = os.path.getsize(tar_path)
+            summary_data_for_sorting.append({
+                "name": basename,
+                "size": sizeof_fmt(size_bytes),
+                "timestamp_str": timestamp_str,
+                "encrypted": is_encrypted
+            })
+        except Exception:
+            summary_data_for_sorting.append({
+                "name": basename,
+                "size": "Error",
+                "timestamp_str": timestamp_str,
+                "encrypted": is_encrypted
+            })
+    return sorted(summary_data_for_sorting, key=lambda item: item['timestamp_str'], reverse=True)
 
 

@@ -1,7 +1,6 @@
 job_name: "jim2 home"  # The name of the backup job (used for logging and organization)
 source: "/home/jim2/"  # The source directory to back up
-destination: "/media/jim2/backupdrive/jabs3"  # The destination directory for local backups
-log_file: "logs/backup.log"  # Path to the log file (leave empty to use the default logs/default.log)
+destination: "/media/jim2/backupdrive/jabs"  # The destination directory for local backups
 
 # Backup retention and size settings
 keep_sets: 5  # Number of backup sets to retain (older sets will be deleted automatically)
@@ -59,8 +58,7 @@ exclude:
 aws:
   profile: "default"  # AWS CLI profile to use (default if not specified)
   region: "us-east-1"  # AWS region (overrides profile region if specified)
-  bucket: "lampapps-jabs3"  # S3 bucket name (required for cloud backups)
-  prefix: "jim-imac"  # Prefix for S3 objects (e.g., machine name or user name)
+  bucket: "lampapps-jabs-dev"  # S3 bucket name (required for cloud backups)
 
 # --- Scheduling ---
 # Define when and how backups should run automatically.

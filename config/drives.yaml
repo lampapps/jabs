@@ -1,13 +1,12 @@
 # configure the drives and buckets that appear in the dashboard
 
 drives:
-  - "/media/jim2/backupdrive"
   - "/"
+  - "/media/jim2/backupdrive"
+  - "/media/jim2/pishare/"
 
 s3_buckets:
   - "lampapps-jabs1"
-  - "lampapps-jabs2"
-  - "lampapps-jabs3"
-  - "lampapps-jabs_dev"
+  - "lampapps-jabs-dev"
   - "lampapps-backup"
  

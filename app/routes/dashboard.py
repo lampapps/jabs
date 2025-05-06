@@ -7,7 +7,7 @@ import subprocess
 import shutil
 import boto3
 from datetime import datetime
-from app.utils.manifest import MANIFEST_BASE, get_cleaned_yaml_config, get_tarball_summary, sizeof_fmt
+from app.utils.manifest import MANIFEST_BASE, get_cleaned_yaml_config, get_tarball_summary
 import traceback
 import re
 import time
@@ -18,6 +18,7 @@ import sys
 import markdown
 from markupsafe import Markup
 import fcntl
+import socket
 
 dashboard_bp = Blueprint('dashboard', __name__)
 
@@ -300,37 +301,14 @@ def view_manifest(job_name, backup_set_id):
         if job_config and 'destination' in job_config:
             backup_set_path_on_dst = os.path.join(
                 job_config['destination'],
+                socket.gethostname(),
                 sanitized_job,
                 f"backup_set_{backup_set_id}"
             )
-            if os.path.isdir(backup_set_path_on_dst):
-                tarball_files = glob.glob(os.path.join(backup_set_path_on_dst, '*.tar.gz')) + \
-                glob.glob(os.path.join(backup_set_path_on_dst, '*.tar.gz.gpg'))
-                summary_data_for_sorting = []
-                timestamp_pattern = re.compile(r'_(\d{8}_\d{6})\.tar\.gz$')
-                for tar_path in tarball_files:
-                    basename = os.path.basename(tar_path)
-                    timestamp_str = '00000000_000000'
-                    match = timestamp_pattern.search(basename)
-                    if match:
-                        timestamp_str = match.group(1)
-                    is_encrypted = basename.endswith('.gpg')
-                    try:
-                        size_bytes = os.path.getsize(tar_path)
-                        summary_data_for_sorting.append({
-                            "name": basename,
-                            "size": sizeof_fmt(size_bytes),
-                            "timestamp_str": timestamp_str,
-                            "encrypted": is_encrypted
-                        })
-                    except Exception as e:
-                        summary_data_for_sorting.append({
-                            "name": basename,
-                            "size": "Error",
-                            "timestamp_str": timestamp_str,
-                            "encrypted": is_encrypted
-                        })
-                tarball_summary_list = sorted(summary_data_for_sorting, key=lambda item: item['timestamp_str'], reverse=True)
+            print("DEBUG: backup_set_path_on_dst =", backup_set_path_on_dst)
+            print("DEBUG: Exists?", os.path.exists(backup_set_path_on_dst))
+            print("DEBUG: Files:", os.listdir(backup_set_path_on_dst) if os.path.exists(backup_set_path_on_dst) else "N/A")
+            tarball_summary_list = get_tarball_summary(backup_set_path_on_dst)
     cleaned_config = get_cleaned_yaml_config(job_config_path) if job_config_path else "Config file not found."
     manifest_timestamp = manifest_data.get("timestamp", "N/A")
     if manifest_timestamp != "N/A":
@@ -496,7 +474,7 @@ def run_job(filename):
     except Exception as e:
         flash(f"Failed to start backup: {e}", "danger")
 
-    return redirect(url_for("dashboard.dashboard"))
+    return redirect(url_for("dashboard.jobs"))
 
 @dashboard_bp.route("/help")
 def help():

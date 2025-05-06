@@ -8,6 +8,7 @@ import glob
 import shutil
 import json
 import fcntl
+import socket
 from datetime import datetime, timedelta
 from app.utils.logger import setup_logger, timestamp, ensure_dir
 from app.utils.manifest import write_manifest_files, MANIFEST_BASE, extract_tar_info
@@ -318,8 +319,11 @@ def run_backup(job_config_path, backup_type, encrypt=False, sync=False, event_id
         job_name = config.get("job_name") or os.path.splitext(os.path.basename(job_config_path))[0]
         keep_sets = config.get("keep_sets", 5)
 
+        # --- NEW STRUCTURE: (destination_path)/(machine_name)/(job_name)/ ---
+        machine_name = socket.gethostname()
         sanitized_job_name = "".join(c if c.isalnum() or c in ("-", "_") else "_" for c in job_name)
-        job_dst = os.path.join(raw_dst, sanitized_job_name)
+        sanitized_machine_name = "".join(c if c.isalnum() or c in ("-", "_") else "_" for c in machine_name)
+        job_dst = os.path.join(raw_dst, sanitized_machine_name, sanitized_job_name)
 
         ensure_dir(job_dst)
         logger.info(f"Starting {backup_type.upper()} backup: {src} -> {job_dst}")
