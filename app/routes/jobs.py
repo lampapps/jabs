@@ -1,0 +1,104 @@
+from flask import Blueprint, render_template, request, redirect, url_for, flash
+import os
+import yaml
+import subprocess
+import sys
+from app.settings import CONFIG_DIR, LOCK_DIR, BASE_DIR
+
+jobs_bp = Blueprint('jobs', __name__)
+
+def is_job_locked(lock_path):
+    import fcntl
+    try:
+        lock_file = open(lock_path, 'a+')
+        try:
+            fcntl.flock(lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            fcntl.flock(lock_file, fcntl.LOCK_UN)
+            lock_file.close()
+            return False
+        except BlockingIOError:
+            lock_file.close()
+            return True
+    except Exception:
+        return True
+
+@jobs_bp.route("/jobs")
+def jobs():
+    configs = []
+    for fname in os.listdir(CONFIG_DIR):
+        if fname.endswith(".yaml") and fname not in ("drives.yaml", "example.yaml"):
+            fpath = os.path.join(CONFIG_DIR, fname)
+            with open(fpath) as f:
+                raw_data = f.read()
+            try:
+                data = yaml.safe_load(raw_data)
+                job_name = data.get("job_name", fname.replace(".yaml", ""))
+                source = data.get("source", "")
+                destination = data.get("destination", "")
+            except Exception:
+                job_name = fname.replace(".yaml", "")
+                source = ""
+                destination = ""
+                data = {}
+            configs.append({
+                "file_name": fname,
+                "job_name": job_name,
+                "source": source,
+                "destination": destination,
+                "data": data,
+                "raw_data": raw_data,
+            })
+    return render_template("jobs.html", configs=configs)
+
+@jobs_bp.route("/jobs/run/<filename>", methods=["POST"])
+def run_job(filename):
+    if (
+        not filename.endswith(".yaml")
+        or filename in ("drives.yaml", "example.yaml")
+        or "/" in filename
+        or ".." in filename
+    ):
+        flash("Invalid job file.", "danger")
+        return redirect(url_for("jobs.jobs"))
+
+    config_path = os.path.join(CONFIG_DIR, filename)
+    if not os.path.exists(config_path):
+        flash("Config file does not exist.", "danger")
+        return redirect(url_for("jobs.jobs"))
+
+    with open(config_path) as f:
+        config = yaml.safe_load(f)
+    job_name = config.get("job_name", filename.replace(".yaml", ""))
+    lock_path = os.path.join(LOCK_DIR, f"{job_name}.lock")
+    if os.path.exists(lock_path) and is_job_locked(lock_path):
+        flash(f"Backup already running for job '{job_name}'.", "warning")
+        return redirect(url_for("jobs.jobs"))
+
+    backup_type = request.form.get("backup_type", "full").lower()
+    if backup_type not in ("full", "diff"):
+        flash("Invalid backup type.", "danger")
+        return redirect(url_for("jobs.jobs"))
+
+    sync = request.form.get("sync", "0")
+    cli_path = os.path.join(BASE_DIR, "cli.py")
+    args = [sys.executable, cli_path, config_path]
+    if backup_type == "full":
+        args.append("--full")
+    else:
+        args.append("--diff")
+    if sync == "1":
+        args.append("--sync")
+
+    try:
+        subprocess.Popen(
+            args,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            start_new_session=True,
+            cwd=BASE_DIR
+        )
+        flash(f"{backup_type.capitalize()} backup for {filename} has been started.", "success")
+    except Exception as e:
+        flash(f"Failed to start backup: {e}", "danger")
+
+    return redirect(url_for("jobs.jobs"))

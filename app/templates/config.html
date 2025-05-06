@@ -35,7 +35,7 @@
                                 <pre class="bg-dark text-light p-2 rounded" style="max-height: 120px; min-width: 200px; overflow:auto; font-size: 0.9em; white-space: pre-wrap; word-break: break-all;">{{ config.raw_data[:500] }}{% if config.raw_data|length > 500 %}...{% endif %}</pre>
                             </td>
                             <td>
-                                <a href="{{ url_for('dashboard.edit_config', filename=config.file_name, next=request.path) }}" class="btn btn-warning btn-sm mb-1">Edit</a>
+                                <a href="{{ url_for('config.edit_config', filename=config.file_name, next=request.path) }}" class="btn btn-warning btn-sm mb-1">Edit</a>
                                 {% if config.file_name != "drives.yaml" and config.file_name != "example.yaml" %}
                                     <!-- Rename Button triggers modal -->
                                     <button type="button" class="btn btn-secondary btn-sm mb-1" data-bs-toggle="modal" data-bs-target="#renameModal-{{ config.file_name|replace('.', '-') }}">
@@ -58,7 +58,7 @@
                         {% if config.file_name != "drives.yaml" and config.file_name != "example.yaml" %}
                         <div class="modal fade" id="renameModal-{{ config.file_name|replace('.', '-') }}" tabindex="-1" aria-labelledby="renameModalLabel-{{ config.file_name|replace('.', '-') }}" aria-hidden="true">
                           <div class="modal-dialog">
-                            <form method="post" action="{{ url_for('dashboard.rename_config', filename=config.file_name) }}">
+                            <form method="post" action="{{ url_for('config.rename_config', filename=config.file_name) }}">
                               <div class="modal-content">
                                 <div class="modal-header">
                                   <h5 class="modal-title" id="renameModalLabel-{{ config.file_name|replace('.', '-') }}">Rename {{ config.file_name }}</h5>
@@ -83,7 +83,7 @@
                         {% if config.file_name != "drives.yaml" and config.file_name != "example.yaml" %}
                         <div class="modal fade" id="deleteModal-{{ config.file_name|replace('.', '-') }}" tabindex="-1" aria-labelledby="deleteModalLabel-{{ config.file_name|replace('.', '-') }}" aria-hidden="true">
                           <div class="modal-dialog">
-                            <form method="post" action="{{ url_for('dashboard.delete_config', filename=config.file_name) }}">
+                            <form method="post" action="{{ url_for('config.delete_config', filename=config.file_name) }}">
                               <div class="modal-content">
                                 <div class="modal-header">
                                   <h5 class="modal-title" id="deleteModalLabel-{{ config.file_name|replace('.', '-') }}">Delete {{ config.file_name }}</h5>
@@ -126,7 +126,7 @@
 <!-- Copy/Create Modal -->
 <div class="modal fade" id="copyModal" tabindex="-1" aria-labelledby="copyModalLabel" aria-hidden="true">
   <div class="modal-dialog">
-    <form class="modal-content" method="post" action="{{ url_for('dashboard.copy_config') }}">
+    <form class="modal-content" method="post" action="{{ url_for('config.copy_config') }}">
       <div class="modal-header">
         <h5 class="modal-title" id="copyModalLabel">Copy/Create New Config</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>

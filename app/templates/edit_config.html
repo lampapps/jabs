@@ -6,7 +6,7 @@
     {% if error %}
         <div class="alert alert-danger">{{ error }}</div>
     {% endif %}
-    <form method="post" action="{{ url_for('dashboard.save_config', filename=filename) }}">
+    <form method="post" action="{{ url_for('config.save_config', filename=filename) }}">
         <input type="hidden" name="next" value="{{ next_url }}">
         <div id="editor" style="height: 700px; width: 100%;">{{ content }}</div>
         <div id="yaml-error" class="text-danger mt-2"></div>

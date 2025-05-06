@@ -52,7 +52,7 @@
                                         <span class="badge bg-secondary">No</span>
                                     {% endif %}
                                 </td>
-                                <form method="post" action="{{ url_for('dashboard.run_job', filename=config.file_name) }}" class="d-inline">
+                                <form method="post" action="{{ url_for('jobs.run_job', filename=config.file_name) }}" class="d-inline">
                                     <td>
                                         <select name="backup_type" class="form-select form-select-sm d-inline w-auto" style="width: auto;">
                                             <option value="full">Full</option>
@@ -70,7 +70,7 @@
                                             Run Now
                                         </button>
                                         <input type="hidden" name="encrypt" value="{{ '1' if config.data and config.data.get('encryption', {}).get('enabled') else '0' }}">
-                                        <a href="{{ url_for('dashboard.edit_config', filename=config.file_name, next=request.path) }}" class="btn btn-warning btn-sm mb-1">Edit</a>
+                                        <a href="{{ url_for('config.edit_config', filename=config.file_name, next=request.path) }}" class="btn btn-warning btn-sm mb-1">Edit</a>
                                         <button type="button" class="btn btn-info btn-sm mb-1" data-bs-toggle="modal" data-bs-target="#viewModal-{{ config.file_name|replace('.', '-') }}">
                                             View
                                         </button>

@@ -11,7 +11,7 @@ max_tarball_size: 2048  # Maximum size of each tarball in MB (e.g., 1024 MB = 1 
 encryption:
   enabled: false         # Default, false can be overridden by CLI
   method: gpg            # Only 'gpg' supported for now
-  passphrase_env: JABS_ENCRYPT_PASSPHRASE  # Name of env var holding passphrase
+  passphrase_env: JABS_ENCRYPT_PASSPHRASE  # Name of env var holding passphrase 
 
 exclude:
   # General patterns
