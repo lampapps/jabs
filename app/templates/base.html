@@ -36,10 +36,10 @@
                 <a class="nav-link {% if request.endpoint == 'jobs.jobs' %}active{% endif %}" href="{{ url_for('jobs.jobs') }}">Jobs</a>
               </li>
               <li class="nav-item">
-                <a class="nav-link {% if request.endpoint == 'dashboard.config' %}active{% endif %}" href="{{ url_for('config.config') }}">Config</a>
+                <a class="nav-link {% if request.endpoint == 'config.config' %}active{% endif %}" href="{{ url_for('config.config') }}">Config</a>
               </li>
               <li class="nav-item">
-                <a class="nav-link {% if request.endpoint == 'dashboard.logs' %}active{% endif %}" href="{{ url_for('dashboard.logs') }}">Logs</a>
+                <a class="nav-link {% if request.endpoint == 'logs.logs' %}active{% endif %}" href="{{ url_for('logs.logs') }}">Logs</a>
               </li>
               <li class="nav-item">
                 <a class="nav-link {% if request.endpoint == 'dashboard.help' %}active{% endif %}" href="{{ url_for('dashboard.help') }}">Help</a>

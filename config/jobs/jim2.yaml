@@ -1,4 +1,4 @@
-job_name: "jim2 home"  # The name of the backup job (used for logging and organization)
+job_name: "jim2 Home without media"  # The name of the backup job (used for logging and organization)
 source: "/home/jim2/"  # The source directory to back up
 destination: "/media/jim2/backupdrive/jabs"  # The destination directory for local backups
 
@@ -88,12 +88,12 @@ schedules:
   - cron: "0 0 * * 1"  
     type: "full"       # full or diff
     sync: true         # Sync to S3 after backup, true or false
-    enabled: true      # Set to false to disable this schedule
+    enabled: false      # Set to false to disable this schedule
 
   - cron: "0 0 * * 2-7" 
     type: "diff"       # Run a differential backup
     sync: true        # Do not sync differential backups by default
-    enabled: true    # This schedule is active
+    enabled: false    # This schedule is active
 
 # Notes:
 # - Ensure the `source` directory exists and contains the files you want to back up.

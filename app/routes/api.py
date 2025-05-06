@@ -7,7 +7,7 @@ import shutil
 import boto3
 import time
 import math
-from app.settings import BASE_DIR, CONFIG_DIR, LOG_DIR, EVENTS_FILE
+from app.settings import BASE_DIR, CONFIG_DIR, LOG_DIR, EVENTS_FILE, GLOBAL_CONFIG_PATH
 
 api_bp = Blueprint('api', __name__)
 
@@ -32,15 +32,15 @@ def serve_events():
 
 @api_bp.route('/api/disk_usage')
 def get_disk_usage():
-    drives_config_path = os.path.join(CONFIG_DIR, "drives.yaml")
+    # Use global.yaml instead of drives.yaml
     try:
-        with open(drives_config_path, "r") as f:
-            drives_config = yaml.safe_load(f)
-            drives = drives_config.get("drives", [])
+        with open(GLOBAL_CONFIG_PATH, "r") as f:
+            global_config = yaml.safe_load(f)
+            drives = global_config.get("drives", [])
     except FileNotFoundError:
-        return jsonify({"error": f"Configuration file {drives_config_path} not found."}), 404
+        return jsonify({"error": f"Configuration file {GLOBAL_CONFIG_PATH} not found."}), 404
     except yaml.YAMLError as e:
-        return jsonify({"error": f"Error parsing {drives_config_path}: {str(e)}"}), 500
+        return jsonify({"error": f"Error parsing {GLOBAL_CONFIG_PATH}: {str(e)}"}), 500
     disk_usage = []
     for drive in drives:
         try:
@@ -61,15 +61,15 @@ def get_disk_usage():
 
 @api_bp.route('/api/s3_usage')
 def get_s3_usage():
-    s3_config_path = os.path.join(CONFIG_DIR, "drives.yaml")
+    # Use global.yaml instead of drives.yaml
     try:
-        with open(s3_config_path, "r") as f:
+        with open(GLOBAL_CONFIG_PATH, "r") as f:
             config = yaml.safe_load(f)
             s3_buckets = config.get("s3_buckets", [])
     except FileNotFoundError:
-        return jsonify({"error": f"Configuration file {s3_config_path} not found."}), 404
+        return jsonify({"error": f"Configuration file {GLOBAL_CONFIG_PATH} not found."}), 404
     except yaml.YAMLError as e:
-        return jsonify({"error": f"Error parsing {s3_config_path}: {str(e)}"}), 500
+        return jsonify({"error": f"Error parsing {GLOBAL_CONFIG_PATH}: {str(e)}"}), 500
     s3 = boto3.client("s3")
     s3_usage = []
     for bucket_name in s3_buckets:
@@ -186,3 +186,20 @@ def get_scheduler_status():
         "message": message,
         "threshold_seconds": stale_threshold_seconds
     })
+
+@api_bp.route('/api/purge_log/<log_name>', methods=['POST'])
+def purge_log(log_name):
+    import re
+    from app.settings import LOG_DIR
+    # Only allow .log files, no path traversal
+    if not re.match(r'^[\w\-.]+\.log$', log_name):
+        return jsonify({"success": False, "error": "Invalid log name"}), 400
+    log_path = os.path.join(LOG_DIR, log_name)
+    if not os.path.exists(log_path):
+        return jsonify({"success": False, "error": "Log not found"}), 404
+    try:
+        with open(log_path, "w") as f:
+            f.truncate(0)
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500

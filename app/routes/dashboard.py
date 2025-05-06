@@ -4,7 +4,7 @@ import os
 import json
 import markdown
 from datetime import datetime
-from app.settings import BASE_DIR, LOG_DIR, MANIFEST_BASE
+from app.settings import BASE_DIR, MANIFEST_BASE
 from app.utils.manifest import get_cleaned_yaml_config, get_tarball_summary
 from app.utils.dashboard_helpers import find_config_path_by_job_name, load_config
 import socket
@@ -14,17 +14,6 @@ dashboard_bp = Blueprint('dashboard', __name__)
 @dashboard_bp.route("/")
 def dashboard():
     return render_template("index.html")
-
-@dashboard_bp.route("/logs")
-def logs():
-    log_dir = os.path.join(BASE_DIR, "logs")
-    logs = []
-    for log_file in sorted(os.listdir(log_dir)):
-        if log_file.endswith(".log"):
-            with open(os.path.join(log_dir, log_file)) as f:
-                content = f.read()
-            logs.append((log_file, content))
-    return render_template("logs.html", logs=logs)
 
 @dashboard_bp.route("/help")
 def help():

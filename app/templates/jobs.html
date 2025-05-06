@@ -1,119 +1,185 @@
 {% extends "base.html" %}
-
-{% block title %}JABS Backup Jobs{% endblock %}
+{% block title %}Backup Jobs{% endblock %}
 
 {% block content %}
-<div class="container-fluid px-4">
-    <div class="row pb-0">
-        <div class="col-md-6">
-            <h1 class="mt-4">Backup Jobs</h1>
-            <ol class="breadcrumb mb-4">
-                <li class="breadcrumb-item active">All configured backup jobs</li>
-            </ol>
-        </div>
+<div class="container my-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="mb-0">Backup Jobs</h2>
+        <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#createJobModal">
+            <i class="fa fa-plus"></i> New Job
+        </button>
     </div>
-    <div class="card mb-4">
-        <div class="card-header">
-            <i class="fa-regular fa-floppy-disk"></i> Backup Jobs
-        </div>
-        <div class="card-body">
-            <div class="table-responsive">
-                <table id="jobs-table" class="table table-striped table-bordered table-hover display responsive" style="width:100%;">
-                    <thead>
-                        <tr>
-                            <th>Job Name</th>
-                            <th>Source</th>
-                            <th>Destination</th>
-                            <th>Bucket</th>
-                            <th>Encrypt</th>
-                            <th>Backup Type</th>
-                            <th>Sync</th>
-                            <th style="width: 220px;">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for config in configs %}
-                            {% if config.file_name != "drives.yaml" and config.file_name != "example.yaml" %}
-                            <tr>
-                                <td>{{ config.job_name or config.file_name|replace('.yaml','') }}</td>
-                                <td>
-                                    <span class="d-inline-block text-truncate" style="max-width: 200px;" title="{{ config.source }}">{{ config.source }}</span>
-                                </td>
-                                <td>
-                                    <span class="d-inline-block text-truncate" style="max-width: 200px;" title="{{ config.destination }}">{{ config.destination }}</span>
-                                </td>
-                                <td>
-                                    {{ config.data.get('aws', {}).get('bucket', '') if config.data else '' }}
-                                </td>
-                                <td>
-                                    {% if config.data and config.data.get('encryption', {}).get('enabled') %}
-                                        <span class="badge bg-success">Yes</span>
-                                    {% else %}
-                                        <span class="badge bg-secondary">No</span>
-                                    {% endif %}
-                                </td>
-                                <form method="post" action="{{ url_for('jobs.run_job', filename=config.file_name) }}" class="d-inline">
-                                    <td>
-                                        <select name="backup_type" class="form-select form-select-sm d-inline w-auto" style="width: auto;">
-                                            <option value="full">Full</option>
-                                            <option value="diff">Diff</option>
-                                        </select>
-                                    </td>
-                                    <td>
-                                        <select name="sync" class="form-select form-select-sm d-inline w-auto" style="width: auto;">
-                                            <option value="1" {% if config.data and config.data.get('sync', {}).get('enabled') %}selected{% endif %}>Yes</option>
-                                            <option value="0" {% if not (config.data and config.data.get('sync', {}).get('enabled')) %}selected{% endif %}>No</option>
-                                        </select>
-                                    </td>
-                                    <td>
-                                        <button type="submit" class="btn btn-primary btn-sm mb-1" onclick="return confirm('Run backup for {{ config.file_name }}?');">
-                                            Run Now
-                                        </button>
-                                        <input type="hidden" name="encrypt" value="{{ '1' if config.data and config.data.get('encryption', {}).get('enabled') else '0' }}">
-                                        <a href="{{ url_for('config.edit_config', filename=config.file_name, next=request.path) }}" class="btn btn-warning btn-sm mb-1">Edit</a>
-                                        <button type="button" class="btn btn-info btn-sm mb-1" data-bs-toggle="modal" data-bs-target="#viewModal-{{ config.file_name|replace('.', '-') }}">
-                                            View
-                                        </button>
-                                    </td>
-                                </form>
-                            </tr>
-                            <!-- View Modal -->
-                            <div class="modal fade" id="viewModal-{{ config.file_name|replace('.', '-') }}" tabindex="-1" aria-labelledby="viewModalLabel-{{ config.file_name|replace('.', '-') }}" aria-hidden="true">
-                              <div class="modal-dialog modal-fullscreen">
-                                <div class="modal-content">
-                                  <div class="modal-header">
-                                    <h5 class="modal-title" id="viewModalLabel-{{ config.file_name|replace('.', '-') }}">View {{ config.file_name }}</h5>
-                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                                  </div>
-                                  <div class="modal-body">
-                                    <pre class="bg-dark text-light p-3 rounded" style="height: 80vh; min-width: 100vw; overflow:auto; white-space: pre-wrap; word-break: break-all;">{{ config.raw_data }}</pre>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                            {% endif %}
-                        {% endfor %}
-                    </tbody>
-                </table>
+    <div class="row g-4">
+        {% for config in configs %}
+        <div class="col-12 col-md-6 col-lg-4">
+            <div class="card shadow-sm h-100 border border-secondary-subtle border-2">
+                <div class="card-body d-flex flex-column">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h5 class="card-title mb-0">{{ config.job_name or config.file_name|replace('.yaml','') }}</h5>
+                        <span class="badge bg-secondary">{{ config.file_name }}</span>
+                    </div>
+                    <div class="mb-2">
+                        <span class="fw-bold">Source:</span>
+                        <span class="text-monospace">{{ config.source }}</span>
+                    </div>
+                    <div class="mb-2">
+                        <span class="fw-bold">Destination:</span>
+                        <span class="text-monospace">{{ config.destination }}</span>
+                    </div>
+                    <div class="mb-2">
+                        <span class="fw-bold">AWS Bucket:</span>
+                        <span class="text-monospace">{{ config.data.get('aws', {}).get('bucket', '') if config.data else '' }}</span>
+                    </div>
+                    <div class="mb-2">
+                        <span class="fw-bold">Encryption:</span>
+                        {% if config.data and config.data.get('encryption', {}).get('enabled') %}
+                            <span class="badge bg-success">Enabled</span>
+                        {% else %}
+                            <span class="badge bg-secondary">Disabled</span>
+                        {% endif %}
+                    </div>
+                    <div class="mb-2">
+                        <span class="fw-bold">Schedules:</span>
+                        {% if config.data and config.data.get('schedules') %}
+                            <ul class="list-unstyled mb-0">
+                                {% for sched in config.data.schedules %}
+                                <li>
+                                    <span class="badge {% if sched.enabled %}bg-primary{% else %}bg-secondary{% endif %}">
+                                        {{ sched.cron }}
+                                        ({{ sched.type|capitalize }}, Sync: {{ 'Yes' if sched.sync else 'No' }})
+                                        {% if sched.enabled %}Enabled{% else %}Disabled{% endif %}
+                                    </span>
+                                </li>
+                                {% endfor %}
+                            </ul>
+                        {% else %}
+                            <span class="text-muted">No schedules</span>
+                        {% endif %}
+                    </div>
+                    <div class="mt-auto d-flex flex-wrap gap-2">
+                        <!-- Run Job Button -->
+                        <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#runJobModal-{{ config.file_name|replace('.', '-') }}">
+                            <i class="fa fa-play"></i> Run
+                        </button>
+                        <!-- Edit Button (direct link, no modal) -->
+                        <a class="btn btn-warning btn-sm"
+                           href="{{ url_for('config.edit_config', filename=config.file_name, next=url_for('jobs.jobs')) }}">
+                            <i class="fa fa-edit"></i> Edit
+                        </a>
+                        <!-- View Button -->
+                        <button class="btn btn-info btn-sm" data-bs-toggle="modal" data-bs-target="#viewJobModal-{{ config.file_name|replace('.', '-') }}">
+                            <i class="fa fa-eye"></i> View
+                        </button>
+                        <!-- Delete Button -->
+                        <button class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#deleteJobModal-{{ config.file_name|replace('.', '-') }}">
+                            <i class="fa fa-trash"></i> Delete
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
+
+        <!-- Run Job Modal -->
+        <div class="modal fade" id="runJobModal-{{ config.file_name|replace('.', '-') }}" tabindex="-1" aria-labelledby="runJobLabel-{{ config.file_name|replace('.', '-') }}" aria-hidden="true">
+          <div class="modal-dialog">
+            <form method="post" action="{{ url_for('jobs.run_job', filename=config.file_name) }}" class="modal-content">
+              <div class="modal-header">
+                <h5 class="modal-title" id="runJobLabel-{{ config.file_name|replace('.', '-') }}">Run {{ config.file_name }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+              </div>
+              <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Backup Type:</label>
+                    <select name="backup_type" class="form-select">
+                        <option value="full">Full</option>
+                        <option value="diff">Differential</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Sync to S3 after backup?</label>
+                    <select name="sync" class="form-select">
+                        <option value="1">Yes</option>
+                        <option value="0" selected>No</option>
+                    </select>
+                </div>
+              </div>
+              <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" class="btn btn-primary">Run</button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <!-- View Modal -->
+        <div class="modal fade" id="viewJobModal-{{ config.file_name|replace('.', '-') }}" tabindex="-1" aria-labelledby="viewJobLabel-{{ config.file_name|replace('.', '-') }}" aria-hidden="true">
+          <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+              <div class="modal-header">
+                <h5 class="modal-title" id="viewJobLabel-{{ config.file_name|replace('.', '-') }}">View {{ config.file_name }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+              </div>
+              <div class="modal-body">
+                <pre class="bg-dark text-light p-3 rounded" style="max-height: 400px; overflow:auto;">{{ config.raw_data }}</pre>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Delete Modal -->
+        <div class="modal fade" id="deleteJobModal-{{ config.file_name|replace('.', '-') }}" tabindex="-1" aria-labelledby="deleteJobLabel-{{ config.file_name|replace('.', '-') }}" aria-hidden="true">
+          <div class="modal-dialog">
+            <form method="post" action="{{ url_for('config.delete_config', filename=config.file_name) }}" class="modal-content">
+              <div class="modal-header">
+                <h5 class="modal-title" id="deleteJobLabel-{{ config.file_name|replace('.', '-') }}">Delete {{ config.file_name }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+              </div>
+              <div class="modal-body">
+                <p>Are you sure you want to delete <strong>{{ config.file_name }}</strong>? This action cannot be undone.</p>
+              </div>
+              <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" class="btn btn-danger">Delete</button>
+              </div>
+            </form>
+          </div>
+        </div>
+        {% endfor %}
     </div>
 </div>
-{% endblock %}
 
-{% block scripts %}
-<!-- DataTables JS and CSS (CDN) -->
-<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css">
-<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
-<script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
-<script>
-    $(document).ready(function() {
-        $('#jobs-table').DataTable({
-            responsive: true,
-            autoWidth: false,
-            pageLength: 25,
-            order: [[0, 'asc']]
-        });
-    });
-</script>
+<!-- Create Job Modal -->
+<div class="modal fade" id="createJobModal" tabindex="-1" aria-labelledby="createJobLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <form method="post" action="{{ url_for('config.copy_config') }}" class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="createJobLabel">Create New Job</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+            <label for="copy_source" class="form-label">Copy from:</label>
+            <select name="copy_source" id="copy_source" class="form-select" required>
+                <option value="" disabled selected>Select template or job</option>
+                {% for t in templates %}
+                    <option value="templates/{{ t }}">Template: {{ t }}</option>
+                {% endfor %}
+                {% for config in configs %}
+                    <option value="{{ config.file_name }}">Job: {{ config.file_name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="mb-3">
+            <label for="new_filename" class="form-label">New filename:</label>
+            <input type="text" name="new_filename" id="new_filename" class="form-control" placeholder="new_job.yaml" required pattern="^[\w\-]+\.yaml$">
+        </div>
+        <input type="hidden" name="next" value="{{ url_for('jobs.jobs') }}">
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="submit" class="btn btn-success">Create</button>
+      </div>
+    </form>
+  </div>
+</div>
 {% endblock %}

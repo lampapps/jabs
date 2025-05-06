@@ -8,7 +8,7 @@ keep_sets: 2  # Number of backup sets to retain (older sets will be deleted auto
 max_tarball_size: 1024  # Maximum size of each tarball in MB (e.g., 1024 MB = 1 GB)
 
 encryption:
-  enabled: false         # Default, false can be overridden by CLI
+  enabled: true         # Default, false can be overridden by CLI
   method: gpg            # Only 'gpg' supported for now
   passphrase_env: JABS_ENCRYPT_PASSPHRASE  # Name of env var holding passphrase
 
@@ -44,9 +44,9 @@ schedules:
   - cron: "0 2 * * 7"  # Minute 0, Hour 2 (2:00 AM), Any Day of Month, Any Month, Day of Week 7 (Sunday)
     type: "full"       # full or diff
     sync: true         # Sync to S3 after backup, true or false
-    enabled: false      # Set to false to disable this schedule
+    enabled: true      # Set to false to disable this schedule
 
   - cron: "0 2 * * 1-6" # Minute 0, Hour 2 (2:00 AM), Any Day of Month, Any Month, Day of Week 1 through 6 (Monday to Saturday)
     type: "diff"       # Run a differential backup
     sync: false        # Do not sync differential backups by default
-    enabled: false     # This schedule is active
+    enabled: true

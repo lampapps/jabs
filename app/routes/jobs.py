@@ -24,7 +24,8 @@ def is_job_locked(lock_path):
 
 @jobs_bp.route("/jobs")
 def jobs():
-    configs = []
+    # List actual jobs
+    jobs = []
     for fname in os.listdir(JOBS_DIR):
         if fname.endswith(".yaml"):
             fpath = os.path.join(JOBS_DIR, fname)
@@ -40,7 +41,7 @@ def jobs():
                 source = ""
                 destination = ""
                 data = {}
-            configs.append({
+            jobs.append({
                 "file_name": fname,
                 "job_name": job_name,
                 "source": source,
@@ -48,7 +49,16 @@ def jobs():
                 "data": data,
                 "raw_data": raw_data,
             })
-    return render_template("jobs.html", configs=configs)
+
+    # List templates
+    templates_dir = os.path.join(JOBS_DIR, "templates")
+    templates = []
+    if os.path.isdir(templates_dir):
+        for tname in os.listdir(templates_dir):
+            if tname.endswith(".yaml"):
+                templates.append(tname)
+
+    return render_template("jobs.html", configs=jobs, templates=templates)
 
 @jobs_bp.route("/jobs/run/<filename>", methods=["POST"])
 def run_job(filename):
@@ -96,7 +106,7 @@ def run_job(filename):
             start_new_session=True,
             cwd=BASE_DIR
         )
-        flash(f"{backup_type.capitalize()} backup for {filename} has been started.", "success")
+        flash(f"{backup_type.capitalize()} backup for {job_name} has been started.", "success")
     except Exception as e:
         flash(f"Failed to start backup: {e}", "danger")
 

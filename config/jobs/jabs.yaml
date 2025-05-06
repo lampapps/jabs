@@ -1,4 +1,4 @@
-job_name: "jabs_dev"  # The name of the backup job (used for logging and organization)
+job_name: "JABS DEV"  # The name of the backup job (used for logging and organization)
 source: "/home/jim2/jabs_dev"  # The source directory to back up
 destination: "/media/jim2/backupdrive/jabs_dev"  # The destination directory for local backups
 
@@ -8,7 +8,7 @@ max_tarball_size: 1024  # Maximum size of each tarball in MB (e.g., 1024 MB = 1 
 
 # GPG symmetric encryption for tarballs
 encryption:
-  enabled: false         # Default, can be overridden by CLI
+  enabled: true         # Default, can be overridden by CLI
   method: gpg            # Only 'gpg' supported for now
   passphrase_env: JABS_ENCRYPT_PASSPHRASE  # Name of env var holding passphrase
 
