@@ -1,15 +1,15 @@
 import os
 import yaml
-from app.settings import CONFIG_DIR
+from app.settings import JOBS_DIR
 
 # --- Helper Functions for Config Loading ---
 def find_config_path_by_job_name(target_job_name):
-    if not os.path.isdir(CONFIG_DIR):
-        print(f"Error: Configuration directory not found at {CONFIG_DIR}")
+    if not os.path.isdir(JOBS_DIR):
+        print(f"Error: Jobs directory not found at {JOBS_DIR}")
         return None
-    for filename in os.listdir(CONFIG_DIR):
+    for filename in os.listdir(JOBS_DIR):
         if filename.endswith((".yaml", ".yml")):
-            file_path = os.path.join(CONFIG_DIR, filename)
+            file_path = os.path.join(JOBS_DIR, filename)
             try:
                 with open(file_path, 'r') as f:
                     config_data = yaml.safe_load(f)

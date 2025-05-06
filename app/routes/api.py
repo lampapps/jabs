@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, send_from_directory, request
+from flask import Blueprint, jsonify, send_from_directory, request, render_template
 import os
 import glob
 import json
@@ -13,7 +13,7 @@ api_bp = Blueprint('api', __name__)
 
 @api_bp.route("/api/events")
 def get_events():
-    events_file = os.path.join(BASE_DIR, "data", "dashboard", "events.json")
+    events_file = EVENTS_FILE
     if os.path.exists(events_file):
         with open(events_file) as f:
             events = json.load(f)
@@ -27,7 +27,7 @@ def cronstatus():
 
 @api_bp.route('/data/dashboard/events.json')
 def serve_events():
-    events_dir = os.path.join(BASE_DIR, "data", "dashboard")
+    events_dir = os.path.dirname(EVENTS_FILE)
     return send_from_directory(events_dir, "events.json")
 
 @api_bp.route('/api/disk_usage')
@@ -108,7 +108,7 @@ def get_s3_usage():
 
 @api_bp.route('/api/trim_logs', methods=['POST'])
 def trim_logs():
-    log_dir = os.path.join(BASE_DIR, "logs")
+    log_dir = LOG_DIR
     max_lines = 1000
     if not os.path.exists(log_dir):
         return jsonify({"error": "Log directory does not exist"}), 404

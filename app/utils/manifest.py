@@ -14,12 +14,11 @@ from app.settings import BASE_DIR, CONFIG_DIR, LOG_DIR, MANIFEST_BASE, EVENTS_FI
 def extract_tar_info(tar_path):
     """Extracts file information from a tarball."""
     files_info = []
-    # Remove .tar.gz or .tar.gz.gpg extension for display in the DataTable
     base = os.path.basename(tar_path)
     if base.endswith('.tar.gz.gpg'):
-        tarball_name = base[:-11]  # Remove 11 chars: '.tar.gz.gpg'
+        tarball_name = base[:-11]
     elif base.endswith('.tar.gz'):
-        tarball_name = base[:-7]   # Remove 7 chars: '.tar.gz'
+        tarball_name = base[:-7]
     else:
         tarball_name = base
     try:
@@ -33,9 +32,9 @@ def extract_tar_info(tar_path):
                         "modified": datetime.fromtimestamp(member.mtime).strftime('%Y-%m-%d %H:%M:%S')
                     })
     except tarfile.ReadError as e:
-        print(f"Error reading tar file {tar_path}: {e}")  # Or use logger
+        print(f"Error reading tar file {tar_path}: {e}")
     except FileNotFoundError:
-        print(f"Tar file not found: {tar_path}")  # Or use logger
+        print(f"Tar file not found: {tar_path}")
     return files_info
 
 def _remove_yaml_comments(yaml_string):
@@ -44,23 +43,16 @@ def _remove_yaml_comments(yaml_string):
     cleaned_lines = []
     for line in lines:
         stripped_line = line.split('#', 1)[0].rstrip()
-        if stripped_line:  # Keep lines that are not empty after removing comments
-            cleaned_lines.append(line.split('#', 1)[0])  # Keep original indentation
-        elif line.strip() == '':  # Keep empty lines for structure
+        if stripped_line:
+            cleaned_lines.append(line.split('#', 1)[0])
+        elif line.strip() == '':
             cleaned_lines.append('')
-    # Join lines, ensuring final newline if original had one
     result = "\n".join(cleaned_lines)
     if yaml_string.endswith('\n'):
         result += '\n'
-    # Remove trailing whitespace from the final result
     return result.rstrip() + '\n' if result.strip() else ''
 
 def build_tarball_summary(backup_set_path, *, show_full_name=True):
-    """
-    Returns a sorted list of tarball dicts for manifest summary.
-    :param backup_set_path: Directory to search for tarballs.
-    :param show_full_name: If True, use full filename (with extension). If False, strip extension.
-    """
     tarball_files = glob.glob(os.path.join(backup_set_path, '*.tar.gz')) + \
                     glob.glob(os.path.join(backup_set_path, '*.tar.gz.gpg'))
     timestamp_pattern = re.compile(r'_(\d{8}_\d{6})\.tar\.gz')
@@ -98,8 +90,6 @@ def build_tarball_summary(backup_set_path, *, show_full_name=True):
             })
     return sorted(summary, key=lambda item: item['timestamp_str'], reverse=True)
 
-# This function writes the manifest files (JSON and HTML) for the backup set into Flask
-# The JSON file is used for the API, while the HTML file is used for the web interface
 def write_manifest_files(file_list, job_config_path, job_name, backup_set_id, backup_set_path, new_tar_info):
     try:
         with open(job_config_path, 'r') as f:
@@ -107,13 +97,11 @@ def write_manifest_files(file_list, job_config_path, job_name, backup_set_id, ba
     except Exception as e:
         job_config_dict = {"error": f"Could not load config: {e}"}
 
-    # Prepare local JSON path
     sanitized_job = "".join(c if c.isalnum() or c in ("-", "_") else "_" for c in job_name)
     json_dir = os.path.join(MANIFEST_BASE, sanitized_job)
     ensure_dir(json_dir)
     json_path = os.path.join(json_dir, f"{backup_set_id}.json")
 
-    # Load existing manifest data or initialize
     if os.path.exists(json_path):
         try:
             with open(json_path, "r") as f:
@@ -140,16 +128,12 @@ def write_manifest_files(file_list, job_config_path, job_name, backup_set_id, ba
     manifest_data.setdefault("config", job_config_dict)
     manifest_data.setdefault("files", [])
 
-    # Use the pre-extracted tar info for the manifest's file list
     manifest_data["files"].extend(new_tar_info)
-    # Always update timestamp
     manifest_data["timestamp"] = datetime.now().isoformat()
 
-    # Write updated JSON manifest
     with open(json_path, "w") as f:
         json.dump(manifest_data, f, indent=2)
 
-    # --- Prepare data for HTML manifest ---
     tarball_summary = build_tarball_summary(backup_set_path, show_full_name=True)
 
     last_file_modified = None
@@ -162,7 +146,6 @@ def write_manifest_files(file_list, job_config_path, job_name, backup_set_id, ba
         except Exception:
             last_file_modified = None
 
-    # Write updated HTML manifest
     html_path = os.path.join(backup_set_path, f"manifest_{backup_set_id}.html")
     with open(html_path, "w") as f:
         f.write(render_html_manifest(
@@ -176,13 +159,10 @@ def write_manifest_files(file_list, job_config_path, job_name, backup_set_id, ba
 
     return json_path, html_path
 
-# This function renders the Manifest_archived.html manifest using Jinja2
 def render_html_manifest(job_name, backup_set_id, job_config_path, all_files, manifest_timestamp, tarball_summary):
-    # Determine the base directory of the project
     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     template_path = os.path.join(base_dir, "templates", "manifest_archived.html")
 
-    # Read and clean YAML config
     try:
         with open(job_config_path, 'r') as f:
             raw_yaml_content = f.read()
@@ -190,51 +170,43 @@ def render_html_manifest(job_name, backup_set_id, job_config_path, all_files, ma
     except Exception as e:
         config_yaml_no_comments = f"# Error reading config file: {e}"
 
-    # Format timestamp
     try:
         dt_object = datetime.fromisoformat(manifest_timestamp)
         formatted_timestamp = dt_object.strftime("%Y-%m-%d %H:%M:%S")
-    except ValueError:
-        formatted_timestamp = manifest_timestamp  # Fallback
-    
-    # Render the template
+    except Exception:
+        formatted_timestamp = manifest_timestamp
+
     try:
         with open(template_path) as template_file:
             template = Template(template_file.read())
-
-            print("DEBUG tarball_summary:", tarball_summary)
-
         return template.render(
             job_name=job_name,
             backup_set_id=backup_set_id,
             config_yaml=config_yaml_no_comments,
-            tarballs=all_files,  # For the main table
+            tarballs=all_files,
             timestamp=formatted_timestamp,
-            tarball_summary=tarball_summary  # For the accordion summary
+            tarball_summary=tarball_summary
         )
     except Exception as e:
         return f"<html><body>Error rendering manifest: {e}</body></html>"
 
 def get_cleaned_yaml_config(job_config_path):
-    print(f"DEBUG (get_cleaned_yaml_config): Received path: {job_config_path}") # Add debug
+    print(f"DEBUG (get_cleaned_yaml_config): Received path: {job_config_path}")
     if not job_config_path or not os.path.exists(job_config_path):
-        print(f"DEBUG (get_cleaned_yaml_config): Path invalid or does not exist.") # Add debug
+        print(f"DEBUG (get_cleaned_yaml_config): Path invalid or does not exist.")
         return f"# Error: Config file path invalid or not found: {job_config_path}"
     try:
         with open(job_config_path, 'r') as f:
             raw_yaml_content = f.read()
-        print(f"DEBUG (get_cleaned_yaml_config): Read raw content successfully.") # Add debug
+        print(f"DEBUG (get_cleaned_yaml_config): Read raw content successfully.")
         cleaned_content = _remove_yaml_comments(raw_yaml_content)
-        print(f"DEBUG (get_cleaned_yaml_config): Cleaned content length: {len(cleaned_content)}") # Add debug
+        print(f"DEBUG (get_cleaned_yaml_config): Cleaned content length: {len(cleaned_content)}")
         return cleaned_content
     except Exception as e:
-        print(f"DEBUG (get_cleaned_yaml_config): Exception reading/cleaning: {e}") # Add debug
+        print(f"DEBUG (get_cleaned_yaml_config): Exception reading/cleaning: {e}")
         return f"# Error reading config file {job_config_path}: {e}"
 
 def get_tarball_summary(backup_set_path):
-    import re
-    from .logger import sizeof_fmt
-
     tarball_files = []
     if not os.path.isdir(backup_set_path):
         return []

@@ -3,7 +3,7 @@ import os
 import yaml
 import subprocess
 import sys
-from app.settings import CONFIG_DIR, LOCK_DIR, BASE_DIR
+from app.settings import LOCK_DIR, BASE_DIR, JOBS_DIR
 
 jobs_bp = Blueprint('jobs', __name__)
 
@@ -25,9 +25,9 @@ def is_job_locked(lock_path):
 @jobs_bp.route("/jobs")
 def jobs():
     configs = []
-    for fname in os.listdir(CONFIG_DIR):
-        if fname.endswith(".yaml") and fname not in ("drives.yaml", "example.yaml"):
-            fpath = os.path.join(CONFIG_DIR, fname)
+    for fname in os.listdir(JOBS_DIR):
+        if fname.endswith(".yaml"):
+            fpath = os.path.join(JOBS_DIR, fname)
             with open(fpath) as f:
                 raw_data = f.read()
             try:
@@ -54,14 +54,13 @@ def jobs():
 def run_job(filename):
     if (
         not filename.endswith(".yaml")
-        or filename in ("drives.yaml", "example.yaml")
         or "/" in filename
         or ".." in filename
     ):
         flash("Invalid job file.", "danger")
         return redirect(url_for("jobs.jobs"))
 
-    config_path = os.path.join(CONFIG_DIR, filename)
+    config_path = os.path.join(JOBS_DIR, filename)
     if not os.path.exists(config_path):
         flash("Config file does not exist.", "danger")
         return redirect(url_for("jobs.jobs"))

@@ -3,8 +3,8 @@ import json
 import os
 import socket
 import time
-from datetime import datetime, timedelta
-from app.settings import BASE_DIR, CONFIG_DIR, LOG_DIR, MANIFEST_BASE, EVENTS_FILE
+from datetime import datetime
+from app.settings import BASE_DIR, EVENTS_FILE
 
 def load_events():
     """Load the events from the JSON file."""
@@ -92,7 +92,6 @@ def finalize_event(event_id, status, event, runtime=None, url=None, backup_set_i
     """
     events = load_events()
     found = False
-    start_time = None
 
     for item in events["data"]:
         if item["id"] == event_id:
@@ -164,10 +163,9 @@ def get_event_status(event_id):
     """
     Returns the status of the event with the given event_id, or None if not found.
     """
-    events_path = os.path.join(BASE_DIR, "data", "dashboard", "events.json")
-    if not os.path.exists(events_path):
+    if not os.path.exists(EVENTS_FILE):
         return None
-    with open(events_path, "r") as f:
+    with open(EVENTS_FILE, "r") as f:
         try:
             events_json = json.load(f)
         except Exception:
