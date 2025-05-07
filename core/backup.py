@@ -251,18 +251,16 @@ def encrypt_tarballs(tarball_paths, config, logger):
 
 
 def run_backup(config, backup_type, encrypt=False, sync=False, event_id=None, job_config_path=None):
-    # config is already a dict! Do NOT open or load YAML here.
     """
     Run the backup process.
     :param config: Configuration dictionary.
     :param backup_type: Type of backup ("full" or "diff").
-    :param encrypt: Whether to encrypt the backup (not yet implemented).
+    :param encrypt: Whether to encrypt the backup.
     :param sync: Whether to sync the backup to the cloud.
     :param event_id: Unique ID of the event to update.
     :param job_config_path: Path to the job configuration file.
     :return: Tuple containing (path to the latest backup set, event_id, backup_set_id string or None).
     """
-    # Set up the logger
     job_name = config.get("job_name", "unknown_job")
     logger = setup_logger(job_name)
     logger.info(f"Starting backup job '{job_name}' with provided config.")
@@ -307,13 +305,11 @@ def run_backup(config, backup_type, encrypt=False, sync=False, event_id=None, jo
     try:
         exclude_patterns = config.get("exclude", [])
         max_tarball_size_mb = config.get("max_tarball_size", 1024)
-
         src = config["source"]
         raw_dst = config["destination"]
         job_name = config.get("job_name") or "unknown_job"
         keep_sets = config.get("keep_sets", 5)
 
-        # --- NEW STRUCTURE: (destination_path)/(machine_name)/(job_name)/ ---
         machine_name = socket.gethostname()
         sanitized_job_name = "".join(c if c.isalnum() or c in ("-", "_") else "_" for c in job_name)
         sanitized_machine_name = "".join(c if c.isalnum() or c in ("-", "_") else "_" for c in machine_name)
@@ -322,6 +318,21 @@ def run_backup(config, backup_type, encrypt=False, sync=False, event_id=None, jo
         ensure_dir(job_dst)
         logger.info(f"Starting {backup_type.upper()} backup: {src} -> {job_dst}")
         now = timestamp()
+
+        # --- Robust backup type handling ---
+        last_full_file = os.path.join(job_dst, "last_full.txt")
+        need_full_backup = False
+
+        if backup_type in ["diff", "differential"]:
+            if not os.path.exists(last_full_file):
+                logger.info("No full backup found. Performing full backup instead of diff.")
+                update_event(
+                    event_id=event_id,
+                    backup_type="full",
+                    event="No full backup found. Performing full backup instead of diff.",
+                )
+                backup_type = "full"
+                # fall through to full backup logic
 
         if backup_type == "full":
             backup_set_id_string = now
@@ -365,27 +376,10 @@ def run_backup(config, backup_type, encrypt=False, sync=False, event_id=None, jo
             latest_backup_set_path = backup_set_dir
 
         elif backup_type in ["diff", "differential"]:
-            last_full_file = os.path.join(job_dst, "last_full.txt")
-            if not os.path.exists(last_full_file):
-                logger.info("No full backup found. Running full backup now")
-                update_event(
-                    event_id=event_id,
-                    backup_type="full",
-                    event="No full backup found. Running full backup now",
-                )
-                return run_backup(
-                    config,
-                    backup_type="full",
-                    encrypt=encrypt,
-                    sync=sync,
-                    event_id=event_id
-                )
-
             with open(last_full_file) as f:
                 last_full_timestamp = f.read().strip()
 
             backup_set_id_string = last_full_timestamp
-
             backup_set_dir = os.path.join(job_dst, f"backup_set_{backup_set_id_string}")
             if not os.path.exists(backup_set_dir):
                 raise Exception(f"Expected backup set folder not found: {backup_set_dir}")

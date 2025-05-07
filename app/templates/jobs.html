@@ -38,17 +38,34 @@
                             <span class="badge bg-secondary">Disabled</span>
                         {% endif %}
                     </div>
+                    <!-- Show schedule pills with tooltips -->
                     <div class="mb-2">
                         <span class="fw-bold">Schedules:</span>
                         {% if config.data and config.data.get('schedules') %}
                             <ul class="list-unstyled mb-0">
                                 {% for sched in config.data.schedules %}
-                                <li>
-                                    <span class="badge {% if sched.enabled %}bg-primary{% else %}bg-secondary{% endif %}">
-                                        {{ sched.cron }}
-                                        ({{ sched.type|capitalize }}, Sync: {{ 'Yes' if sched.sync else 'No' }})
-                                        {% if sched.enabled %}Enabled{% else %}Disabled{% endif %}
-                                    </span>
+                                <li class="d-flex align-items-center mb-1">
+                                    {% if sched.enabled %}
+                                        <span class="badge bg-primary me-1 my-0" style="font-size: 0.75em;"
+                                              title="{{ sched.cron_human }}">
+                                            {{ sched.type|capitalize }} &middot; {{ sched.cron }}
+                                        </span>
+                                        {% if sched.sync %}
+                                            <span class="badge bg-success me-1 my-0" title="Sync enabled" style="font-size: 0.75em;">
+                                                <i class="fa fa-cloud-upload-alt"></i> Sync
+                                            </span>
+                                        {% endif %}
+                                        {% if config.data.get('encryption', {}).get('enabled') %}
+                                            <span class="badge bg-warning text-dark me-1 my-0" title="Encryption enabled" style="font-size: 0.75em;">
+                                                <i class="fa fa-lock"></i> Enc
+                                            </span>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="badge bg-secondary me-1 my-0" style="font-size: 0.75em;"
+                                              title="{{ sched.cron_human }}">
+                                            {{ sched.type|capitalize }} &middot; {{ sched.cron }} (Disabled)
+                                        </span>
+                                    {% endif %}
                                 </li>
                                 {% endfor %}
                             </ul>

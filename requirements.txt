@@ -3,3 +3,4 @@ PyYAML
 boto3
 croniter
 markdown
+cron-descriptor

@@ -23,7 +23,49 @@
         <!-- End Modified Column -->
     </div>
     <div class="row pb-3">
-        <div class="col-md-6 mb-3 mb-md-0 d-flex">
+        <!-- Scheduled Jobs Card (NEW) -->
+        <div class="col-md-4 mb-3 mb-md-0 d-flex">
+            <div class="card flex-fill d-flex flex-column">
+                <div class="card-header" id="headingJobs">
+                    <i class="fa fa-calendar-alt"></i> Scheduled Jobs
+                </div>
+                <div class="card-body p-2" style="max-height: 300px; overflow-y: auto;">
+                    {% if scheduled_jobs %}
+                        <ul class="list-group list-group-flush">
+                        {% for job in scheduled_jobs %}
+                            <li class="list-group-item d-flex align-items-center py-1 px-2">
+                                <span class="fw-bold small">{{ job.job_name }}</span>
+                                <span class="ms-2 d-flex flex-wrap align-items-center">
+                                    {% for sched in job.schedules %}
+                                        {% if sched.enabled %}
+                                            <span class="badge bg-primary me-1 my-0" style="font-size: 0.75em;"
+                                                  title="{{ sched.cron_human }}">
+                                                {{ sched.type|capitalize }} &middot; {{ sched.cron }}
+                                            </span>
+                                        {% endif %}
+                                    {% endfor %}
+                                    {% if job.sync %}
+                                        <span class="badge bg-success me-1 my-0" title="Sync enabled" style="font-size: 0.75em;">
+                                            <i class="fa fa-cloud-upload-alt"></i> Sync
+                                        </span>
+                                    {% endif %}
+                                    {% if job.encrypt %}
+                                        <span class="badge bg-warning text-dark me-1 my-0" title="Encryption enabled" style="font-size: 0.75em;">
+                                            <i class="fa fa-lock"></i> Enc
+                                        </span>
+                                    {% endif %}
+                                </span>
+                            </li>
+                        {% endfor %}
+                        </ul>
+                    {% else %}
+                        <span class="text-muted">No scheduled jobs found.</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <!-- Local Storage Card -->
+        <div class="col-md-4 mb-3 mb-md-0 d-flex">
             <div class="card flex-fill d-flex flex-column">
                 <div class="card-header" id="headingOne">
                     <i class="fa-regular fa-hard-drive"></i> Local Storage
@@ -33,7 +75,8 @@
                 </div>
             </div>
         </div>
-        <div class="col-md-6 d-flex">
+        <!-- Cloud Storage Card -->
+        <div class="col-md-4 d-flex">
             <div class="card flex-fill d-flex flex-column">
                 <div class="card-header" id="headingTwo">
                     <i class="fa-brands fa-aws"></i> Cloud Storage

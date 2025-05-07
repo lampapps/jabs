@@ -9,12 +9,39 @@ from app.utils.manifest import get_tarball_summary, get_merged_cleaned_yaml_conf
 from app.utils.dashboard_helpers import find_config_path_by_job_name, load_config
 import socket
 import yaml
+from cron_descriptor import get_description, ExpressionDescriptor
 
-dashboard_bp = Blueprint('dashboard', __name__)
+dashboard_bp = Blueprint('dashboard', 'dashboard')
 
 @dashboard_bp.route("/")
 def dashboard():
-    return render_template("index.html")
+    jobs_dir = os.path.join(BASE_DIR, "config", "jobs")
+    scheduled_jobs = []
+    for fname in os.listdir(jobs_dir):
+        if fname.endswith(".yaml"):
+            with open(os.path.join(jobs_dir, fname)) as f:
+                try:
+                    data = yaml.safe_load(f)
+                    schedules = data.get("schedules", [])
+                    enabled_schedules = []
+                    for s in schedules:
+                        if s.get("enabled"):
+                            cron_expr = s.get("cron", "")
+                            try:
+                                s["cron_human"] = get_description(cron_expr)
+                            except Exception:
+                                s["cron_human"] = cron_expr
+                            enabled_schedules.append(s)
+                    if enabled_schedules:
+                        scheduled_jobs.append({
+                            "job_name": data.get("job_name", fname.replace(".yaml", "")),
+                            "schedules": enabled_schedules,
+                            "sync": any(s.get("sync") for s in enabled_schedules),
+                            "encrypt": data.get("encryption", {}).get("enabled", False),
+                        })
+                except Exception:
+                    continue
+    return render_template("index.html", scheduled_jobs=scheduled_jobs)
 
 @dashboard_bp.route("/help")
 def help():

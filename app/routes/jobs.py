@@ -4,6 +4,7 @@ import yaml
 import subprocess
 import sys
 from app.settings import LOCK_DIR, BASE_DIR, JOBS_DIR, GLOBAL_CONFIG_PATH
+from cron_descriptor import get_description  # <-- Add this import
 
 jobs_bp = Blueprint('jobs', __name__)
 
@@ -36,6 +37,14 @@ def jobs():
                 raw_data = f.read()
             try:
                 data = yaml.safe_load(raw_data)
+                # Add cron_human to each schedule if present
+                schedules = data.get("schedules", [])
+                for sched in schedules:
+                    cron_expr = sched.get("cron", "")
+                    try:
+                        sched["cron_human"] = get_description(cron_expr)
+                    except Exception:
+                        sched["cron_human"] = cron_expr
                 # Use job value if present, else global
                 job_name = data.get("job_name", fname.replace(".yaml", ""))
                 source = data.get("source", "")
