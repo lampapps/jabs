@@ -35,10 +35,10 @@ exclude:
   - "**/*.class"  # Exclude Java compiled class files recursively
   - "**/temp/**"  # Exclude any directory named "temp" at any level
 
-aws:
-  profile: "default"  # AWS CLI profile to use (default if not specified)
-  region: "us-east-1"  # AWS region (overrides profile region if specified)
-  bucket: "lampapps-jabs-dev"  # S3 bucket name (required for cloud backups)
+# aws:
+ # profile: "default"  # AWS CLI profile to use (default if not specified)
+ # region: "us-east-1"  # AWS region (overrides profile region if specified)
+ # bucket: "lampapps-jabs-dev"  # S3 bucket name (required for cloud backups)
 
 schedules:
   - cron: "0 2 * * 7"  # Minute 0, Hour 2 (2:00 AM), Any Day of Month, Any Month, Day of Week 7 (Sunday)

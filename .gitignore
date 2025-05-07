@@ -1,5 +1,4 @@
 .flask_secret_key
-notes.md
 __pycache__/
 *.pyc
 venv/

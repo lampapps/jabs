@@ -3,7 +3,7 @@
 # Job-specific settings
 job_name: "Pi Big Test"  # The name of the backup job (used for logging and organization)
 source: "/home/jim2"  # The source directory to back up
-destination: "/media/jim2/pishare/backups"  # The destination directory for local backups
+# destination: "/media/jim2/pishare/backups"  # The destination directory for local backups
 log_file: "logs/backup.log"  # Path to the log file (leave empty to use the default logs/default.log)
 keep_sets: 2  # Number of backup sets to retain (older sets will be deleted automatically)
 max_tarball_size: 2048  # Maximum size of each tarball in MB (e.g., 1024 MB = 1 GB)
@@ -42,10 +42,10 @@ exclude:
   - "Raw_images/"
   - "Videos/"
 
-aws:
-  profile: "default"  # AWS CLI profile to use (default if not specified)
-  region: "us-east-1"  # AWS region (overrides profile region if specified)
-  bucket: "my-bucket"  # S3 bucket name (required for cloud backups)
+# aws:
+  # profile: "default"  # AWS CLI profile to use (default if not specified)
+  # region: "us-east-1"  # AWS region (overrides profile region if specified)
+  # bucket: "my-bucket"  # S3 bucket name (required for cloud backups)
 
 schedules:
   - cron: "0 2 * * 7"  # Minute 0, Hour 2 (2:00 AM), Any Day of Month, Any Month, Day of Week 7 (Sunday)

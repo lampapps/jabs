@@ -8,7 +8,7 @@ import glob
 from jinja2 import Template
 from datetime import datetime
 from app.utils.logger import ensure_dir, setup_logger, sizeof_fmt
-from app.settings import BASE_DIR, CONFIG_DIR, LOG_DIR, MANIFEST_BASE, EVENTS_FILE
+from app.settings import BASE_DIR, CONFIG_DIR, LOG_DIR, MANIFEST_BASE, EVENTS_FILE, GLOBAL_CONFIG_PATH
 
 
 def extract_tar_info(tar_path):
@@ -91,9 +91,16 @@ def build_tarball_summary(backup_set_path, *, show_full_name=True):
     return sorted(summary, key=lambda item: item['timestamp_str'], reverse=True)
 
 def write_manifest_files(file_list, job_config_path, job_name, backup_set_id, backup_set_path, new_tar_info):
+    # Load job config and merge global defaults
     try:
         with open(job_config_path, 'r') as f:
             job_config_dict = yaml.safe_load(f)
+        with open(GLOBAL_CONFIG_PATH, 'r') as f:
+            global_config = yaml.safe_load(f)
+        if "destination" not in job_config_dict or not job_config_dict.get("destination"):
+            job_config_dict["destination"] = global_config.get("destination")
+        if "aws" not in job_config_dict or not job_config_dict.get("aws"):
+            job_config_dict["aws"] = global_config.get("aws")
     except Exception as e:
         job_config_dict = {"error": f"Could not load config: {e}"}
 
@@ -163,12 +170,13 @@ def render_html_manifest(job_name, backup_set_id, job_config_path, all_files, ma
     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     template_path = os.path.join(base_dir, "templates", "manifest_archived.html")
 
-    try:
-        with open(job_config_path, 'r') as f:
-            raw_yaml_content = f.read()
-        config_yaml_no_comments = _remove_yaml_comments(raw_yaml_content)
-    except Exception as e:
-        config_yaml_no_comments = f"# Error reading config file: {e}"
+    if not job_config_path or not os.path.exists(job_config_path):
+        config_yaml_no_comments = f"# Error: Config file path invalid or not found: {job_config_path}"
+    else:
+        try:
+            config_yaml_no_comments = get_merged_cleaned_yaml_config(job_config_path)
+        except Exception as e:
+            config_yaml_no_comments = f"# Error reading config file: {e}"
 
     try:
         dt_object = datetime.fromisoformat(manifest_timestamp)
@@ -190,20 +198,39 @@ def render_html_manifest(job_name, backup_set_id, job_config_path, all_files, ma
     except Exception as e:
         return f"<html><body>Error rendering manifest: {e}</body></html>"
 
-def get_cleaned_yaml_config(job_config_path):
-    print(f"DEBUG (get_cleaned_yaml_config): Received path: {job_config_path}")
+def get_merged_cleaned_yaml_config(job_config_path):
+    import yaml
     if not job_config_path or not os.path.exists(job_config_path):
-        print(f"DEBUG (get_cleaned_yaml_config): Path invalid or does not exist.")
         return f"# Error: Config file path invalid or not found: {job_config_path}"
     try:
         with open(job_config_path, 'r') as f:
-            raw_yaml_content = f.read()
-        print(f"DEBUG (get_cleaned_yaml_config): Read raw content successfully.")
-        cleaned_content = _remove_yaml_comments(raw_yaml_content)
-        print(f"DEBUG (get_cleaned_yaml_config): Cleaned content length: {len(cleaned_content)}")
-        return cleaned_content
+            raw_yaml = f.read()
+        cleaned_yaml_str = _remove_yaml_comments(raw_yaml)
+        job_config = yaml.safe_load(cleaned_yaml_str)
+        from app.settings import GLOBAL_CONFIG_PATH
+        with open(GLOBAL_CONFIG_PATH, 'r') as f:
+            global_config = yaml.safe_load(f)
+        # Merge global values if missing
+        if "destination" not in job_config or not job_config.get("destination"):
+            job_config["destination"] = global_config.get("destination")
+        if "aws" not in job_config or not job_config.get("aws"):
+            job_config["aws"] = global_config.get("aws")
+        # Build dict with globals first
+        merged = {}
+        for key in ("destination", "aws"):
+            if key in job_config:
+                merged[key] = job_config[key]
+        for key, value in job_config.items():
+            if key not in merged:
+                merged[key] = value
+        merged_yaml = yaml.safe_dump(
+            merged,
+            sort_keys=False,
+            default_flow_style=False,
+            indent=2
+        )
+        return merged_yaml
     except Exception as e:
-        print(f"DEBUG (get_cleaned_yaml_config): Exception reading/cleaning: {e}")
         return f"# Error reading config file {job_config_path}: {e}"
 
 def get_tarball_summary(backup_set_path):

@@ -50,6 +50,16 @@ try:
         with open(config_path) as f:
             config = yaml.safe_load(f)
 
+        # --- Add this block to merge global config defaults ---
+        from app.settings import GLOBAL_CONFIG_PATH
+        with open(GLOBAL_CONFIG_PATH) as f:
+            global_config = yaml.safe_load(f)
+        if "destination" not in config or not config.get("destination"):
+            config["destination"] = global_config.get("destination")
+        if "aws" not in config or not config.get("aws"):
+            config["aws"] = global_config.get("aws")
+        # -----------------------------------------------------
+
         # If encrypt is not set by CLI, check the config file
         if not encrypt:
             encrypt = config.get("encryption", {}).get("enabled", False)
@@ -73,11 +83,12 @@ try:
             # Run the backup - unpack the new third return value
             logger.info(f"Starting {backup_type.upper()} backup")
             latest_backup_set, returned_event_id, backup_set_id_str = run_backup(
-                config_path,
+                config,  # <-- merged config dict
                 backup_type,
                 encrypt=encrypt,
                 sync=sync, # Pass sync flag if run_backup needs it internally
-                event_id=event_id
+                event_id=event_id,
+                job_config_path=config_path
             )
 
             # Handle the case where no backup set was created (e.g., diff with no changes)

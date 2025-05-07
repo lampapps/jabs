@@ -1,6 +1,6 @@
 job_name: "JABS DEV"  # The name of the backup job (used for logging and organization)
 source: "/home/jim2/jabs_dev"  # The source directory to back up
-destination: "/media/jim2/backupdrive/jabs_dev"  # The destination directory for local backups
+#destination: "/media/jim2/backupdrive/jabs_testing"  # The destination directory for local backups
 
 # Backup retention and size settings
 keep_sets: 2  # Number of backup sets to retain (older sets will be deleted automatically)
@@ -11,8 +11,6 @@ encryption:
   enabled: true         # Default, can be overridden by CLI
   method: gpg            # Only 'gpg' supported for now
   passphrase_env: JABS_ENCRYPT_PASSPHRASE  # Name of env var holding passphrase
-
-
 
 # Exclusion rules
 exclude:
@@ -41,25 +39,12 @@ exclude:
   - "**/temp/**"  # Exclude any directory named "temp" at any level
 
 # AWS S3 settings (for cloud backups)
-aws:
-  profile: "default"  # AWS CLI profile to use (default if not specified)
-  region: "us-east-1"  # AWS region (overrides profile region if specified)
-  bucket: "lampapps-jabs-dev"  # S3 bucket name (required for cloud backups)
+#aws:
+  #profile: "default"  # AWS CLI profile to use (default if not specified)
+  #region: "us-east-1"  # AWS region (overrides profile region if specified)
+  #bucket: "lampapps-jabs-dev"  # S3 bucket name (required for cloud backups)
 
 # --- Scheduling ---
-# Define when and how backups should run automatically.
-# Requires adding the scheduler.py script to the system crontab (e.g., by running `crontab -e`).
-#
-# Example Crontab Entry (runs every hour):
-# This example assumes your Python virtual environment is located at /home/jim2/jabs3/venv
-# Adjust paths as necessary for your setup.
-#
-# 0 * * * * /home/jim2/jabs3/venv/bin/python /home/jim2/jabs3/scheduler.py
-#
-# Explanation:
-#   0 * * * * : Run at minute 0 of every hour, every day, every month, every day of the week.
-#   /home/jim2/jabs3/venv/bin/python : Path to the Python interpreter inside your virtual environment.
-#   /home/jim2/jabs3/scheduler.py : Path to the JABS scheduler script.
 #
 #          Cron Syntax:
 #          .---------------- minute (0 - 59)
@@ -84,26 +69,3 @@ schedules:
     type: "diff"       # Run a differential backup
     sync: true        # Do not sync differential backups
     enabled: false     # This schedule is active
-
-# Example disabled schedule:
-#  - cron: "0 0 1 * *"  # Minute 0, Hour 0 (midnight), Day of Month 1, Any Month, Any Day of Week
-#    # Runs on the 1st day of every month at midnight (00:00)
-#    type: "full"
-#    sync: true
-#    enabled: false     # This schedule is currently inactive
-
-# Notes:
-# - Ensure the `source` directory exists and contains the files you want to back up.
-# - The `destination` directory must have sufficient space for the backup sets.
-# - The `aws` section is required only if you plan to sync backups to AWS S3.
-# - Use the `exclude` list to specify files or directories to skip during the backup process.
-# - Advanced examples for `exclude`:
-#   - "**/temp/**": Excludes all directories named `temp` at any level of the directory tree.
-#   - "**/*.log": Excludes all `.log` files recursively in all subdirectories.
-#   - "**/*.tmp": Excludes all `.tmp` files recursively in all subdirectories.
-#   - "**/backup_*/": Excludes all directories starting with `backup_` at any level.
-#   - "**/202*/": Excludes all directories with names starting with `202` (e.g., year-based directories).
-#   - "**/*.{jpg,png,gif}": Excludes all image files with `.jpg`, `.png`, or `.gif` extensions.
-#   - "**/!(important).txt": Excludes all `.txt` files except those named `important.txt` (requires extended globbing).
-#   - "**/logs/**/debug.log": Excludes `debug.log` files in any `logs` subdirectory.
-#   - "**/!(keep_this_dir)/": Excludes all directories except `keep_this_dir` (requires extended globbing).

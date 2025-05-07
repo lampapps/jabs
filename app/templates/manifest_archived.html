@@ -35,7 +35,7 @@
                       <div id="collapseOne" class="accordion-collapse collapse" aria-labelledby="headingOne" data-bs-parent="#backupInfoAccordion">
                           <div class="accordion-body">
                               <!-- Use the config_yaml variable passed from Python -->
-                              <pre>{{ config_yaml }}</pre>
+                              <pre>{{ config_yaml | default('Configuration not available.') }}</pre>
                           </div>
                       </div>
                   </div>

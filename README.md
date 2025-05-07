@@ -12,7 +12,7 @@ JABS is a Python-based backup utility designed for creating local and cloud (AWS
 *   **Scheduling:** Includes a scheduler script (`scheduler.py`) designed to be run via cron to trigger backups based on cron expressions defined in the config files.
 *   **Web Dashboard (Flask):**
     *   View recent backup events (status, runtime, type).
-    *   Monitor local disk usage and S3 bucket/prefix usage (requires `config/drives.yaml`).
+    *   Monitor local disk usage and S3 bucket/prefix usage (requires `drives` and `s3_buckets` to be set in `config/global.yaml`).
     *   View backup job configurations.
     *   View application logs (`scheduler.log`, `backup.log`).
     *   Monitor scheduler status (heartbeat).
@@ -75,10 +75,11 @@ JABS is a Python-based backup utility designed for creating local and cloud (AWS
             - `method: gpg` uses GPG symmetric encryption.
             - `passphrase_env` is the name of the environment variable holding your GPG passphrase.
 
-2.  **Drive/S3 Monitoring (`config/drives.yaml`):**
-    *   (Optional) Create `config/drives.yaml` to configure which local drives and S3 buckets are monitored on the dashboard.
+2.  **Drive/S3 Monitoring (Optional):**
+    *   Add `drives` and `s3_buckets` to your `config/global.yaml` to configure which local drives and S3 buckets are monitored on the dashboard.
     *   Example structure:
         ```yaml
+        # In config/global.yaml:
         drives:
           - /
           - /media/backupdrive
@@ -86,6 +87,12 @@ JABS is a Python-based backup utility designed for creating local and cloud (AWS
           - my-jabs-bucket-1
           - another-s3-bucket
         ```
+
+## Recent Improvements
+
+- **Unified Config Rendering:** Both the dashboard and HTML manifests now display the merged, effective YAML configuration (job + global defaults), with comments stripped and consistent formatting.
+- **Global Settings Highlighted:** The `destination` and `aws` keys are always shown first in the rendered YAML config for clarity.
+- **Cleaner YAML Output:** All YAML shown in the dashboard and manifests is block-formatted, with proper indentation and no comments, making it easier to read and copy.
 
 ## Running JABS
 
@@ -203,32 +210,20 @@ JABS creates standard `.tar.gz` archives, optionally encrypted as `.tar.gz.gpg`,
 ## Directory Structure
 
 ```
-jabs4/
+jabs/
 ├── app/
 │   ├── __init__.py
-│   ├── routes/
-│   │   └── dashboard.py
+│   ├── routes/  
 │   ├── settings.py
 │   ├── static/
 │   │   ├── css/
-│   │   │   └── custom.css
 │   │   └── js/
-│   │       ├── dashboard.js
-│   │       └── global.js
 │   └── templates/
-│       ├── base.html
-│       ├── index.html
-│       ├── config.html
-│       ├── jobs.html
-│       ├── logs.html
-│       ├── help.html
-│       ├── manifest.html
-│       ├── manifest_archived.html
-│       └── edit_config.html
 ├── config/
-│   ├── default.yaml
-│   ├── drives.yaml
-│   └── (your job .yaml files)
+│   ├── global.yaml
+│   └── jobs/
+|       ├── templates/
+│       └── (your job .yaml files)
 ├── core/
 │   ├── backup.py
 │   └── sync_s3.py
@@ -238,20 +233,13 @@ jabs4/
 │   └── manifests/
 │       └── (job_name/backup_set_xxx.json)
 ├── logs/
-│   ├── backup.log
-│   ├── scheduler.log
-│   └── scheduler.status
 ├── utils/
-│   ├── event_logger.py
-│   ├── logger.py
-│   └── manifest.py
 ├── venv/
 ├── cli.py
 ├── requirements.txt
 ├── restore.sh
 ├── run.py
-├── scheduler.py
-
+└── scheduler.py
 
 # Structure of a local destination folder
 (destination_path)/
@@ -262,36 +250,9 @@ jabs4/
     |   |    │   ├── full_part_2_YYYYMMDD_HHMMSS.tar.gz
     |   |    │   ├── ... (other tarballs)
     |   |    │   └── manifest_YYYYMMDD_HHMMSS.html
-    |   |    ├── backup_set_YYYYMMDD_HHMMSS/
-    |   |    │   ├── full_part_1_YYYYMMDD_HHMMSS.tar.gz
-    |   |    │   ├── full_part_2_YYYYMMDD_HHMMSS.tar.gz
-    |   |    │   ├── ... (other tarballs)
-    |   |    │   └── manifest_YYYYMMDD_HHMMSS.html
-    |   |    ├── ... (other backup_sets)
-    |   |    └── last_full.txt
-    |   ├── (job_name)/
-    |   |    ├── backup_set_YYYYMMDD_HHMMSS/
-    |   |    │   ├── full_part_1_YYYYMMDD_HHMMSS.tar.gz
-    |   |    │   ├── full_part_2_YYYYMMDD_HHMMSS.tar.gz
-    |   |    │   ├── ... (other tarballs)
-    |   |    │   └── manifest_YYYYMMDD_HHMMSS.html
-    |   |    ├── backup_set_YYYYMMDD_HHMMSS/
-    |   |    │   ├── full_part_1_YYYYMMDD_HHMMSS.tar.gz
-    |   |    │   ├── full_part_2_YYYYMMDD_HHMMSS.tar.gz
-    |   |    │   ├── ... (other tarballs)
-    |   |    │   └── manifest_YYYYMMDD_HHMMSS.html
     |   |    ├── ... (other backup_sets)
     |   |    └── last_full.txt
     |   └── ... (other jobs on same machine_name)
-    ├──(machine_name)/
-    |   ├── (job_name)/
-    |   |    ├── backup_set_YYYYMMDD_HHMMSS/
-    |   |    │   ├── full_part_1_YYYYMMDD_HHMMSS.tar.gz
-    |   |    │   ├── full_part_2_YYYYMMDD_HHMMSS.tar.gz
-    |   |    │   ├── ... (other tarballs)
-    |   |    │   └── manifest_YYYYMMDD_HHMMSS.html
-    |   |    └── ...
-    |   └── ...
     └── ...
 
 # Structure of S3 Destination - Only latest set to sync'd to S3
@@ -303,26 +264,10 @@ s3://<bucket>/
     |   |        ├── full_part_2_YYYYMMDD_HHMMSS.tar.gz
     |   |        ├── ... (other tarballs)
     |   |        └── manifest_YYYYMMDD_HHMMSS.html
-    |   ├── (job_name)/
-    |   |    └── backup_set_YYYYMMDD_HHMMSS/
-    |   |        ├── full_part_1_YYYYMMDD_HHMMSS.tar.gz
-    |   |        ├── full_part_2_YYYYMMDD_HHMMSS.tar.gz
-    |   |        ├── ... (other tarballs)
-    |   |        └── manifest_YYYYMMDD_HHMMSS.html
     |   └── ... (other jobs on same machine_name)
-    ├──(<machine_name)/
-    |   ├── (job_name)/
-    |   |    └── backup_set_YYYYMMDD_HHMMSS/
-    |   |        ├── full_part_1_YYYYMMDD_HHMMSS.tar.gz
-    |   |        ├── full_part_2_YYYYMMDD_HHMMSS.tar.gz
-    |   |        ├── ... (other tarballs)
-    |   |        └── manifest_YYYYMMDD_HHMMSS.html
-    |   └── ...
     └── ...
 
 ```
-
-
 
 ## License
 

@@ -28,7 +28,7 @@
                     </div>
                     <div class="mb-2">
                         <span class="fw-bold">AWS Bucket:</span>
-                        <span class="text-monospace">{{ config.data.get('aws', {}).get('bucket', '') if config.data else '' }}</span>
+                        <span class="text-monospace">{{ config.aws.bucket if config.aws else '' }}</span>
                     </div>
                     <div class="mb-2">
                         <span class="fw-bold">Encryption:</span>
@@ -113,14 +113,14 @@
 
         <!-- View Modal -->
         <div class="modal fade" id="viewJobModal-{{ config.file_name|replace('.', '-') }}" tabindex="-1" aria-labelledby="viewJobLabel-{{ config.file_name|replace('.', '-') }}" aria-hidden="true">
-          <div class="modal-dialog modal-lg">
+          <div class="modal-dialog modal-lg modal-dialog-scrollable" style="max-width: 90vw;">
             <div class="modal-content">
               <div class="modal-header">
                 <h5 class="modal-title" id="viewJobLabel-{{ config.file_name|replace('.', '-') }}">View {{ config.file_name }}</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
               </div>
               <div class="modal-body">
-                <pre class="bg-dark text-light p-3 rounded" style="max-height: 400px; overflow:auto;">{{ config.raw_data }}</pre>
+                <pre class="bg-dark text-light p-3 rounded" style="max-height: 70vh; width: 100%; overflow:auto; white-space: pre-wrap; word-break: break-all;">{{ config.raw_data }}</pre>
               </div>
             </div>
           </div>

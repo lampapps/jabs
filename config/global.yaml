@@ -1,5 +1,16 @@
-# configure the drives and buckets that appear in the dashboard
+# Global configuration settings
 
+# Local destination for all backups jobs unless overridden in job config
+destination: "/media/jim2/backupdrive/jabs_dev" 
+
+# AWS S3 settings for cloud backups unless overridden in job config
+aws:
+  profile: "default"  # AWS CLI profile to use (default if not specified)
+  region: "us-east-1"  # AWS region (overrides profile region if specified)
+  bucket: "lampapps-jabs-dev"  # S3 bucket name (required for cloud backups)
+
+
+# configure the drives and buckets that appear in the dashboard
 drives:
   - "/"
   - "/media/jim2/backupdrive"
@@ -7,6 +18,6 @@ drives:
 
 s3_buckets:
   - "lampapps-jabs1"
+  - "lampapps-backup"
   - "lampapps-jabs-dev"
-  - "lampapps-backup"   
  

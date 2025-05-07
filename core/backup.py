@@ -250,28 +250,22 @@ def encrypt_tarballs(tarball_paths, config, logger):
     return encrypted_paths
 
 
-def run_backup(job_config_path, backup_type, encrypt=False, sync=False, event_id=None):
+def run_backup(config, backup_type, encrypt=False, sync=False, event_id=None, job_config_path=None):
+    # config is already a dict! Do NOT open or load YAML here.
     """
     Run the backup process.
-    :param job_config_path: Path to the YAML configuration file.
+    :param config: Configuration dictionary.
     :param backup_type: Type of backup ("full" or "diff").
     :param encrypt: Whether to encrypt the backup (not yet implemented).
     :param sync: Whether to sync the backup to the cloud.
     :param event_id: Unique ID of the event to update.
+    :param job_config_path: Path to the job configuration file.
     :return: Tuple containing (path to the latest backup set, event_id, backup_set_id string or None).
     """
-    # Load the configuration dictionary (still needed for logic)
-    with open(job_config_path) as f:
-        try:
-            config = yaml.safe_load(f)
-        except yaml.YAMLError as e:
-            print(f"Error loading config file {job_config_path}: {e}")
-            return None, event_id, None
-
     # Set up the logger
     job_name = config.get("job_name", "unknown_job")
     logger = setup_logger(job_name)
-    logger.info(f"Starting backup job '{job_name}' from config: {job_config_path}")
+    logger.info(f"Starting backup job '{job_name}' with provided config.")
     logger.info(f"Backup type: {backup_type}, Encrypt: {encrypt}, Sync: {sync}")
 
     # --- ENCRYPTION PASSPHRASE CHECK ---
@@ -316,7 +310,7 @@ def run_backup(job_config_path, backup_type, encrypt=False, sync=False, event_id
 
         src = config["source"]
         raw_dst = config["destination"]
-        job_name = config.get("job_name") or os.path.splitext(os.path.basename(job_config_path))[0]
+        job_name = config.get("job_name") or "unknown_job"
         keep_sets = config.get("keep_sets", 5)
 
         # --- NEW STRUCTURE: (destination_path)/(machine_name)/(job_name)/ ---
@@ -379,9 +373,8 @@ def run_backup(job_config_path, backup_type, encrypt=False, sync=False, event_id
                     backup_type="full",
                     event="No full backup found. Running full backup now",
                 )
-                config_path = job_config_path
                 return run_backup(
-                    config_path,
+                    config,
                     backup_type="full",
                     encrypt=encrypt,
                     sync=sync,

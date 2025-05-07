@@ -4,10 +4,11 @@ import os
 import json
 import markdown
 from datetime import datetime
-from app.settings import BASE_DIR, MANIFEST_BASE
-from app.utils.manifest import get_cleaned_yaml_config, get_tarball_summary
+from app.settings import BASE_DIR, MANIFEST_BASE, GLOBAL_CONFIG_PATH
+from app.utils.manifest import get_tarball_summary, get_merged_cleaned_yaml_config
 from app.utils.dashboard_helpers import find_config_path_by_job_name, load_config
 import socket
+import yaml
 
 dashboard_bp = Blueprint('dashboard', __name__)
 
@@ -36,17 +37,23 @@ def view_manifest(job_name, backup_set_id):
         manifest_data = json.load(f)
     job_config_path = find_config_path_by_job_name(job_name)
     tarball_summary_list = []
+    # Load global config for fallback
+    with open(GLOBAL_CONFIG_PATH) as f:
+        global_config = yaml.safe_load(f)
+    destination = None
     if job_config_path:
         job_config = load_config(job_config_path)
-        if job_config and 'destination' in job_config:
+        # Use job destination if present, else global
+        destination = job_config.get('destination') or global_config.get('destination')
+        if destination:
             backup_set_path_on_dst = os.path.join(
-                job_config['destination'],
+                destination,
                 socket.gethostname(),
                 sanitized_job,
                 f"backup_set_{backup_set_id}"
             )
             tarball_summary_list = get_tarball_summary(backup_set_path_on_dst)
-    cleaned_config = get_cleaned_yaml_config(job_config_path) if job_config_path else "Config file not found."
+    cleaned_config = get_merged_cleaned_yaml_config(job_config_path) if job_config_path else "Config file not found."
     manifest_timestamp = manifest_data.get("timestamp", "N/A")
     if manifest_timestamp != "N/A":
         try:

@@ -3,7 +3,7 @@ import os
 import yaml
 import subprocess
 import sys
-from app.settings import LOCK_DIR, BASE_DIR, JOBS_DIR
+from app.settings import LOCK_DIR, BASE_DIR, JOBS_DIR, GLOBAL_CONFIG_PATH
 
 jobs_bp = Blueprint('jobs', __name__)
 
@@ -24,7 +24,10 @@ def is_job_locked(lock_path):
 
 @jobs_bp.route("/jobs")
 def jobs():
-    # List actual jobs
+    # Load global config once
+    with open(GLOBAL_CONFIG_PATH) as f:
+        global_config = yaml.safe_load(f)
+
     jobs = []
     for fname in os.listdir(JOBS_DIR):
         if fname.endswith(".yaml"):
@@ -33,19 +36,23 @@ def jobs():
                 raw_data = f.read()
             try:
                 data = yaml.safe_load(raw_data)
+                # Use job value if present, else global
                 job_name = data.get("job_name", fname.replace(".yaml", ""))
                 source = data.get("source", "")
-                destination = data.get("destination", "")
+                destination = data.get("destination") or global_config.get("destination")
+                aws = data.get("aws") or global_config.get("aws")
             except Exception:
                 job_name = fname.replace(".yaml", "")
                 source = ""
-                destination = ""
+                destination = global_config.get("destination")
+                aws = global_config.get("aws")
                 data = {}
             jobs.append({
                 "file_name": fname,
                 "job_name": job_name,
                 "source": source,
                 "destination": destination,
+                "aws": aws,
                 "data": data,
                 "raw_data": raw_data,
             })
