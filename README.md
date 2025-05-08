@@ -213,7 +213,8 @@ JABS creates standard `.tar.gz` archives, optionally encrypted as `.tar.gz.gpg`,
 jabs/
 ├── app/
 │   ├── __init__.py
-│   ├── routes/  
+│   ├── routes/
+|   ├── utils/
 │   ├── settings.py
 │   ├── static/
 │   │   ├── css/
@@ -226,14 +227,14 @@ jabs/
 │       └── (your job .yaml files)
 ├── core/
 │   ├── backup.py
-│   └── sync_s3.py
+│   ├── sync_s3.py
+|   └── encrypt.py
 ├── data/
 │   ├── dashboard/
 │   │   └── events.json
 │   └── manifests/
 │       └── (job_name/backup_set_xxx.json)
 ├── logs/
-├── utils/
 ├── venv/
 ├── cli.py
 ├── requirements.txt

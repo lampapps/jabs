@@ -37,16 +37,18 @@ def get_disk_usage():
         with open(GLOBAL_CONFIG_PATH, "r") as f:
             global_config = yaml.safe_load(f)
             drives = global_config.get("drives", [])
+            drive_labels = {d['path']: d.get('label', d['path']) for d in global_config.get('drives', [])}
     except FileNotFoundError:
         return jsonify({"error": f"Configuration file {GLOBAL_CONFIG_PATH} not found."}), 404
     except yaml.YAMLError as e:
         return jsonify({"error": f"Error parsing {GLOBAL_CONFIG_PATH}: {str(e)}"}), 500
     disk_usage = []
     for drive in drives:
+        label = drive_labels.get(drive['path'], drive['path'])
         try:
-            total, used, free = shutil.disk_usage(drive)
+            total, used, free = shutil.disk_usage(drive['path'])
             disk_usage.append({
-                "drive": drive,
+                "drive": label,
                 "total_gib": round(total / (1024 ** 3), 2),
                 "used_gib": round(used / (1024 ** 3), 2),
                 "free_gib": round(free / (1024 ** 3), 2),
@@ -54,7 +56,7 @@ def get_disk_usage():
             })
         except FileNotFoundError:
             disk_usage.append({
-                "drive": drive,
+                "drive": label,
                 "error": "Drive not found or inaccessible"
             })
     return jsonify(disk_usage)
@@ -66,14 +68,25 @@ def get_s3_usage():
         with open(GLOBAL_CONFIG_PATH, "r") as f:
             config = yaml.safe_load(f)
             s3_buckets = config.get("s3_buckets", [])
+            bucket_labels = {}
+            for b in s3_buckets:
+                if isinstance(b, dict):
+                    bucket_labels[b.get('bucket')] = b.get('label', b.get('bucket'))
+                else:
+                    bucket_labels[b] = b  # fallback for old format
     except FileNotFoundError:
         return jsonify({"error": f"Configuration file {GLOBAL_CONFIG_PATH} not found."}), 404
     except yaml.YAMLError as e:
         return jsonify({"error": f"Error parsing {GLOBAL_CONFIG_PATH}: {str(e)}"}), 500
     s3 = boto3.client("s3")
     s3_usage = []
-    for bucket_name in s3_buckets:
-        bucket_data = {"bucket": bucket_name, "prefixes": []}
+    for bucket in s3_buckets:
+        if isinstance(bucket, dict):
+            bucket_name = bucket.get('bucket')
+        else:
+            bucket_name = bucket
+        label = bucket_labels.get(bucket_name, bucket_name)
+        bucket_data = {"bucket": label, "prefixes": []}
         try:
             paginator = s3.get_paginator("list_objects_v2")
             for page in paginator.paginate(Bucket=bucket_name, Delimiter="/"):

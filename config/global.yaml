@@ -1,23 +1,37 @@
-# Global configuration settings
+# Global backup configuration settings
 
 # Local destination for all backups jobs unless overridden in job config
+# The `destination` directory must have sufficient space for the backup sets.
 destination: "/media/jim2/backupdrive/jabs_dev" 
 
 # AWS S3 settings for cloud backups unless overridden in job config
+# The `aws` section is required only if you plan to sync backups to AWS S3.
+# Bucket name rules:
+# - Must be globally unique across all AWS accounts.
+# - Must be between 3 and 63 characters long.
+# - Can contain lowercase letters, numbers, and hyphens.
+# - Must start and end with a letter or number.
+# - Cannot contain uppercase letters or underscores.
+# - Cannot be formatted as an IP address (e.g., 192.168.5.4).
 aws:
   profile: "default"  # AWS CLI profile to use (default if not specified)
   region: "us-east-1"  # AWS region (overrides profile region if specified)
   bucket: "lampapps-jabs-dev"  # S3 bucket name (required for cloud backups)
 
 
-# configure the drives and buckets that appear in the dashboard
+# Configure the drives and buckets that appear in the dashboard
 drives:
-  - "/"
-  - "/media/jim2/backupdrive"
-  - "/media/jim2/pishare/"
+  - path: "/"
+    label: "Root"
+  - path: "/media/jim2/backupdrive"
+    label: "Backup Drive"
+  - path: "/media/jim2/pishare/"
+    label: "Pi Share"
 
 s3_buckets:
-  - "lampapps-jabs1"
-  - "lampapps-backup"
-  - "lampapps-jabs-dev"
- 
+  - bucket: "lampapps-jabs1"
+    label: "JABS1"
+  - bucket: "lampapps-backup"
+    label: "Backup"
+  - bucket: "lampapps-jabs-dev"
+    label: "JABS-Dev"

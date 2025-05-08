@@ -6,7 +6,7 @@ import fcntl  # For file locking (Unix-specific)
 import errno
 from datetime import datetime, timedelta
 from croniter import croniter
-from app.utils.logger import setup_logger
+from app.utils.logger import setup_logger, trim_all_logs
 import time
 from app.settings import BASE_DIR, CONFIG_DIR, LOCK_DIR, LOG_DIR, CLI_SCRIPT, PYTHON_EXECUTABLE
 
@@ -61,25 +61,6 @@ def release_lock(lock_file_path):
             logger.warning(f"Attempted to release lock for {lock_file_path}, but file handle was None.")
     else:
         logger.warning(f"Attempted to release lock for {lock_file_path}, but it was not found in tracked locks.")
-
-def trim_log_file(log_path, max_lines):
-    try:
-        if not os.path.exists(log_path):
-            logger.debug(f"Log file {log_path} not found for trimming.")
-            return
-        with open(log_path, 'r') as f:
-            lines = f.readlines()
-        if len(lines) > max_lines:
-            lines_to_keep = lines[-max_lines:]
-            with open(log_path, 'w') as f:
-                f.writelines(lines_to_keep)
-            logger.info(f"Trimmed log file {log_path}. Removed {len(lines) - max_lines} lines.")
-        else:
-            logger.debug(f"Log file {log_path} is within the line limit ({len(lines)}/{max_lines}). No trimming needed.")
-    except IOError as e:
-        logger.error(f"Error reading/writing log file {log_path} during trimming: {e}")
-    except Exception as e:
-        logger.error(f"Unexpected error trimming log file {log_path}: {e}")
 
 def main():
     """Checks configurations, schedules, and triggers jobs if needed."""
@@ -189,7 +170,7 @@ def main():
     except Exception as e:
         logger.error(f"An unexpected error occurred in the main scheduler loop: {e}", exc_info=True)
     finally:
-        trim_log_file(SCHEDULER_LOG_FILE, MAX_LOG_LINES)
+        trim_all_logs()
 
 if __name__ == "__main__":
     main()

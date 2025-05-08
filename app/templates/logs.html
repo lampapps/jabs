@@ -11,7 +11,7 @@
         </button>
     </div>
     <div class="row g-4">
-        {% for name, content, stats in logs %}
+        {% for name, content, stats, response_codes in logs %}
         <div class="col-12 col-md-6 col-lg-6">
             <div class="card shadow-sm border border-secondary-subtle border-2 h-100">
                 <div class="card-header d-flex justify-content-between align-items-center">
@@ -22,12 +22,38 @@
                 </div>
                 <div class="card-body">
                     <div class="mb-2">
-                        <span class="badge bg-secondary">Lines: {{ stats.total }}</span>
-                        <span class="badge bg-success">Info: {{ stats.info }}</span>
-                        <span class="badge bg-warning text-dark">Warning: {{ stats.warning }}</span>
-                        <span class="badge bg-danger">Error: {{ stats.error }}</span>
-                        {% if stats.other > 0 %}
-                        <span class="badge bg-dark">Other: {{ stats.other }}</span>
+                        {% if name == "server.log" and response_codes %}
+                            <span class="badge bg-secondary me-1">Lines: {{ stats.total }}</span>
+                            {% set code_tooltips = {
+                                '200': 'OK: Success',
+                                '201': 'Created',
+                                '204': 'No Content',
+                                '301': 'Moved Permanently',
+                                '302': 'Found (Redirect)',
+                                '304': 'Not Modified',
+                                '400': 'Bad Request',
+                                '401': 'Unauthorized',
+                                '403': 'Forbidden',
+                                '404': 'Not Found',
+                                '500': 'Internal Server Error',
+                                '502': 'Bad Gateway',
+                                '503': 'Service Unavailable'
+                            } %}
+                            {% for code, count in response_codes.items() %}
+                                {% set pill_class = "bg-success" if code.startswith('2') else "bg-warning text-dark" if code.startswith('4') else "bg-danger" if code.startswith('5') else "bg-secondary" %}
+                                <span class="badge {{ pill_class }} me-1"
+                                      title="{{ code_tooltips.get(code, 'HTTP Status Code ' ~ code) }}">
+                                    {{ code }}: {{ count }}
+                                </span>
+                            {% endfor %}
+                        {% else %}
+                            <span class="badge bg-secondary">Lines: {{ stats.total }}</span>
+                            <span class="badge bg-success">Info: {{ stats.info }}</span>
+                            <span class="badge bg-warning text-dark">Warning: {{ stats.warning }}</span>
+                            <span class="badge bg-danger">Error: {{ stats.error }}</span>
+                            {% if stats.other > 0 %}
+                            <span class="badge bg-dark">Other: {{ stats.other }}</span>
+                            {% endif %}
                         {% endif %}
                     </div>
                     <pre class="bg-light text-dark p-2 rounded" style="max-height: 140px; font-size: 0.92em; overflow:auto; white-space: pre-wrap; word-break: break-all;">{{ content[-1000:] }}</pre>

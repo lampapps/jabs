@@ -1,7 +1,9 @@
 # /utils/logger.py
 import logging
 import os
+import glob
 from datetime import datetime
+from app.settings import LOG_DIR, MAX_LOG_LINES
 
 class JobNameFormatter(logging.Formatter):
     """Custom formatter to include the job name in every log message."""
@@ -51,4 +53,20 @@ def sizeof_fmt(num, suffix="B"):
             return f"{num:3.1f}{unit}{suffix}"
         num /= 1024.0
     return f"{num:.1f}Yi{suffix}"
-    
+
+def trim_log_file(log_path, max_lines):
+    try:
+        if not os.path.exists(log_path):
+            return
+        with open(log_path, 'r') as f:
+            lines = f.readlines()
+        if len(lines) > max_lines:
+            lines_to_keep = lines[-max_lines:]
+            with open(log_path, 'w') as f:
+                f.writelines(lines_to_keep)
+    except Exception as e:
+        print(f"Error trimming log file {log_path}: {e}")
+
+def trim_all_logs():
+    for log_file in glob.glob(os.path.join(LOG_DIR, "*.log")):
+        trim_log_file(log_file, MAX_LOG_LINES)

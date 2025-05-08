@@ -41,7 +41,7 @@ def dashboard():
                         })
                 except Exception:
                     continue
-    return render_template("index.html", scheduled_jobs=scheduled_jobs)
+    return render_template("index.html", scheduled_jobs=scheduled_jobs, hostname=socket.gethostname())
 
 @dashboard_bp.route("/help")
 def help():

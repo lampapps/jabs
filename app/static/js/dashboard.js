@@ -7,12 +7,12 @@ $(document).ready(function () {
         },
         columns: [
             { data: 'starttimestamp', title: 'Start' },
-            { data: 'hostname', title: 'Hostname' },
+          //{ data: 'hostname', title: 'Hostname' },
             { data: 'job_name', title: 'Backup Title' },
             { data: 'backup_type', title: 'Type' },
             {
                 // This column will render the link to the manifest or just the event text
-                data: 'event', // <-- CHANGE: Use 'event' as the primary data source
+                data: 'event',
                 title: 'Event/Manifest',
                 render: function (data, type, row) { // 'data' is now the 'event' text
                     // Check if backup_set_id AND job_name are present in the row object
@@ -34,6 +34,27 @@ $(document).ready(function () {
             { data: 'runtime', title: 'Run Time' },
             { data: 'status', title: 'Status' }
         ],
+        columnDefs: [
+            { targets: [1, 2, 4, 5, 6, 7], className: 'text-center' },
+            { targets: 0, responsivePriority: 3 },
+            { targets: 2, responsivePriority: 2 },
+            { targets: 3, responsivePriority: 1 },
+            { targets: 7, responsivePriority: 4 },
+            { targets: [1, 4, 5, 6], responsivePriority: 100 },
+            {
+                targets: 7, // Status column
+                createdCell: function (td, cellData, rowData, row, col) {
+                    if (cellData && cellData.toLowerCase() === 'failed') {
+                        $(td).css('background-color', 'rgba(129, 56, 62, 0.65)');
+                    }
+                }
+            }
+        ],
+        language: {
+            search: "Filter events:",
+            lengthMenu: "Show _MENU_ events",
+            info: "Showing _START_ to _END_ of _TOTAL_ events",
+        },
         responsive: true,
         paging: true,
         searching: true,
@@ -73,8 +94,7 @@ document.addEventListener("DOMContentLoaded", function () {
                     return;
                 }
 
-
-                const labels = data.map(d => d.drive || 'Unknown Drive');
+                const labels = data.map(d => d.label || d.drive || 'Unknown Drive');
                 const usedData = data.map(d => d.used_gib || 0);
                 const freeData = data.map(d => d.free_gib || 0);
 
@@ -186,7 +206,7 @@ document.addEventListener("DOMContentLoaded", function () {
                     return;
                 }
 
-                const labels = data.map(bucket => bucket.bucket || 'Unknown Bucket');
+                const labels = data.map(bucket => bucket.label || bucket.bucket || 'Unknown Bucket');
                 const datasets = [];
                 const totalUsage = Array(labels.length).fill(0); // Initialize totals array
 
