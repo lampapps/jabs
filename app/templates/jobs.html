@@ -11,7 +11,7 @@
     </div>
     <div class="row g-4">
         {% for config in configs %}
-        <div class="col-12 col-md-6 col-lg-4">
+        <div class="col-12 col-md-6">
             <div class="card shadow-sm h-100 border border-secondary-subtle border-2">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <span>
@@ -32,7 +32,15 @@
                     <div class="mb-2">
                         <span class="fw-bold">AWS Bucket:</span>
                         <span class="text-monospace">
-                            {{ (config.aws.bucket if config.aws and config.aws.bucket else global_aws.bucket if global_aws and global_aws.bucket else '') }}
+                            {{
+                                config.data.aws.bucket
+                                if config.data and config.data.get('aws', {}).get('bucket')
+                                else config.aws.bucket
+                                if config.aws and config.aws.get('bucket')
+                                else global_aws.bucket
+                                if global_aws and global_aws.get('bucket')
+                                else ''
+                            }}
                         </span>
                     </div>
                     <div class="mb-2">
@@ -51,25 +59,23 @@
                             <span class="badge bg-secondary">Disabled</span>
                         {% endif %}
                     </div>
-                    <!-- Show schedule pills with tooltips -->
+                    <!-- Human-readable schedules, not pills -->
                     <div class="mb-2">
                         <span class="fw-bold">Schedules:</span>
                         {% if config.data and config.data.get('schedules') %}
-                            <ul class="list-unstyled mb-0">
+                            <ul class="mb-0 ps-3">
                                 {% for sched in config.data.schedules %}
-                                <li class="d-flex align-items-center mb-1">
-                                    {% if sched.enabled %}
-                                        <span class="badge bg-primary me-1 my-0" style="font-size: 0.75em;"
-                                              title="{{ sched.cron_human }}">
-                                            {{ sched.type|capitalize }} &middot; {{ sched.cron }}
-                                        </span>
-                                    {% else %}
-                                        <span class="badge bg-secondary me-1 my-0" style="font-size: 0.75em;"
-                                              title="{{ sched.cron_human }}">
-                                            {{ sched.type|capitalize }} &middot; {{ sched.cron }} (Disabled)
-                                        </span>
-                                    {% endif %}
-                                </li>
+                                    <li class="mb-1">
+                                        {% if sched.enabled %}
+                                            <span class="text-success">
+                                                {{ sched.type|capitalize if sched.type else '' }}: {{ sched.cron_human }}
+                                            </span>
+                                        {% else %}
+                                            <span class="text-muted">
+                                                {{ sched.type|capitalize if sched.type else '' }}: {{ sched.cron_human }} (Disabled)
+                                            </span>
+                                        {% endif %}
+                                    </li>
                                 {% endfor %}
                             </ul>
                         {% else %}
@@ -115,13 +121,7 @@
                         <option value="diff">Differential</option>
                     </select>
                 </div>
-                <div class="mb-3">
-                    <label class="form-label">Sync to S3 after backup?</label>
-                    <select name="sync" class="form-select">
-                        <option value="1">Yes</option>
-                        <option value="0" selected>No</option>
-                    </select>
-                </div>
+
               </div>
               <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>

@@ -16,31 +16,44 @@ dashboard_bp = Blueprint('dashboard', 'dashboard')
 @dashboard_bp.route("/")
 def dashboard():
     jobs_dir = os.path.join(BASE_DIR, "config", "jobs")
+    job_paths = [os.path.join(jobs_dir, fname) for fname in os.listdir(jobs_dir) if fname.endswith(".yaml")]
+
+    with open('config/global.yaml') as f:
+        global_config = yaml.safe_load(f)
+
     scheduled_jobs = []
-    for fname in os.listdir(jobs_dir):
-        if fname.endswith(".yaml"):
-            with open(os.path.join(jobs_dir, fname)) as f:
+    for job_path in job_paths:
+        with open(job_path) as f:
+            job_config = yaml.safe_load(f)
+
+        # Effective AWS sync
+        aws_enabled = job_config.get("aws", {}).get("enabled")
+        if aws_enabled is None:
+            aws_enabled = global_config.get("aws", {}).get("enabled", False)
+
+        # Effective encryption
+        encrypt_enabled = job_config.get("encryption", {}).get("enabled")
+        if encrypt_enabled is None:
+            encrypt_enabled = global_config.get("encryption", {}).get("enabled", False)
+
+        enabled_schedules = []
+        for s in job_config.get("schedules", []):
+            if s.get("enabled"):
+                cron_expr = s.get("cron", "")
                 try:
-                    data = yaml.safe_load(f)
-                    schedules = data.get("schedules", [])
-                    enabled_schedules = []
-                    for s in schedules:
-                        if s.get("enabled"):
-                            cron_expr = s.get("cron", "")
-                            try:
-                                s["cron_human"] = get_description(cron_expr)
-                            except Exception:
-                                s["cron_human"] = cron_expr
-                            enabled_schedules.append(s)
-                    if enabled_schedules:
-                        scheduled_jobs.append({
-                            "job_name": data.get("job_name", fname.replace(".yaml", "")),
-                            "schedules": enabled_schedules,
-                            "sync": any(s.get("sync") for s in enabled_schedules),
-                            "encrypt": data.get("encryption", {}).get("enabled", False),
-                        })
+                    s["cron_human"] = get_description(cron_expr)
                 except Exception:
-                    continue
+                    s["cron_human"] = cron_expr
+                enabled_schedules.append(s)
+
+        if enabled_schedules:
+            scheduled_jobs.append({
+                "job_name": job_config.get("job_name", os.path.basename(job_path)),
+                "schedules": enabled_schedules,
+                "sync": aws_enabled,
+                "encrypt": encrypt_enabled,
+            })
+
     return render_template("index.html", scheduled_jobs=scheduled_jobs, hostname=socket.gethostname())
 
 @dashboard_bp.route("/help")

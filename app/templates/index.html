@@ -23,7 +23,7 @@
         <!-- End Modified Column -->
     </div>
     <div class="row pb-3">
-        <!-- Scheduled Jobs Card (NEW) -->
+        <!-- Scheduled Jobs Card (Redesigned) -->
         <div class="col-md-4 mb-3 mb-md-0 d-flex">
             <div class="card flex-fill d-flex flex-column">
                 <div class="card-header" id="headingJobs">
@@ -33,28 +33,34 @@
                     {% if scheduled_jobs %}
                         <ul class="list-group list-group-flush">
                         {% for job in scheduled_jobs %}
-                            <li class="list-group-item d-flex align-items-center py-1 px-2">
-                                <span class="fw-bold small">{{ job.job_name }}</span>
-                                <span class="ms-2 d-flex flex-wrap align-items-center">
-                                    {% for sched in job.schedules %}
-                                        {% if sched.enabled %}
-                                            <span class="badge bg-primary me-1 my-0" style="font-size: 0.75em;"
-                                                  title="{{ sched.cron_human }}">
-                                                {{ sched.type|capitalize }} &middot; {{ sched.cron }}
-                                            </span>
+                            <li class="list-group-item py-0 px-2" style="line-height: 2.1;">
+                                <div class="d-flex align-items-center justify-content-between flex-wrap">
+                                    <span class="small text-truncate" title="{{ job.job_name }}">{{ job.job_name }}</span>
+                                    <span class="ms-2 flex-grow-1 d-flex flex-wrap align-items-center" style="min-width:0;">
+                                        {% if job.schedules %}
+                                            {% for sched in job.schedules %}
+                                                {% if sched.enabled %}
+                                                    <span class="badge bg-primary my-0 me-1" style="font-size: 0.72em; white-space:nowrap;"
+                                                          title="{{ sched.cron_human }}">
+                                                        {{ sched.type|capitalize if sched.type else '' }}: {{ sched.cron }}
+                                                    </span>
+                                                {% endif %}
+                                            {% endfor %}
+                                            {% if job.encrypt %}
+                                                <span class="badge bg-warning text-dark ms-1" title="Encryption enabled" style="font-size: 0.75em;">
+                                                    <i class="fa fa-lock"></i>
+                                                </span>
+                                            {% endif %}
+                                            {% if job.sync %}
+                                                <span class="badge bg-success ms-1" title="Sync enabled" style="font-size: 0.75em;">
+                                                    <i class="fa fa-cloud-upload-alt"></i>
+                                                </span>
+                                            {% endif %}
+                                        {% else %}
+                                            <span class="text-muted ms-2" style="font-size: 0.85em;">No schedules</span>
                                         {% endif %}
-                                    {% endfor %}
-                                    {% if job.sync %}
-                                        <span class="badge bg-success me-1 my-0" title="Sync enabled" style="font-size: 0.75em;">
-                                            <i class="fa fa-cloud-upload-alt"></i> Sync
-                                        </span>
-                                    {% endif %}
-                                    {% if job.encrypt %}
-                                        <span class="badge bg-warning text-dark me-1 my-0" title="Encryption enabled" style="font-size: 0.75em;">
-                                            <i class="fa fa-lock"></i> Enc
-                                        </span>
-                                    {% endif %}
-                                </span>
+                                    </span>
+                                </div>
                             </li>
                         {% endfor %}
                         </ul>

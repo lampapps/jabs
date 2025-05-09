@@ -46,4 +46,4 @@ schedules:
 
   - cron: "*/5 * * * *"    
     type: "diff"           # full | diff
-    enabled: true          # true | false
+    enabled: false          # true | false

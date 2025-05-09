@@ -11,7 +11,7 @@ encryption:
   enabled: true         # Default, false can be overridden by CLI
   
 aws:
-  enabled: true
+  enabled: false
 
 exclude:
   # General patterns
