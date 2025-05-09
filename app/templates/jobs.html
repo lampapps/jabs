@@ -13,11 +13,14 @@
         {% for config in configs %}
         <div class="col-12 col-md-6 col-lg-4">
             <div class="card shadow-sm h-100 border border-secondary-subtle border-2">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span>
+                        <i class="fa fa-file-code me-2"></i>
+                        {{ config.job_name or config.file_name|replace('.yaml','') }}
+                    </span>
+                    <span class="badge bg-secondary">{{ config.file_name }}</span>
+                </div>
                 <div class="card-body d-flex flex-column">
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <h5 class="card-title mb-0">{{ config.job_name or config.file_name|replace('.yaml','') }}</h5>
-                        <span class="badge bg-secondary">{{ config.file_name }}</span>
-                    </div>
                     <div class="mb-2">
                         <span class="fw-bold">Source:</span>
                         <span class="text-monospace">{{ config.source }}</span>
@@ -28,11 +31,21 @@
                     </div>
                     <div class="mb-2">
                         <span class="fw-bold">AWS Bucket:</span>
-                        <span class="text-monospace">{{ config.aws.bucket if config.aws else '' }}</span>
+                        <span class="text-monospace">
+                            {{ (config.aws.bucket if config.aws and config.aws.bucket else global_aws.bucket if global_aws and global_aws.bucket else '') }}
+                        </span>
                     </div>
                     <div class="mb-2">
                         <span class="fw-bold">Encryption:</span>
                         {% if config.data and config.data.get('encryption', {}).get('enabled') %}
+                            <span class="badge bg-success">Enabled</span>
+                        {% else %}
+                            <span class="badge bg-secondary">Disabled</span>
+                        {% endif %}
+                    </div>
+                    <div class="mb-2">
+                        <span class="fw-bold">Sync to S3:</span>
+                        {% if config.aws_enabled %}
                             <span class="badge bg-success">Enabled</span>
                         {% else %}
                             <span class="badge bg-secondary">Disabled</span>
@@ -50,16 +63,6 @@
                                               title="{{ sched.cron_human }}">
                                             {{ sched.type|capitalize }} &middot; {{ sched.cron }}
                                         </span>
-                                        {% if sched.sync %}
-                                            <span class="badge bg-success me-1 my-0" title="Sync enabled" style="font-size: 0.75em;">
-                                                <i class="fa fa-cloud-upload-alt"></i> Sync
-                                            </span>
-                                        {% endif %}
-                                        {% if config.data.get('encryption', {}).get('enabled') %}
-                                            <span class="badge bg-warning text-dark me-1 my-0" title="Encryption enabled" style="font-size: 0.75em;">
-                                                <i class="fa fa-lock"></i> Enc
-                                            </span>
-                                        {% endif %}
                                     {% else %}
                                         <span class="badge bg-secondary me-1 my-0" style="font-size: 0.75em;"
                                               title="{{ sched.cron_human }}">
@@ -73,25 +76,25 @@
                             <span class="text-muted">No schedules</span>
                         {% endif %}
                     </div>
-                    <div class="mt-auto d-flex flex-wrap gap-2">
-                        <!-- Run Job Button -->
-                        <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#runJobModal-{{ config.file_name|replace('.', '-') }}">
-                            <i class="fa fa-play"></i> Run
-                        </button>
-                        <!-- Edit Button (direct link, no modal) -->
-                        <a class="btn btn-warning btn-sm"
-                           href="{{ url_for('config.edit_config', filename=config.file_name, next=url_for('jobs.jobs')) }}">
-                            <i class="fa fa-edit"></i> Edit
-                        </a>
-                        <!-- View Button -->
-                        <button class="btn btn-info btn-sm" data-bs-toggle="modal" data-bs-target="#viewJobModal-{{ config.file_name|replace('.', '-') }}">
-                            <i class="fa fa-eye"></i> View
-                        </button>
-                        <!-- Delete Button -->
-                        <button class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#deleteJobModal-{{ config.file_name|replace('.', '-') }}">
-                            <i class="fa fa-trash"></i> Delete
-                        </button>
-                    </div>
+                </div>
+                <div class="card-footer d-flex flex-wrap gap-2 justify-content-end">
+                    <!-- Run Job Button -->
+                    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#runJobModal-{{ config.file_name|replace('.', '-') }}">
+                        <i class="fa fa-play"></i> Run
+                    </button>
+                    <!-- Edit Button (direct link, no modal) -->
+                    <a class="btn btn-warning btn-sm"
+                       href="{{ url_for('config.edit_config', filename=config.file_name, next=url_for('jobs.jobs')) }}">
+                        <i class="fa fa-edit"></i> Edit
+                    </a>
+                    <!-- View Button -->
+                    <button class="btn btn-info btn-sm" data-bs-toggle="modal" data-bs-target="#viewJobModal-{{ config.file_name|replace('.', '-') }}">
+                        <i class="fa fa-eye"></i> View
+                    </button>
+                    <!-- Delete Button -->
+                    <button class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#deleteJobModal-{{ config.file_name|replace('.', '-') }}">
+                        <i class="fa fa-trash"></i> Delete
+                    </button>
                 </div>
             </div>
         </div>

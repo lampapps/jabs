@@ -27,33 +27,56 @@ def save_global():
     flash("Global configuration saved.", "success")
     return redirect(url_for("config.config"))
 
-@config_bp.route("/config/edit/<filename>", methods=["GET"])
+# Example Flask route
+@config_bp.route('/edit/<filename>', methods=['GET', 'POST'])
 def edit_config(filename):
-    if not filename.endswith(".yaml") or "/" in filename or ".." in filename:
-        abort(400, "Invalid filename")
-    file_path = os.path.join(JOBS_DIR, filename)
+    error_message = None
+    file_path = GLOBAL_CONFIG_PATH if filename == "global.yaml" else os.path.join(JOBS_DIR, filename)
     if not os.path.exists(file_path):
-        abort(404, "Config file not found")
-    with open(file_path) as f:
-        content = f.read()
-    next_url = request.args.get("next", url_for("config.config"))
-    return render_template("edit_config.html", filename=filename, content=content, next_url=next_url)
+        loaded_yaml = "# File not found."
+    else:
+        with open(file_path, "r") as f:
+            loaded_yaml = f.read()
+    # Set cancel_url based on file type
+    if filename == "global.yaml":
+        cancel_url = url_for("config.config")
+    else:
+        cancel_url = url_for("jobs.jobs")
+    return render_template(
+        "edit_config.html",
+        file_name=filename,
+        raw_data=loaded_yaml,
+        cancel_url=cancel_url,
+        error=error_message
+    )
 
 @config_bp.route("/config/save/<filename>", methods=["POST"])
 def save_config(filename):
     if not filename.endswith(".yaml") or "/" in filename or ".." in filename:
         abort(400, "Invalid filename")
-    file_path = os.path.join(JOBS_DIR, filename)
+    # Save to the correct path
+    if filename == "global.yaml":
+        file_path = GLOBAL_CONFIG_PATH
+    else:
+        file_path = os.path.join(JOBS_DIR, filename)
     new_content = request.form.get("content", "")
     try:
         yaml.safe_load(new_content)
     except yaml.YAMLError as e:
         next_url = request.form.get("next") or url_for("config.config")
-        return render_template("edit_config.html", filename=filename, content=new_content, error=str(e), next_url=next_url)
+        return render_template(
+            "edit_config.html",
+            file_name=filename,
+            raw_data=new_content,
+            error=str(e),
+            cancel_url=next_url
+        )
     with open(file_path, "w") as f:
         f.write(new_content)
-    next_url = request.form.get("next") or url_for("config.config")
-    return redirect(next_url)
+    if filename == "global.yaml":
+        return redirect(url_for("config.config"))
+    else:
+        return redirect(url_for("jobs.jobs"))
 
 @config_bp.route("/config/copy", methods=["POST"])
 def copy_config():

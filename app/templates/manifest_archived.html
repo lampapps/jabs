@@ -34,8 +34,89 @@
                       </h2>
                       <div id="collapseOne" class="accordion-collapse collapse" aria-labelledby="headingOne" data-bs-parent="#backupInfoAccordion">
                           <div class="accordion-body">
-                              <!-- Use the config_yaml variable passed from Python -->
-                              <pre>{{ config_yaml | default('Configuration not available.') }}</pre>
+                              <div class="mb-3">
+                                  <h6><i class="fa fa-cogs text-primary"></i> Global Settings</h6>
+                                  <div class="row">
+                                      <div class="col-6">
+                                          <div class="border rounded p-2 mb-2 bg-light-subtle">
+                                              <strong>Global Settings</strong>
+                                              <ul class="mb-0 small">
+                                                  <li><b>Destination:</b> <code>{{ global_config.get('destination', 'Not set') }}</code></li>
+                                                  <li><b>AWS:</b>
+                                                      <ul>
+                                                          <li>Profile: <code>{{ global_config.get('aws', {}).get('profile', 'Not set') }}</code></li>
+                                                          <li>Region: <code>{{ global_config.get('aws', {}).get('region', 'Not set') }}</code></li>
+                                                          <li>Bucket: <code>{{ global_config.get('aws', {}).get('bucket', 'Not set') }}</code></li>
+                                                      </ul>
+                                                  </li>
+                                                  <li><b>Encryption:</b>
+                                                      <ul>
+                                                          <li>Enabled: <code>
+                                                              {% if global_encryption.enabled is not none %}
+                                                                  {{ global_encryption.enabled }}
+                                                              {% else %}
+                                                                  Not set
+                                                              {% endif %}
+                                                          </code></li>
+                                                          <li>Method: <code>{{ global_encryption.get('method', 'Not set') }}</code></li>
+                                                          <li>Passphrase Env: <code>{{ global_encryption.get('passphrase_env', 'Not set') }}</code></li>
+                                                      </ul>
+                                                  </li>
+                                              </ul>
+                                          </div>
+                                      </div>
+                                      <div class="col-6">
+                                          <div class="border rounded p-2 mb-2 bg-light-subtle">
+                                              <strong>Job Overrides</strong>
+                                              <ul class="mb-0 small">
+                                                  <li><b>Destination:</b> <code>{{ job_config.get('destination', '— (uses global)') }}</code></li>
+                                                  <li><b>AWS:</b>
+                                                      <ul>
+                                                          <li>Profile: <code>{{ job_config.get('aws', {}).get('profile', '— (uses global)') }}</code></li>
+                                                          <li>Region: <code>{{ job_config.get('aws', {}).get('region', '— (uses global)') }}</code></li>
+                                                          <li>Bucket: <code>{{ job_config.get('aws', {}).get('bucket', '— (uses global)') }}</code></li>
+                                                      </ul>
+                                                  </li>
+                                                  <li><b>Encryption:</b>
+                                                      <ul>
+                                                          <li>Enabled: <code>
+                                                              {% if job_encryption.get('enabled') is not none %}
+                                                                  {{ job_encryption.get('enabled') }}
+                                                              {% else %}
+                                                                  Not set
+                                                              {% endif %}
+                                                          </code></li>
+                                                          <li>Method: <code>{{ job_encryption.get('method', '— (uses global)') }}</code></li>
+                                                          <li>Passphrase Env: <code>{{ job_encryption.get('passphrase_env', '— (uses global)') }}</code></li>
+                                                      </ul>
+                                                  </li>
+                                              </ul>
+                                          </div>
+                                      </div>
+                                  </div>
+                              </div>
+                              <div class="mb-3">
+                                  <h6><i class="fa fa-info-circle text-primary"></i> Job Settings</h6>
+                                  <div class="border rounded p-2 mb-2 bg-light-subtle">
+                                      <ul class="mb-0 small">
+                                          <li><b>Job Name:</b> <code>{{ job_config.get('job_name', 'Not set') }}</code></li>
+                                          <li><b>Source:</b> <code>{{ job_config.get('source', 'Not set') }}</code></li>
+                                          <li><b>Keep Sets:</b> <code>{{ job_config.get('keep_sets', 'Not set') }}</code></li>
+                                          <li><b>Max Tarball Size (MB):</b> <code>{{ job_config.get('max_tarball_size', 'Not set') }}</code></li>
+                                          <li><b>Exclude:</b>
+                                              {% if job_config.get('exclude') %}
+                                                  <ul>
+                                                      {% for pattern in job_config.get('exclude') %}
+                                                          <li><code>{{ pattern }}</code></li>
+                                                      {% endfor %}
+                                                  </ul>
+                                              {% else %}
+                                                  <code>Not set</code>
+                                              {% endif %}
+                                          </li>
+                                      </ul>
+                                  </div>
+                              </div>
                           </div>
                       </div>
                   </div>

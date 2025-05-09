@@ -16,8 +16,6 @@ max_tarball_size: 1024  # Maximum size of each tarball in MB (e.g., 1024 MB = 1 
 # GPG symmetric encryption for tarballs
 encryption:
   enabled: true         # Default, false can be overridden by CLI
-  method: gpg            # Only 'gpg' supported for now
-  passphrase_env: JABS_ENCRYPT_PASSPHRASE  # Name of env var holding passphrase
 
 # Use the `exclude` list to specify files or directories to skip during the backup process.
 exclude:
@@ -91,3 +89,7 @@ schedules:
 #  profile: "default"  # AWS CLI profile to use (default if not specified)
 #  region: "us-east-1"  # AWS region (overrides profile region if specified)
 #  bucket: "my-bucket"  # S3 bucket name (required for cloud backups)
+
+# encryption: 
+#  method: gpg             # Only 'gpg' supported for now
+#  passphrase_env: JABS_ENCRYPT_PASSPHRASE  # Name of env var holding passphrase

@@ -76,6 +76,10 @@ def main():
         logger.info("--- Scheduler Check Finished ---")
         return
 
+    global_config_path = os.path.join(CONFIG_DIR, "global.yaml")
+    with open(global_config_path) as gf:
+        global_config = yaml.safe_load(gf)
+
     triggered_jobs_count = 0
 
     try:
@@ -131,13 +135,24 @@ def main():
                         prev_run_time = cron.get_prev(datetime)
                         if (now - prev_run_time) < SCHEDULE_TOLERANCE:
                             logger.info(f"MATCH FOUND for job '{job_name}' (config: {os.path.basename(config_path)}): Schedule '{cron_expr}'")
-                            command = [PYTHON_EXECUTABLE, CLI_SCRIPT, config_path]
+                            command = [PYTHON_EXECUTABLE, CLI_SCRIPT, "--config", config_path]
                             if backup_type.lower() in ["diff", "differential"]:
                                 command.append("--diff")
                             else:
                                 command.append("--full")
-                            if sync_s3:
+
+                            aws_enabled = config.get("aws", {}).get("enabled")
+                            if aws_enabled is None:
+                                aws_enabled = global_config.get("aws", {}).get("enabled", False)
+                            if aws_enabled:
                                 command.append("--sync")
+
+                            encrypt_enabled = config.get("encryption", {}).get("enabled")
+                            if encrypt_enabled is None:
+                                encrypt_enabled = global_config.get("encryption", {}).get("enabled", False)
+                            if encrypt_enabled:
+                                command.append("--encrypt")
+
                             logger.info(f"Executing command: {' '.join(command)}")
                             try:
                                 subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)

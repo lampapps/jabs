@@ -101,8 +101,12 @@ def write_manifest_files(file_list, job_config_path, job_name, backup_set_id, ba
             job_config_dict["destination"] = global_config.get("destination")
         if "aws" not in job_config_dict or not job_config_dict.get("aws"):
             job_config_dict["aws"] = global_config.get("aws")
+        global_encryption = global_config.get("encryption", {})
+        job_encryption = job_config_dict.get("encryption", {})
     except Exception as e:
         job_config_dict = {"error": f"Could not load config: {e}"}
+        global_encryption = {}
+        job_encryption = {}
 
     sanitized_job = "".join(c if c.isalnum() or c in ("-", "_") else "_" for c in job_name)
     json_dir = os.path.join(MANIFEST_BASE, sanitized_job)
@@ -161,14 +165,39 @@ def write_manifest_files(file_list, job_config_path, job_name, backup_set_id, ba
             job_config_path=job_config_path,
             all_files=manifest_data["files"],
             manifest_timestamp=last_file_modified,
-            tarball_summary=tarball_summary
+            tarball_summary=tarball_summary,
+            global_encryption=global_encryption,
+            job_encryption=job_encryption
         ))
 
     return json_path, html_path
 
-def render_html_manifest(job_name, backup_set_id, job_config_path, all_files, manifest_timestamp, tarball_summary):
+def render_html_manifest(
+    job_name,
+    backup_set_id,
+    job_config_path,
+    all_files,
+    manifest_timestamp,
+    tarball_summary,
+    global_encryption=None,
+    job_encryption=None
+):
     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     template_path = os.path.join(base_dir, "templates", "manifest_archived.html")
+
+    # Load configs for settings display
+    global_config = {}
+    job_config = {}
+    if job_config_path and os.path.exists(job_config_path):
+        try:
+            with open(job_config_path, 'r') as f:
+                job_config = yaml.safe_load(f) or {}
+            from app.settings import GLOBAL_CONFIG_PATH
+            with open(GLOBAL_CONFIG_PATH, 'r') as f:
+                global_config = yaml.safe_load(f) or {}
+        except Exception:
+            job_config = {}
+            global_config = {}
 
     if not job_config_path or not os.path.exists(job_config_path):
         config_yaml_no_comments = f"# Error: Config file path invalid or not found: {job_config_path}"
@@ -193,7 +222,11 @@ def render_html_manifest(job_name, backup_set_id, job_config_path, all_files, ma
             config_yaml=config_yaml_no_comments,
             tarballs=all_files,
             timestamp=formatted_timestamp,
-            tarball_summary=tarball_summary
+            tarball_summary=tarball_summary,
+            global_encryption=global_encryption or {},
+            job_encryption=job_encryption or {},
+            global_config=global_config,
+            job_config=job_config
         )
     except Exception as e:
         return f"<html><body>Error rendering manifest: {e}</body></html>"

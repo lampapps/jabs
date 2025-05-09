@@ -21,10 +21,6 @@ def get_events():
         events = {"data": []}
     return jsonify(events)
 
-@api_bp.route("/cronstatus.html")
-def cronstatus():
-    return render_template("cronstatus.html")
-
 @api_bp.route('/data/dashboard/events.json')
 def serve_events():
     events_dir = os.path.dirname(EVENTS_FILE)

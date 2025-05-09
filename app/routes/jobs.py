@@ -50,11 +50,19 @@ def jobs():
                 source = data.get("source", "")
                 destination = data.get("destination") or global_config.get("destination")
                 aws = data.get("aws") or global_config.get("aws")
+                aws_enabled = None
+                if data.get("aws") and "enabled" in data["aws"]:
+                    aws_enabled = data["aws"]["enabled"]
+                elif global_config.get("aws") and "enabled" in global_config["aws"]:
+                    aws_enabled = global_config["aws"]["enabled"]
+                else:
+                    aws_enabled = False
             except Exception:
                 job_name = fname.replace(".yaml", "")
                 source = ""
                 destination = global_config.get("destination")
                 aws = global_config.get("aws")
+                aws_enabled = False
                 data = {}
             jobs.append({
                 "file_name": fname,
@@ -62,6 +70,7 @@ def jobs():
                 "source": source,
                 "destination": destination,
                 "aws": aws,
+                "aws_enabled": aws_enabled,
                 "data": data,
                 "raw_data": raw_data,
             })
@@ -74,7 +83,12 @@ def jobs():
             if tname.endswith(".yaml"):
                 templates.append(tname)
 
-    return render_template("jobs.html", configs=jobs, templates=templates)
+    return render_template(
+        "jobs.html",
+        configs=jobs,
+        templates=templates,
+        global_aws=global_config.get("aws", {})
+    )
 
 @jobs_bp.route("/jobs/run/<filename>", methods=["POST"])
 def run_job(filename):
@@ -94,6 +108,17 @@ def run_job(filename):
     with open(config_path) as f:
         config = yaml.safe_load(f)
     job_name = config.get("job_name", filename.replace(".yaml", ""))
+
+    # Determine if S3 sync is enabled (job overrides global)
+    aws_enabled = None
+    if config.get("aws") and "enabled" in config["aws"]:
+        aws_enabled = config["aws"]["enabled"]
+    else:
+        # Load global config if not already loaded
+        with open(GLOBAL_CONFIG_PATH) as gf:
+            global_config = yaml.safe_load(gf)
+        aws_enabled = global_config.get("aws", {}).get("enabled", False)
+
     lock_path = os.path.join(LOCK_DIR, f"{job_name}.lock")
     if os.path.exists(lock_path) and is_job_locked(lock_path):
         flash(f"Backup already running for job '{job_name}'.", "warning")
@@ -105,23 +130,24 @@ def run_job(filename):
         return redirect(url_for("jobs.jobs"))
 
     sync = request.form.get("sync", "0")
-    cli_path = os.path.join(BASE_DIR, "cli.py")
-    args = [sys.executable, cli_path, config_path]
+    cli_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../cli.py'))
+    args = [sys.executable, cli_path, "--config", config_path]
     if backup_type == "full":
         args.append("--full")
     else:
         args.append("--diff")
-    if sync == "1":
+    if sync == "1" and aws_enabled:
         args.append("--sync")
 
     try:
-        subprocess.Popen(
-            args,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            start_new_session=True,
-            cwd=BASE_DIR
-        )
+        with open('/tmp/backup_stdout.log', 'w') as out, open('/tmp/backup_stderr.log', 'w') as err:
+            subprocess.Popen(
+                args,
+                stdout=out,
+                stderr=err,
+                start_new_session=True,
+                cwd=BASE_DIR
+            )
         flash(f"{backup_type.capitalize()} backup for {job_name} has been started.", "success")
     except Exception as e:
         flash(f"Failed to start backup: {e}", "danger")

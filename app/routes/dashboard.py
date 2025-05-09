@@ -67,11 +67,14 @@ def view_manifest(job_name, backup_set_id):
     # Load global config for fallback
     with open(GLOBAL_CONFIG_PATH) as f:
         global_config = yaml.safe_load(f)
+    global_encryption = global_config.get("encryption", {})
+    job_encryption = {}
     destination = None
     if job_config_path:
         job_config = load_config(job_config_path)
         # Use job destination if present, else global
         destination = job_config.get('destination') or global_config.get('destination')
+        job_encryption = job_config.get("encryption", {})
         if destination:
             backup_set_path_on_dst = os.path.join(
                 destination,
@@ -95,5 +98,9 @@ def view_manifest(job_name, backup_set_id):
         manifest_timestamp=manifest_timestamp,
         config_content=cleaned_config,
         all_files=manifest_data.get("files", []),
-        tarball_summary=tarball_summary_list
+        tarball_summary=tarball_summary_list,
+        global_config=global_config,
+        job_config=job_config if job_config_path else {},
+        global_encryption=global_encryption,
+        job_encryption=job_encryption
     )

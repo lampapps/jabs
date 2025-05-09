@@ -5,10 +5,11 @@ source: "/path/to/source" # The source directory to back up
 keep_sets: 2              # Number of backup sets to retain (older sets will be deleted automatically) 
 max_tarball_size: 2048    # Maximum size of each tarball in MB (e.g., 1024 MB = 1 GB)
 
-encryption:
+encryption: 
   enabled: false          # Default, false can be overridden by CLI
-  method: gpg             # Only 'gpg' supported for now
-  passphrase_env: JABS_ENCRYPT_PASSPHRASE  # Name of env var holding passphrase
+
+aws:
+  enabled: false          # Default, false can be overridden by CLI
 
 exclude:
   - ".*"                 # Exclude all hidden files and directories (e.g., .git, .env)
@@ -34,12 +35,10 @@ exclude:
 schedules:
   - cron: "0 2 * * 7"    # Runs at 2:00 AM, every Sunday
     type: "full"         # full or diff
-    sync: true           # Sync to S3 after backup, true or false
     enabled: false       # Scheduled to run, true or false
 
   - cron: "0 2 * * 1-6"  # Runs at 2:00 AM, Monday to Saturday
-    type: "diff"      
-    sync: false        
+    type: "diff"          
     enabled: false 
 
 # #######################################################################################################################
@@ -51,3 +50,7 @@ schedules:
 #  profile: "default"  # AWS CLI profile to use (default if not specified)
 #  region: "us-east-1"  # AWS region (overrides profile region if specified)
 #  bucket: "my-bucket"  # S3 bucket name (required for cloud backups)
+
+# encryption: 
+#  method: gpg             # Only 'gpg' supported for now
+#  passphrase_env: JABS_ENCRYPT_PASSPHRASE  # Name of env var holding passphrase

@@ -1,19 +1,35 @@
 {% extends "base.html" %}
-{% block title %}Edit Config: {{ filename }}{% endblock %}
+{% block title %}Edit Config: {{ file_name }}{% endblock %}
 {% block content %}
 <div class="container my-5">
-    <h2>Edit {{ filename }}</h2>
-    {% if error %}
-        <div class="alert alert-danger">{{ error }}</div>
-    {% endif %}
-    <form method="post" action="{{ url_for('config.save_config', filename=filename) }}">
-        <input type="hidden" name="next" value="{{ next_url }}">
-        <div id="editor" style="height: 700px; width: 100%;">{{ content }}</div>
-        <div id="yaml-error" class="text-danger mt-2"></div>
-        <textarea name="content" id="content" style="display:none;"></textarea>
-        <button type="submit" class="btn btn-primary mt-3">Save</button>
-        <a href="{{ next_url }}" class="btn btn-secondary mt-3">Cancel</a>
-    </form>
+    <div class="row">
+        <div class="col-12 col-md-12 col-lg-10 mx-auto">
+            <h1 class="mb-4">Editing: <code>{{ file_name }}</code></h1>
+            <div class="card shadow-sm border border-secondary-subtle border-2">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span>
+                        <i class="fa fa-file-code me-2 text-white"></i>
+                        Edit {{ file_name }}
+                    </span>
+                </div>
+                <form method="post" action="{{ url_for('config.save_config', filename=file_name) }}">
+                    <input type="hidden" name="next" value="{{ cancel_url }}">
+                    <div class="card-body">
+                        {% if error %}
+                            <div class="alert alert-danger">{{ error }}</div>
+                        {% endif %}
+                        <div id="editor" style="height: 700px; width: 100%;">{{ raw_data }}</div>
+                        <div id="yaml-error" class="text-danger mt-2"></div>
+                        <textarea name="content" id="content" style="display:none;"></textarea>
+                    </div>
+                    <div class="card-footer text-end">
+                        <button type="submit" class="btn btn-primary">Save</button>
+                        <a href="{{ cancel_url }}" class="btn btn-secondary ms-2">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
 </div>
 {% endblock %}
 {% block scripts %}
