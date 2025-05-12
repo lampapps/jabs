@@ -13,21 +13,20 @@ def create_app():
     # Ensure log directory exists
     ensure_dir(LOG_DIR)
 
-    # Set up Flask app logging to file
-    file_handler = logging.FileHandler(os.path.join(LOG_DIR, 'server.log'))
-    file_handler.setLevel(logging.INFO)
-    formatter = logging.Formatter('[%(asctime)s] %(levelname)s in %(module)s: %(message)s')
-    file_handler.setFormatter(formatter)
-
-    app.logger.setLevel(logging.INFO)
-    if not any(isinstance(h, logging.FileHandler) for h in app.logger.handlers):
-        app.logger.addHandler(file_handler)
-
-    # Add this for Werkzeug access logs
+    # Set up Werkzeug (HTTP server) logging to file in LOG_DIR/server.log
+    server_log_path = os.path.join(LOG_DIR, 'server.log')
     werkzeug_logger = logging.getLogger('werkzeug')
+
+    # Remove any existing FileHandlers to avoid duplicate logs
+    for handler in list(werkzeug_logger.handlers):
+        if isinstance(handler, logging.FileHandler):
+            werkzeug_logger.removeHandler(handler)
+
+    # Attach a plain FileHandler (no formatter) for raw HTTP logs
+    file_handler = logging.FileHandler(server_log_path)
+    werkzeug_logger.addHandler(file_handler)
     werkzeug_logger.setLevel(logging.INFO)
-    if not any(isinstance(h, logging.FileHandler) for h in werkzeug_logger.handlers):
-        werkzeug_logger.addHandler(file_handler)
+    werkzeug_logger.propagate = False  # Prevent double logging
 
     @app.errorhandler(404)
     def page_not_found(e):

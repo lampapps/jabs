@@ -21,7 +21,7 @@ exclude:
   - "*.lock"  # Exclude lock files (e.g., file.lock)  
   - "cache/"  # Exclude cache directories
   - "node_modules/"  # Exclude Node.js dependencies
-  - "venv/"  # Exclude Python virtual environments
+  - "**/venv/"  # Exclude Python virtual environments
   - "build/"  # Exclude build directories (e.g., for compiled code)
   - ".*"  # Exclude all hidden files and directories (e.g., .git, .env)
   - ".DS_Store"  # Exclude macOS-specific metadata files

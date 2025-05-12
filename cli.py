@@ -89,7 +89,7 @@ try:
         # Initialize the event and capture the event_id
         event_id = initialize_event(
             job_name=job_name,
-            event="Starting backup",
+            event="Backup job started",
             backup_type=backup_type,
             encrypt=encrypt_effective,
             sync=sync_effective

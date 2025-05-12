@@ -32,7 +32,7 @@ drives:
     label: "Root"
   - path: "/media/jim2/backupdrive"
     label: "Backup Drive"
-  - path: "/media/jim2/pishare/"
+  - path: "/media/jim2/pishare/backups"
     label: "Pi Share"
 
 s3_buckets:

@@ -1,15 +1,15 @@
 # Example config file with less comments.
 # Job-specific settings
-job_name: "Example Name"  # The name of the backup job (used for logging and organization)
-source: "/path/to/source" # The source directory to back up
+job_name: "jim2 Home"  # The name of the backup job (used for logging and organization)
+source: "/home/jim2" # The source directory to back up
 keep_sets: 2              # Number of backup sets to retain (older sets will be deleted automatically) 
 max_tarball_size: 2048    # Maximum size of each tarball in MB (e.g., 1024 MB = 1 GB)
 
 encryption: 
-  enabled: false          # true or false, can be overridden by CLI
+  enabled: true          # true or false, can be overridden by CLI
 
 aws:
-  enabled: false          # true or false, can be overridden by CLI
+  enabled: true          # true or false, can be overridden by CLI
 
 exclude:
   - ".*"                 # Exclude all hidden files and directories (e.g., .git, .env)
@@ -31,15 +31,21 @@ exclude:
   - "**/__pycache__/**"  # Exclude all files and subdirectories within any `__pycache__` directory
   - "**/*.class"         # Exclude Java compiled class files recursively
   - "**/temp/**"         # Exclude any directory named "temp" at any level
+  - "Pictures/"
+  - "Downloads/"
+  - "GoogleImages/"
+  - "Raw_images/"
+  - "Videos/"
+  - "gems/"
 
 schedules:
-  - cron: "0 2 * * 7"    # Runs at 2:00 AM, every Sunday
+  - cron: "0 23 * * 7"    # Runs at 2:00 AM, every Sunday
     type: "full"         # full or diff
-    enabled: false       # true or false
+    enabled: true       # true or false
 
-  - cron: "0 2 * * 1-6"  # Runs at 2:00 AM, Monday to Saturday
+  - cron: "0 23 * * 1-6"  # Runs at 2:00 AM, Monday to Saturday
     type: "diff"          
-    enabled: false 
+    enabled: true 
 
 # #######################################################################################################################
 # The below settings are set globally for all jobs. You may uncomment them to override global defaults for this job only.

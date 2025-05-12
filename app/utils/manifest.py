@@ -5,7 +5,7 @@ import tarfile
 import yaml
 import re
 import glob
-from jinja2 import Template
+from jinja2 import Template, Environment, FileSystemLoader
 from datetime import datetime
 from app.utils.logger import ensure_dir, setup_logger, sizeof_fmt
 from app.settings import BASE_DIR, CONFIG_DIR, LOG_DIR, MANIFEST_BASE, EVENTS_FILE, GLOBAL_CONFIG_PATH
@@ -214,8 +214,9 @@ def render_html_manifest(
         formatted_timestamp = manifest_timestamp
 
     try:
-        with open(template_path) as template_file:
-            template = Template(template_file.read())
+        templates_dir = os.path.dirname(template_path)
+        env = Environment(loader=FileSystemLoader(templates_dir))
+        template = env.get_template(os.path.basename(template_path))
         return template.render(
             job_name=job_name,
             backup_set_id=backup_set_id,

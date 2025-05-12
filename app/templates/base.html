@@ -11,6 +11,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
 </head>
 <body class="body-padding-fix">
+    {% block navbar %}
     <div class="container-fluid p-0">
         <nav class="sb-topnav navbar navbar-expand-md navbar-dark bg-black fixed-top">
           <a class="navbar-brand ps-3" href="/">{ JABS }</a>
@@ -113,7 +114,8 @@
             </ul>
           </div>
         </nav>
-    </div>       
+    </div>
+    {% endblock %}       
     <main id="page-top">
         {% with messages = get_flashed_messages(with_categories=true) %}
           {% if messages %}

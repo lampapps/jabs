@@ -44,7 +44,7 @@ $(document).ready(function () {
             {
                 targets: 7, // Status column
                 createdCell: function (td, cellData, rowData, row, col) {
-                    if (cellData && cellData.toLowerCase() === 'failed') {
+                    if (cellData && cellData.toLowerCase() === 'error') {
                         $(td).css('background-color', 'rgba(129, 56, 62, 0.65)');
                     }
                 }
