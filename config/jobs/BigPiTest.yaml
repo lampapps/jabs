@@ -8,7 +8,7 @@ keep_sets: 2  # Number of backup sets to retain (older sets will be deleted auto
 max_tarball_size: 2048  # Maximum size of each tarball in MB (e.g., 1024 MB = 1 GB)
 
 encryption:
-  enabled: true         # Default, false can be overridden by CLI
+  enabled: true         # Default, false can be overridden by CLI 
   
 aws:
   enabled: false

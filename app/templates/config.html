@@ -1,22 +1,58 @@
 {% extends "base.html" %}
 
 {% block title %}Global Configuration{% endblock %}
+{% block top_scripts %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
+{% endblock %}
 
 {% block content %}
 <div class="container my-5">
     <div class="row pb-0">
         <div class="col-12 col-md-8 mx-auto">
-            <h1 class="mt-4 mb-3">Global Backup Configuration</h1>
-            <ol class="breadcrumb mb-4">
-                <li class="breadcrumb-item active">Some settings can be overridden in the job specific configuration and command line.</li>
-            </ol>
+            <h2 class="mb-4">Global Configuration</h2>
             <div class="card shadow-sm border border-secondary-subtle border-2">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <span><i class="fa fa-file-code me-2"></i> Global Configuration</span>
-                    <span class="badge bg-secondary">config.yaml</span>
+                    <span class="badge bg-secondary">global.yaml</span>
                 </div>
                 <div class="card-body">
-                    <pre class="bg-light text-dark p-3 rounded" style="min-height: 200px; max-height: 500px; overflow:auto;">{{ raw_data }}</pre>
+                    {% if error %}
+                        <div class="alert alert-danger">{{ error }}</div>
+                        <pre class="bg-light p-2 rounded">{{ raw_data }}</pre>
+                    {% else %}
+                        <ul class="mb-0 small">
+                            <li><b>Destination:</b> <code>{{ global_config.destination or 'Not set' }}</code></li>
+                            <li><b>AWS:</b>
+                                <ul>
+                                    <li>Enabled: <code>{{ global_config.aws.enabled if global_config.aws and global_config.aws.enabled is not none else 'Not set' }}</code></li>
+                                    <li>Profile: <code>{{ global_config.aws.profile or 'Not set' }}</code></li>
+                                    <li>Region: <code>{{ global_config.aws.region or 'Not set' }}</code></li>
+                                    <li>Bucket: <code>{{ global_config.aws.bucket or 'Not set' }}</code></li>
+                                </ul>
+                            </li>
+                            <li><b>Encryption:</b>
+                                <ul>
+                                    <li>Enabled: <code>{{ global_config.encryption.enabled if global_config.encryption and global_config.encryption.enabled is not none else 'Not set' }}</code></li>
+                                    <li>Method: <code>{{ global_config.encryption.method or 'Not set' }}</code></li>
+                                    <li>Passphrase Env: <code>{{ global_config.encryption.passphrase_env or 'Not set' }}</code></li>
+                                </ul>
+                            </li>
+                            <li><b>Drives:</b>
+                                <ul>
+                                    {% for drive in global_config.drives or [] %}
+                                        <li>{{ drive.label }}: <code>{{ drive.path }}</code></li>
+                                    {% endfor %}
+                                </ul>
+                            </li>
+                            <li><b>S3 Buckets:</b>
+                                <ul>
+                                    {% for bucket in global_config.s3_buckets or [] %}
+                                        <li>{{ bucket.label }}: <code>{{ bucket.bucket }}</code></li>
+                                    {% endfor %}
+                                </ul>
+                            </li>
+                        </ul>
+                    {% endif %}
                 </div>
                 <div class="card-footer text-end">
                     <a class="btn btn-warning btn-sm" href="{{ url_for('config.edit_config', filename='global.yaml') }}">
@@ -31,6 +67,7 @@
 {% block scripts %}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.14/ace.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/dist/js-yaml.min.js"></script>
+<script src="{{ url_for('static', filename='js/global.js') }}"></script>
 <script>
   var editor = ace.edit("globalYamlEditor");
   editor.session.setMode("ace/mode/yaml");

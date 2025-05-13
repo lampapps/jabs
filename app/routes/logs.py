@@ -1,5 +1,6 @@
 import os
 import re
+from collections import Counter
 from flask import Blueprint, render_template, current_app
 from app.settings import LOG_DIR
 
@@ -14,16 +15,15 @@ def get_log_stats(content):
     other = total - info - warning - error
     return {'total': total, 'info': info, 'warning': warning, 'error': error, 'other': other}
 
-def get_response_code_stats(content):
-    # Matches patterns like: "GET /path HTTP/1.1" 200 -
-    code_re = re.compile(r'"\s*(\d{3})\s')
-    codes = {}
-    for line in content.splitlines():
-        match = code_re.search(line)
-        if match:
-            code = match.group(1)
-            codes[code] = codes.get(code, 0) + 1
-    return codes
+def parse_response_codes(log_path):
+    code_re = re.compile(r'"\s*(\d{3})\b')
+    codes = []
+    with open(log_path) as f:
+        for line in f:
+            match = code_re.search(line)
+            if match:
+                codes.append(match.group(1))
+    return dict(Counter(codes))
 
 @logs_bp.route("/logs")
 def logs():
@@ -36,7 +36,7 @@ def logs():
                     content = f.read()
                 stats = get_log_stats(content)
                 # Add response code stats for server.log only
-                response_codes = get_response_code_stats(content) if fname == "server.log" else None
+                response_codes = parse_response_codes(fpath) if fname == "server.log" else None
                 logs.append((fname, content, stats, response_codes))
             except Exception:
                 logs.append((fname, "Could not read log.", {'total': 0, 'info': 0, 'warning': 0, 'error': 0, 'other': 0}, None))

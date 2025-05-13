@@ -1,6 +1,9 @@
 <!-- filepath: /home/jim2/jabs_dev/app/templates/404.html -->
 {% extends "base.html" %}
 {% block title %}Page Not Found{% endblock %}
+{% block top_scripts %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
+{% endblock %}
 {% block content %}
 <div class="d-flex justify-content-center align-items-center" style="min-height: 60vh;">
     <div class="text-center w-100" style="max-width: 600px; margin: 0 auto;">
@@ -9,4 +12,7 @@
         <a href="{{ url_for('dashboard.dashboard') }}" class="btn btn-primary">Go Home</a>
     </div>
 </div>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/global.js') }}"></script>
 {% endblock %}

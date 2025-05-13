@@ -1,5 +1,7 @@
 <!DOCTYPE html>
+{% block html_tag %}
 <html lang="en" data-bs-theme="auto">
+{% endblock %}
 <head>
     <meta charset="utf-8" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
@@ -8,13 +10,14 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-9ndCyUaIbzAi2FUVXJi0CjmCapSmO7SnpJef0486qhLnuZ2cdeRhO02iuK6FUUVM" crossorigin="anonymous">
     <link href="https://cdn.datatables.net/v/bs5/jq-3.7.0/dt-2.2.2/b-3.2.2/b-print-3.2.2/fh-4.0.1/r-3.0.4/rg-1.5.1/datatables.min.css" rel="stylesheet" integrity="sha384-MZ0CnLBP8jRsPEkJ8ufEXHxsgPRgrjE1Vs14Vq6b4oXxC1atRMXMDb4bLqd6dX6J" crossorigin="anonymous">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
+    {% block top_scripts %}
+    {% endblock %}
 </head>
 <body class="body-padding-fix">
     {% block navbar %}
     <div class="container-fluid p-0">
         <nav class="sb-topnav navbar navbar-expand-md navbar-dark bg-black fixed-top">
-          <a class="navbar-brand ps-3" href="/">{ JABS }</a>
+          <a class="navbar-brand ps-3" href="/">&#123; JABS &#125;</a>
 
           <!-- Mobile Scheduler Status Icon (Visible on xs, sm screens) -->
           <!-- ms-auto pushes it right, me-2 adds space before toggler -->
@@ -42,8 +45,18 @@
               <li class="nav-item">
                 <a class="nav-link {% if request.endpoint == 'logs.logs' %}active{% endif %}" href="{{ url_for('logs.logs') }}">Logs</a>
               </li>
-              <li class="nav-item">
-                <a class="nav-link {% if request.endpoint == 'dashboard.help' %}active{% endif %}" href="{{ url_for('dashboard.help') }}">Help</a>
+              <li class="nav-item dropdown">
+                <a class="nav-link dropdown-toggle {% if request.endpoint == 'dashboard.help' %}active{% endif %}" href="#" id="helpDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                  Help
+                </a>
+                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="helpDropdown">
+                  <li>
+                    <a class="dropdown-item" href="{{ url_for('dashboard.documentation') }}">Documentation</a>
+                  </li>
+                  <li>
+                    <a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#aboutModal">About</a>
+                  </li>
+                </ul>
               </li>
             </ul>
             <!-- Theme switcher: mobile only -->
@@ -117,18 +130,20 @@
     </div>
     {% endblock %}       
     <main id="page-top">
-        {% with messages = get_flashed_messages(with_categories=true) %}
-          {% if messages %}
-            <div class="container mt-3">
-              {% for category, message in messages %}
-                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-                  {{ message }}
-                  <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        {% block get_flashed_messages %}
+            {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="container mt-3">
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
                 </div>
-              {% endfor %}
-            </div>
-          {% endif %}
-        {% endwith %}
+            {% endif %}
+            {% endwith %}
+        {% endblock %}
         {% block content %}{% endblock %}
     </main>
     <footer class="py-4 mt-auto bg-black text-secondary">
@@ -146,11 +161,34 @@
             </div>
         </div>
     </footer>
+    <!-- About Modal -->
+    <div class="modal fade" id="aboutModal" tabindex="-1" aria-labelledby="aboutModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered" style="max-width: 350px;">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="aboutModalLabel">About</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body text-center">
+            <h4 class="mb-1">Just Another Backup Script (JABS)</h4>
+            <div class="mb-2 text-muted" style="font-size:1.1em;">
+              Version: <strong>{{ VERSION }}</strong>
+            </div>
+            <div class="mt-3">
+              <small>
+                Open Source under the
+                <a href="https://opensource.org/licenses/MIT" target="_blank">MIT License</a>
+              </small>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
     <script src="https://kit.fontawesome.com/574ab0a1d4.js" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/5.3.0/js/bootstrap.bundle.min.js" integrity="sha384-geWF76RCwLtnZ8qwWowPQNguL3RmwHVBC9FhGdlKrxdiJJigb/j/68SIy3Te4Bkz" crossorigin="anonymous"></script>
     <script src="https://cdn.datatables.net/v/bs5/jq-3.7.0/dt-2.2.2/b-3.2.2/b-print-3.2.2/fh-4.0.1/r-3.0.4/rg-1.5.1/datatables.min.js" integrity="sha384-autRjuodPpiE5ybZ+44Ci92xY6r02hRe3ljlAbbMxIS3zLv53YEbTll3Ljua7gmw" crossorigin="anonymous"></script>
-    <script src="{{ url_for('static', filename='js/global.js') }}"></script>
     {% block scripts %}
+    <script src="{{ url_for('static', filename='js/global.js') }}"></script>
     {% endblock %}
 </body>
 </html>

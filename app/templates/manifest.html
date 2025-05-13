@@ -1,6 +1,9 @@
 {% extends "base.html" %}
 
 {% block title %}Manifest Viewer{% endblock %}
+{% block top_scripts %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
+{% endblock %}
 
 {% block content %}
 <div class="container-fluid px-4">
@@ -67,6 +70,7 @@
             All Files in Backup Set
         </div>
         <div class="card-body">
+            {% block manifest_table %}
             <table id="manifestTable" class="table table-striped table-bordered table-hover display responsive">
                 <thead>
                     <tr>
@@ -80,13 +84,14 @@
                     {# Data is loaded dynamically via JS #}
                 </tbody>
             </table>
+            {% endblock %}
         </div>
     </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
-<!-- Make sure Font Awesome is loaded in your base.html or here -->
+<script src="{{ url_for('static', filename='js/global.js') }}"></script>
 <script>
     $(document).ready(function () {
         // Extract job_name and backup_set_id from URL for API call

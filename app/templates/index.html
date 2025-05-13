@@ -2,13 +2,17 @@
 
 {% block title %}Dashboard{% endblock %}
 
+{% block top_scripts %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid px-4">
     <div class="row pb-0">
         <div class="col-md-6">
             <h1 class="mt-4 mb-0 me-md-3">Dashboard <span class="text-muted" style="font-size:0.7em;">( {{ hostname }} )</span></h1>
             <ol class="breadcrumb mb-4S">
-                <li class="breadcrumb-item active">Just Another Backup Script {JABS} v4.0</li>
+                <li class="breadcrumb-item active">Just Another Backup Script {JABS}</li>
             </ol>
         </div>
         <!-- Modified Column for Badges -->
@@ -40,20 +44,28 @@
                                         {% if job.schedules %}
                                             {% for sched in job.schedules %}
                                                 {% if sched.enabled %}
-                                                    <span class="badge bg-primary my-0 me-1" style="font-size: 0.72em; white-space:nowrap;"
+                                                    <span class="badge bg-primary my-0 me-2" style="font-size: 0.72em; white-space:nowrap;"
                                                           title="{{ sched.cron_human }}">
                                                         {{ sched.type|capitalize if sched.type else '' }}: {{ sched.cron }}
                                                     </span>
                                                 {% endif %}
                                             {% endfor %}
-                                            {% if job.encrypt %}
-                                                <span class="badge bg-warning text-dark ms-1" title="Encryption enabled" style="font-size: 0.75em;">
-                                                    <i class="fa fa-lock"></i>
+                                            {% if job.encrypt == true or job.encrypt == "true" or job.encrypt == 1 %}
+                                                <span class="ms-1" title="Encryption enabled" style="font-size: 1em;">
+                                                    <i class="fa fa-lock text-warning me-2"></i>
+                                                </span>
+                                            {% else %}
+                                                <span class="ms-1" title="Encryption disabled" style="font-size: 1em;">
+                                                    <i class="fa fa-lock-open text-secondary me-2"></i>
                                                 </span>
                                             {% endif %}
-                                            {% if job.sync %}
-                                                <span class="badge bg-success ms-1" title="Sync enabled" style="font-size: 0.75em;">
-                                                    <i class="fa fa-cloud-upload-alt"></i>
+                                            {% if job.sync == true or job.sync == "true" or job.sync == 1 %}
+                                                <span class="ms-1" title="Sync enabled" style="font-size: 1em;">
+                                                    <i class="fa fa-cloud-upload-alt text-success"></i>
+                                                </span>
+                                            {% else %}
+                                                <span class="ms-1" title="Sync disabled" style="font-size: 1em;">
+                                                    <i class="fa fa-cloud-upload-alt text-secondary"></i>
                                                 </span>
                                             {% endif %}
                                         {% else %}
@@ -102,12 +114,10 @@
     <thead>
         <tr>
             <th>Start</th>
-        <!--<th>Hostname</th>-->
             <th>Backup Title</th>
             <th>Type</th>
             <th>Event</th>
-            <th>Encrypt</th>
-            <th>Sync</th>
+            <th>Options</th>
             <th>Run Time</th>
             <th>Status</th>
         </tr>
@@ -124,4 +134,5 @@
 <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
+<script src="{{ url_for('static', filename='js/global.js') }}"></script>
 {% endblock %}

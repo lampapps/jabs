@@ -14,7 +14,7 @@ from app.utils.logger import setup_logger, timestamp, ensure_dir
 from app.utils.manifest import write_manifest_files, MANIFEST_BASE, extract_tar_info
 from app.utils.event_logger import remove_event_by_backup_set_id, update_event, finalize_event
 from core.encrypt import encrypt_file_gpg
-from app.settings import LOCK_DIR
+from app.settings import LOCK_DIR, RESTORE_SCRIPT_SRC
 
 def load_job_config(path):
     with open(path) as f:
@@ -433,6 +433,11 @@ def run_backup(config, backup_type, encrypt=False, sync=False, event_id=None, jo
             raise ValueError(f"Unsupported backup type: {backup_type}")
 
         rotate_backups(job_dst, keep_sets, logger)
+
+        try:
+            shutil.copy2(RESTORE_SCRIPT_SRC, backup_set_dir)
+        except Exception as e:
+            logger.warning(f"Could not copy restore.py to backup set: {e}")
 
         return latest_backup_set_path, event_id, backup_set_id_string
 

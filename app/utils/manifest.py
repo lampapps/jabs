@@ -164,7 +164,7 @@ def write_manifest_files(file_list, job_config_path, job_name, backup_set_id, ba
             backup_set_id=backup_set_id,
             job_config_path=job_config_path,
             all_files=manifest_data["files"],
-            manifest_timestamp=last_file_modified,
+            timestamp=last_file_modified, 
             tarball_summary=tarball_summary,
             global_encryption=global_encryption,
             job_encryption=job_encryption
@@ -177,7 +177,7 @@ def render_html_manifest(
     backup_set_id,
     job_config_path,
     all_files,
-    manifest_timestamp,
+    timestamp,  # <-- Use 'timestamp'
     tarball_summary,
     global_encryption=None,
     job_encryption=None
@@ -208,10 +208,10 @@ def render_html_manifest(
             config_yaml_no_comments = f"# Error reading config file: {e}"
 
     try:
-        dt_object = datetime.fromisoformat(manifest_timestamp)
-        formatted_timestamp = dt_object.strftime("%Y-%m-%d %H:%M:%S")
+        dt_object = datetime.fromisoformat(timestamp)
+        formatted_timestamp = dt_object.strftime("%A, %B %d, %Y at %I:%M %p")
     except Exception:
-        formatted_timestamp = manifest_timestamp
+        formatted_timestamp = timestamp
 
     try:
         templates_dir = os.path.dirname(template_path)
@@ -222,7 +222,7 @@ def render_html_manifest(
             backup_set_id=backup_set_id,
             config_yaml=config_yaml_no_comments,
             tarballs=all_files,
-            timestamp=formatted_timestamp,
+            manifest_timestamp=formatted_timestamp,
             tarball_summary=tarball_summary,
             global_encryption=global_encryption or {},
             job_encryption=job_encryption or {},

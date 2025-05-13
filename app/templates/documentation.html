@@ -1,12 +1,15 @@
 {% extends "base.html" %}
 
-{% block title %}Help{% endblock %}
+{% block title %}Documentation{% endblock %}
+{% block top_scripts %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
+{% endblock %}
 
 {% block content %}
 <div class="container-fluid px-4">
     <div class="row pb-0">
         <div class="col-md-12">
-            <h1 class="mt-4">Help & Documentation</h1>
+            <h1 class="mt-4">Documentation</h1>
             <ol class="breadcrumb mb-4">
                 <li class="breadcrumb-item active">README.md</li>
             </ol>
@@ -23,6 +26,7 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="{{ url_for('static', filename='js/global.js') }}"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.8.1/github-markdown-dark.min.css">
 <style>
 .markdown-body {

@@ -83,11 +83,14 @@ def jobs():
             if tname.endswith(".yaml"):
                 templates.append(tname)
 
+    with open(GLOBAL_CONFIG_PATH) as f:
+        global_config = yaml.safe_load(f)
+
     return render_template(
         "jobs.html",
         configs=jobs,
         templates=templates,
-        global_aws=global_config.get("aws", {})
+        global_config=global_config
     )
 
 @jobs_bp.route("/jobs/run/<filename>", methods=["POST"])

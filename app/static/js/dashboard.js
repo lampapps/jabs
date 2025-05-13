@@ -7,7 +7,6 @@ $(document).ready(function () {
         },
         columns: [
             { data: 'starttimestamp', title: 'Start' },
-          //{ data: 'hostname', title: 'Hostname' },
             { data: 'job_name', title: 'Backup Title' },
             { data: 'backup_type', title: 'Type' },
             {
@@ -29,20 +28,35 @@ $(document).ready(function () {
                 },
                 orderable: false
             },
-            { data: 'encrypt', title: 'Encrypt' },
-            { data: 'sync', title: 'Sync' },
+            {
+                data: null, // <--- This is required!
+                title: 'Options',
+                className: 'text-center',
+                orderable: false,
+                render: function (data, type, row) {
+                    // Encrypt icon
+                    let encryptIcon = (row.encrypt === true || row.encrypt === "true" || row.encrypt === 1)
+                        ? '<i class="fa fa-lock text-warning me-2" title="Encryption enabled"></i>'
+                        : '<i class="fa fa-lock-open text-secondary me-2" title="Encryption disabled"></i>';
+                    // Sync icon
+                    let syncIcon = (row.sync === true || row.sync === "true" || row.sync === 1)
+                        ? '<i class="fa fa-cloud-upload-alt text-success" title="Sync enabled"></i>'
+                        : '<i class="fa fa-cloud-upload-alt text-secondary" title="Sync disabled"></i>';
+                    return encryptIcon + syncIcon;
+                }
+            },
             { data: 'runtime', title: 'Run Time' },
             { data: 'status', title: 'Status' }
         ],
         columnDefs: [
-            { targets: [1, 2, 4, 5, 6, 7], className: 'text-center' },
+            { targets: [1, 2, 4, 5, 6], className: 'text-center' },
             { targets: 0, responsivePriority: 3 },
             { targets: 2, responsivePriority: 2 },
             { targets: 3, responsivePriority: 1 },
-            { targets: 7, responsivePriority: 4 },
-            { targets: [1, 4, 5, 6], responsivePriority: 100 },
+            { targets: 6, responsivePriority: 4 },
+            { targets: [1, 4, 5], responsivePriority: 100 },
             {
-                targets: 7, // Status column
+                targets: 6,
                 createdCell: function (td, cellData, rowData, row, col) {
                     if (cellData && cellData.toLowerCase() === 'error') {
                         $(td).css('background-color', 'rgba(129, 56, 62, 0.65)');

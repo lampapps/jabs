@@ -56,8 +56,8 @@ def dashboard():
 
     return render_template("index.html", scheduled_jobs=scheduled_jobs, hostname=socket.gethostname())
 
-@dashboard_bp.route("/help")
-def help():
+@dashboard_bp.route("/documentation")
+def documentation():
     readme_path = os.path.join(BASE_DIR, "README.md")
     if not os.path.exists(readme_path):
         content = "<p>README.md not found.</p>"
@@ -65,7 +65,7 @@ def help():
         with open(readme_path, "r") as f:
             md_content = f.read()
         content = Markup(markdown.markdown(md_content, extensions=["fenced_code", "tables"]))
-    return render_template("help.html", content=content)
+    return render_template("documentation.html", content=content)
 
 @dashboard_bp.route('/manifest/<string:job_name>/<string:backup_set_id>')
 def view_manifest(job_name, backup_set_id):

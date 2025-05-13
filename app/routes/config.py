@@ -6,14 +6,14 @@ from app.settings import JOBS_DIR, GLOBAL_CONFIG_PATH
 config_bp = Blueprint('config', __name__)
 
 
-@config_bp.route("/config.html")
-def config():
-    if not os.path.exists(GLOBAL_CONFIG_PATH):
-        raw_data = "# global.yaml not found."
-    else:
-        with open(GLOBAL_CONFIG_PATH, "r") as f:
-            raw_data = f.read()
-    return render_template("config.html", raw_data=raw_data)
+@config_bp.route("/config.html", endpoint="config")
+def show_global_config():
+    with open(GLOBAL_CONFIG_PATH) as f:
+        global_config = yaml.safe_load(f)
+    return render_template(
+        "config.html",
+        global_config=global_config
+    )
 
 @config_bp.route("/config/save_global", methods=["POST"])
 def save_global():

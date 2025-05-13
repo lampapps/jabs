@@ -1,12 +1,17 @@
 import os
 import sys
 
+VERSION = "1.0.0"
+
 # --- Application Configuration ---
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 TEMPLATE_DIR = os.path.join(BASE_DIR, 'app', 'templates')
 STATIC_DIR = os.path.join(BASE_DIR, 'app', 'static')
 LOCK_DIR = os.path.join(BASE_DIR, 'locks')
 CLI_SCRIPT = os.path.join(BASE_DIR, 'cli.py')
+
+RESTORE_SCRIPT_SRC = os.path.join(BASE_DIR, 'restore.py')
+
 PYTHON_EXECUTABLE = sys.executable or "python3"
 
 # --- Jobs Configuration ---

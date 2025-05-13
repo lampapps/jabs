@@ -1,6 +1,9 @@
 {% extends "base.html" %}
 
 {% block title %}Logs{% endblock %}
+{% block top_scripts %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
+{% endblock %}
 
 {% block content %}
 <div class="container my-4">
@@ -85,6 +88,7 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="{{ url_for('static', filename='js/global.js') }}"></script>
 <script>
     document.getElementById("trimLogsButton").addEventListener("click", function () {
         if (confirm("Are you sure you want to trim all logs? This will keep only the last 1000 lines of each log file.")) {
