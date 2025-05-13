@@ -10,4 +10,4 @@ venv/
 !/logs/.gitkeep
 
 /locks/*
-!.locks/.gitkeep
+!/locks/.gitkeep
