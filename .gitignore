@@ -1,8 +1,7 @@
-.flask_secret_key
-__pycache__/
-*.pyc
-venv/
 .vscode
+.flask_secret_key
+**/__pycache__/**
+venv/
 
 /data/*
 !/data/.gitkeep
