@@ -11,22 +11,19 @@ from app.utils.logger import ensure_dir, setup_logger, sizeof_fmt
 from app.settings import BASE_DIR, CONFIG_DIR, LOG_DIR, MANIFEST_BASE, EVENTS_FILE, GLOBAL_CONFIG_PATH
 
 
-def extract_tar_info(tar_path):
-    """Extracts file information from a tarball."""
+def extract_tar_info(tar_path, encryption_enabled=False):
+    """Extracts file information from a tarball, and records the future encrypted path if needed."""
     files_info = []
     base = os.path.basename(tar_path)
-    if base.endswith('.tar.gz.gpg'):
-        tarball_name = base[:-11]
-    elif base.endswith('.tar.gz'):
-        tarball_name = base[:-7]
-    else:
-        tarball_name = base
+    recorded_base = base + '.gpg' if encryption_enabled and not base.endswith('.gpg') else base
+    recorded_tar_path = tar_path + '.gpg' if encryption_enabled and not tar_path.endswith('.gpg') else tar_path
     try:
-        with tarfile.open(tar_path, "r:*") as tar:
+        with tarfile.open(tar_path, "r:*") as tar:  # Always open the actual file that exists
             for member in tar.getmembers():
                 if member.isfile():
                     files_info.append({
-                        "tarball": tarball_name,
+                        "tarball": recorded_base,           # What the tarball will be called after encryption
+                        "tarball_path": recorded_tar_path,  # What the path will be after encryption
                         "path": member.name,
                         "size": sizeof_fmt(member.size),
                         "modified": datetime.fromtimestamp(member.mtime).strftime('%Y-%m-%d %H:%M:%S')
@@ -139,7 +136,14 @@ def write_manifest_files(file_list, job_config_path, job_name, backup_set_id, ba
     manifest_data.setdefault("config", job_config_dict)
     manifest_data.setdefault("files", [])
 
-    manifest_data["files"].extend(new_tar_info)
+    # Determine if encryption is enabled from your config
+    encryption_enabled = job_encryption.get("enabled", False)
+    tarball_files = glob.glob(os.path.join(backup_set_path, '*.tar.gz'))
+    new_tar_info = []
+    for tar_path in tarball_files:
+        new_tar_info.extend(extract_tar_info(tar_path, encryption_enabled=encryption_enabled))
+    manifest_data["files"] = new_tar_info
+
     manifest_data["timestamp"] = datetime.now().isoformat()
 
     with open(json_path, "w") as f:

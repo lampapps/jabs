@@ -225,7 +225,7 @@ def find_latest_backup_set(job_dst):
     sets = sorted(glob.glob(pattern), reverse=True)
     return sets[0] if sets else None
 
-def encrypt_tarballs(tarball_paths, config, logger):
+def encrypt_tarballs(tarball_paths, config, logger): 
     """
     Encrypts each tarball in tarball_paths using GPG and removes the original.
     Returns a list of encrypted tarball paths.
@@ -343,12 +343,11 @@ def run_backup(config, backup_type, encrypt=False, sync=False, event_id=None, jo
                 src, backup_set_dir, exclude_patterns, max_tarball_size_mb, logger, backup_type="full", config=config
             )
 
+            # 1. Write manifest BEFORE encryption/removal
+            encryption_enabled = config.get("encryption", {}).get("enabled", False) or encrypt
             new_tar_info = []
             for tar_path in tarball_paths:
-                new_tar_info.extend(extract_tar_info(tar_path))
-
-            if encrypt and tarball_paths:
-                tarball_paths = encrypt_tarballs(tarball_paths, config, logger)
+                new_tar_info.extend(extract_tar_info(tar_path, encryption_enabled=encryption_enabled))
 
             if tarball_paths:
                 logger.info("Writing manifest files...")
@@ -367,6 +366,10 @@ def run_backup(config, backup_type, encrypt=False, sync=False, event_id=None, jo
                     logger.error(f"Failed to write manifest files: {e}", exc_info=True)
             else:
                 logger.warning("No tarballs created, skipping manifest generation.")
+
+            # 2. Now encrypt and remove originals
+            if encrypt and tarball_paths:
+                tarball_paths = encrypt_tarballs(tarball_paths, config, logger)
 
             with open(os.path.join(job_dst, "last_full.txt"), "w") as f:
                 f.write(backup_set_id_string)

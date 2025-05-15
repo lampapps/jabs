@@ -1,0 +1,58 @@
+# Example config file with less comments.
+# Job-specific settings
+job_name: "Music"  # The name of the backup job (used for logging and organization)
+source: "/home/jim2/Music" # The source directory to back up
+keep_sets: 2              # Number of backup sets to retain (older sets will be deleted automatically) 
+max_tarball_size: 2048    # Maximum size of each tarball in MB (e.g., 1024 MB = 1 GB)
+
+encryption: 
+  enabled: false          # true or false, can be overridden by CLI
+
+aws:
+  enabled: false          # true or false, can be overridden by CLI
+
+exclude:
+  - ".*"                 # Exclude all hidden files and directories (e.g., .git, .env)
+  - "*.tmp"              # Exclude temporary files
+  - "*.bak"              # Exclude backup files (e.g., file.bak)
+  - "*.swp"              # Exclude swap files (e.g., Vim swap files)
+  - "*.lock"             # Exclude lock files (e.g., file.lock)
+  - "*.log"              # Exclude log files
+  - "*.iso"              # Exclude ISO disk images
+  - "*.tar.gz"           # Exclude compressed tarball archives
+  - "*.tar"              # Exclude uncompressed tarball archives
+  - ".DS_Store"          # Exclude macOS-specific metadata files
+  - "cache/"             # Exclude cache directories
+  - "node_modules/"      # Exclude Node.js dependencies
+  - "**/venv/"              # Exclude Python virtual environments
+  - "build/"             # Exclude build directories (e.g., for compiled code)
+  - "__pycache__/"       # Exclude all `__pycache__` directories at any level
+  - "**/__pycache__/"    # Exclude all `__pycache__` directories recursively
+  - "**/__pycache__/**"  # Exclude all files and subdirectories within any `__pycache__` directory
+  - "**/*.class"         # Exclude Java compiled class files recursively
+  - "**/temp/**"         # Exclude any directory named "temp" at any level
+
+schedules:
+  - cron: "0 2 * * 7"    # Runs at 2:00 AM, every Sunday
+    type: "full"         # full or diff
+    enabled: false       # true or false
+
+  - cron: "0 2 * * 1-6"  # Runs at 2:00 AM, Monday to Saturday
+    type: "diff"          
+    enabled: false 
+
+# #######################################################################################################################
+# The below settings are set globally for all jobs. You may uncomment them to override global defaults for this job only.
+
+# destination: "/path/to/backup/folder"  # The destination directory for local backups
+
+# aws:
+#  profile: "default"   # AWS CLI profile to use (default if not specified)
+#  region: "us-east-1"  # AWS region (overrides profile region if specified)
+#  bucket: "my-bucket"  # S3 bucket name (required for cloud backups)
+#  enabled: false       # true or false, can be overridden by CLI
+
+# encryption: 
+#  method: gpg                              # Only 'gpg' supported for now
+#  passphrase_env: JABS_ENCRYPT_PASSPHRASE  # Name of env var holding passphrase
+#  enabled: false                           # true or false, can be overridden by CLI

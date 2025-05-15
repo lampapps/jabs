@@ -9,6 +9,7 @@ TEMPLATE_DIR = os.path.join(BASE_DIR, 'app', 'templates')
 STATIC_DIR = os.path.join(BASE_DIR, 'app', 'static')
 LOCK_DIR = os.path.join(BASE_DIR, 'locks')
 CLI_SCRIPT = os.path.join(BASE_DIR, 'cli.py')
+RESTORE_STATUS_DIR = os.path.join(BASE_DIR, "data", "restore_status")
 
 RESTORE_SCRIPT_SRC = os.path.join(BASE_DIR, 'restore.py')
 
@@ -27,3 +28,6 @@ EVENTS_FILE = os.path.join(DATA_DIR, 'dashboard', 'events.json')
 # --- Logging Configuration ---
 LOG_DIR = os.path.join(BASE_DIR, 'logs')
 MAX_LOG_LINES = 1000
+
+# --- Restore Base Configuration ---
+HOME_DIR = os.path.expanduser("~")

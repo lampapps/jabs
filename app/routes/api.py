@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, send_from_directory, request, render_template
+from flask import Blueprint, jsonify, send_from_directory, request, render_template, flash, redirect, url_for
 import os
 import glob
 import json
@@ -7,9 +7,28 @@ import shutil
 import boto3
 import time
 import math
-from app.settings import BASE_DIR, CONFIG_DIR, LOG_DIR, EVENTS_FILE, GLOBAL_CONFIG_PATH
+from app.settings import BASE_DIR, CONFIG_DIR, LOG_DIR, EVENTS_FILE, GLOBAL_CONFIG_PATH, HOME_DIR
+from core import restore
+from app.utils.restore_status import set_restore_status, check_restore_status
 
 api_bp = Blueprint('api', __name__)
+
+def is_valid_path(path):
+    # Disallow empty, parent traversal, or illegal chars
+    if not path or not isinstance(path, str):
+        return False
+    if any(c in path for c in '<>:"|?*'):
+        return False
+    # Make sure the resolved path is inside HOME_DIR
+    abs_path = os.path.abspath(os.path.join(HOME_DIR, path))
+    if not abs_path.startswith(HOME_DIR):
+        return False
+    return True
+
+@api_bp.route('/api/restore/status/<job_name>/<backup_set_id>')
+def restore_status(job_name, backup_set_id):
+    running = check_restore_status(job_name, backup_set_id)
+    return jsonify({"running": running})
 
 @api_bp.route("/api/events")
 def get_events():
@@ -139,8 +158,8 @@ def trim_logs():
             trimmed_logs.append({"file": log_file, "status": f"error: {str(e)}"})
     return jsonify({"trimmed_logs": trimmed_logs})
 
-@api_bp.route('/api/manifest/<string:job_name>/<string:backup_set_id>')
-def api_manifest(job_name, backup_set_id):
+@api_bp.route('/api/manifest/<string:job_name>/<string:backup_set_id>/json')
+def api_manifest_json(job_name, backup_set_id):
     sanitized_job = "".join(c if c.isalnum() or c in ("-", "_") else "_" for c in job_name)
     json_path = os.path.join(BASE_DIR, "data", "manifests", sanitized_job, f"{backup_set_id}.json")
     if not os.path.exists(json_path):
@@ -212,3 +231,72 @@ def purge_log(log_name):
         return jsonify({"success": True})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
+
+@api_bp.route('/api/restore/full', methods=['POST'])
+def restore_full():
+    data = request.json
+    job_name = data['job_name']
+    backup_set_id = data['backup_set_id']
+    restore_location = data.get('restore_location', 'original')
+    custom_path = data.get('custom_path', None)
+
+    # Only set dest for custom restore
+    if restore_location == "custom":
+        if not is_valid_path(custom_path):
+            return jsonify({"error": "Invalid custom path."}), 400
+        dest = os.path.abspath(os.path.join(HOME_DIR, custom_path))
+    else:
+        dest = None
+
+    result = restore.restore_full(job_name, backup_set_id, dest=dest, base_dir=BASE_DIR)
+    if result.get("overwrite_warnings"):
+        return jsonify({
+            "error": "Some files will be overwritten.",
+            "files": result["overwrite_warnings"]
+        }), 409
+    if result["errors"]:
+        flash("Some files failed to restore.", "danger")
+    else:
+        flash("Full restore completed.", "success")
+    return jsonify({"redirect": url_for('dashboard.view_manifest', job_name=job_name, backup_set_id=backup_set_id)})
+
+@api_bp.route('/api/restore/files', methods=['POST'])
+def restore_files():
+    data = request.json
+    job_name = data['job_name']
+    backup_set_id = data['backup_set_id']
+    files = data.get('files', [])
+    restore_location = data.get('restore_location', 'original')
+    custom_path = data.get('custom_path', None)
+
+    # Only set dest for custom restore
+    if restore_location == "custom":
+        if not is_valid_path(custom_path):
+            return jsonify({"error": "Invalid custom path."}), 400
+        dest = os.path.abspath(os.path.join(HOME_DIR, custom_path))
+    else:
+        dest = None
+
+    if not files or not isinstance(files, list):
+        return jsonify({"error": "No files selected for restore."}), 400
+
+    result = restore.restore_files(job_name, backup_set_id, files, dest=dest, base_dir=BASE_DIR)
+    if result.get("overwrite_warnings"):
+        return jsonify({
+            "error": "Some files will be overwritten.",
+            "files": result["overwrite_warnings"]
+        }), 409
+    if result["errors"]:
+        flash("Some files failed to restore.", "danger")
+    else:
+        flash("Selected files restored.", "success")
+    return jsonify({"redirect": url_for('dashboard.view_manifest', job_name=job_name, backup_set_id=backup_set_id)})
+
+@api_bp.route('/manifest/<string:job_name>/<string:backup_set_id>')
+def manifest_page(job_name, backup_set_id):
+    return render_template(
+        "manifest.html",
+        job_name=job_name,
+        backup_set_id=backup_set_id,
+        HOME_DIR=HOME_DIR
+    )

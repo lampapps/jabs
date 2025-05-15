@@ -10,6 +10,7 @@ from app.utils.dashboard_helpers import find_config_path_by_job_name, load_confi
 import socket
 import yaml
 from cron_descriptor import get_description, ExpressionDescriptor
+from app.settings import HOME_DIR
 
 dashboard_bp = Blueprint('dashboard', 'dashboard')
 
@@ -115,5 +116,6 @@ def view_manifest(job_name, backup_set_id):
         global_config=global_config,
         job_config=job_config if job_config_path else {},
         global_encryption=global_encryption,
-        job_encryption=job_encryption
+        job_encryption=job_encryption,
+        HOME_DIR=HOME_DIR
     )

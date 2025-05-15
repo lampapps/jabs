@@ -24,7 +24,14 @@
                             <li><b>Destination:</b> <code>{{ global_config.destination or 'Not set' }}</code></li>
                             <li><b>AWS:</b>
                                 <ul>
-                                    <li>Enabled: <code>{{ global_config.aws.enabled if global_config.aws and global_config.aws.enabled is not none else 'Not set' }}</code></li>
+                                    <li>
+                                        Enabled:
+                                        {% if global_config.aws and global_config.aws.enabled %}
+                                            <span class="badge bg-success">True</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">False</span>
+                                        {% endif %}
+                                    </li>
                                     <li>Profile: <code>{{ global_config.aws.profile or 'Not set' }}</code></li>
                                     <li>Region: <code>{{ global_config.aws.region or 'Not set' }}</code></li>
                                     <li>Bucket: <code>{{ global_config.aws.bucket or 'Not set' }}</code></li>
@@ -32,7 +39,14 @@
                             </li>
                             <li><b>Encryption:</b>
                                 <ul>
-                                    <li>Enabled: <code>{{ global_config.encryption.enabled if global_config.encryption and global_config.encryption.enabled is not none else 'Not set' }}</code></li>
+                                    <li>
+                                        Enabled:
+                                        {% if global_config.encryption and global_config.encryption.enabled %}
+                                            <span class="badge bg-success">True</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">False</span>
+                                        {% endif %}
+                                    </li>
                                     <li>Method: <code>{{ global_config.encryption.method or 'Not set' }}</code></li>
                                     <li>Passphrase Env: <code>{{ global_config.encryption.passphrase_env or 'Not set' }}</code></li>
                                 </ul>

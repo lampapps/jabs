@@ -113,14 +113,15 @@ def sync_to_s3(backup_set_path, config, event_id=None):
                     if (job_name not in job_latest) or (backup_set_id > job_latest[job_name]):
                         job_latest[job_name] = backup_set_id
 
-            # Now, delete all backup sets except the latest for each job
+            # Now, delete all backup sets except the latest for the current job only
             for obj in objects_data["Contents"]:
                 key = obj["Key"]
                 parts = key.split("/")
                 if len(parts) >= 3 and parts[2].startswith("backup_set_"):
-                    job_name = parts[1]
+                    job_name_in_key = parts[1]
                     backup_set_id = parts[2][len("backup_set_"):]
-                    if backup_set_id != job_latest.get(job_name):
+                    # Only delete if this is the current job and not the latest backup set
+                    if job_name_in_key == job_name and backup_set_id != job_latest.get(job_name):
                         delete_cmd = ["aws", "s3", "rm", f"s3://{bucket}/{key}", "--profile", profile]
                         if region:
                             delete_cmd.extend(["--region", region])

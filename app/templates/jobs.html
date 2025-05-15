@@ -32,9 +32,9 @@
                                 <li>
                                     Enabled:
                                     {% if config.data and config.data.get('encryption', {}).get('enabled') %}
-                                        <span class="badge bg-success">Enabled</span>
+                                        <span class="badge bg-success">True</span>
                                     {% else %}
-                                        <span class="badge bg-secondary">Disabled</span>
+                                        <span class="badge bg-secondary">False</span>
                                     {% endif %}
                                 </li>
                             </ul>
@@ -44,9 +44,9 @@
                                 <li>
                                     Enabled:
                                     {% if config.aws_enabled %}
-                                        <span class="badge bg-success">Enabled</span>
+                                        <span class="badge bg-success">True</span>
                                     {% else %}
-                                        <span class="badge bg-secondary">Disabled</span>
+                                        <span class="badge bg-secondary">False</span>
                                     {% endif %}
                                 </li>
                             </ul>

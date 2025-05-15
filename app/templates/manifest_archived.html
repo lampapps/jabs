@@ -2,8 +2,6 @@
 
 {% block html_tag %} <html lang="en" data-bs-theme="dark">{% endblock %}
 
-{% block title %}Manifest Viewer{% endblock %}
-
 {% block top_scripts %}{% endblock %}
 
 {% block navbar %}
@@ -12,6 +10,30 @@
         <a class="navbar-brand ps-3" href="#">&#123; JABS &#125;</a>
     </nav>
 </div>
+{% endblock %}
+
+{% block get_flashed_messages %}{% endblock %}
+
+{% block restore_options %}
+<p>
+    <strong>To manually restore your backup from archived files:</strong>
+    <ol>
+        <li>Move <code>restore.py</code> and <strong>all archive files</strong> (e.g., <code>archive-001.tar</code>, <code>archive-002.tar</code>, etc.) into the folder where you want the files to be restored.</li>
+        <li>Open a terminal in that folder.</li>
+        <li>Run the restore script:<br>
+            <code>python3 restore.py</code>
+        </li>
+        <li>Follow the on-screen prompts to restore a single archive or all archives.</li>
+    </ol>
+    <strong>Example:</strong>
+    <pre>
+cd /path/to/restore/location
+mv /path/to/archives/archive-*.tar .
+mv /path/to/restore.py .
+python3 restore.py
+    </pre>
+    <span class="text-muted">Tip: Make sure you have Python 3 installed. If you see a permissions error, try <code>chmod +x restore.py</code>.</span>
+</p>
 {% endblock %}
 
 {% block manifest_table %}
@@ -42,7 +64,7 @@
 </table>
 {% endblock %}
 
-{% block get_flashed_messages %}{% endblock %}
+
 
 {% block scripts %}
 <script>

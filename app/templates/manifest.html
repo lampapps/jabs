@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Manifest Viewer{% endblock %}
+{% block title %}Backup Manifest: {{ job_name }}{% endblock %}
 {% block top_scripts %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
 {% endblock %}
@@ -13,43 +13,109 @@
             Backup Set ID: {{ backup_set_id }} | Updated: {{ manifest_timestamp }}
         </li>
     </ol>
-
-    <!-- Accordion for backup info -->
-    <div class="accordion mb-4" id="backupInfoAccordion">
-        <div class="row">
-            <div class="col-md-6">
+    <div class="row mb-4">
+        <!-- Restore Options Accordion (Left) -->
+        <div class="col-md-4">
+            <div class="accordion" id="restoreAccordion">
                 <div class="accordion-item">
-                    <h2 class="accordion-header" id="headingOne">
-                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne" aria-expanded="false" aria-controls="collapseOne">
-                            Backup Configuration
+                    <h2 class="accordion-header" id="restoreAccordionHeader">
+                        <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#restoreAccordionBody" aria-expanded="false" aria-controls="restoreAccordionBody">
+                            Restore Options
                         </button>
                     </h2>
-                    <div id="collapseOne" class="accordion-collapse collapse" aria-labelledby="headingOne" data-bs-parent="#backupInfoAccordion">
+                    <div id="restoreAccordionBody" class="accordion-collapse collapse" aria-labelledby="restoreAccordionHeader" data-bs-parent="#restoreAccordion">
                         <div class="accordion-body">
-                            {% include "partials/job_config_summary.html" %}
+                            {% block restore_options %}
+                            <form id="restoreOptionsForm" class="row g-3">
+                                <div class="col-12">
+                                    <div class="form-label mb-1" data-bs-toggle="tooltip" data-bs-placement="top" title="Choose where to restore files">
+                                        Restore Location
+                                    </div>
+                                    <div class="form-check form-check-inline">
+                                        <input class="form-check-input" type="radio" name="restoreLocation" id="restoreOriginal" value="original">
+                                        <label class="form-check-label" for="restoreOriginal" data-bs-toggle="tooltip" title="Restore files to their original locations">
+                                            Original
+                                        </label>
+                                    </div>
+                                    <div class="form-check form-check-inline">
+                                        <input class="form-check-input" type="radio" name="restoreLocation" id="restoreCustom" value="custom" checked>
+                                        <label class="form-check-label" for="restoreCustom" data-bs-toggle="tooltip" title="Restore files to a custom directory">
+                                            Custom Directory
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col-12" id="customPathCol" style="display:none;">
+                                    <div class="input-group">
+                                        <span class="input-group-text" id="homeDirPrefix" data-bs-toggle="tooltip" title="Restore path will be relative to your home directory">
+                                            {{ HOME_DIR }}/
+                                        </span>
+                                        <input type="text" class="form-control" id="customRestorePath" name="customRestorePath"
+                                               placeholder="subfolder/restore_here"
+                                               aria-describedby="homeDirPrefix"
+                                               data-bs-toggle="tooltip" title="Enter the directory where files should be restored">
+                                    </div>
+                                </div>
+                                <div class="col-12 mt-4">
+                                    <button id="restoreFullBtn" type="button" class="btn btn-danger me-2"
+                                            data-bs-toggle="tooltip" title="Restore all files in this backup set">
+                                        Restore Full Backup
+                                    </button>
+                                    <button id="restoreSelectedBtn" type="button" class="btn btn-primary"
+                                            data-bs-toggle="tooltip" title="Restore only the files selected below" disabled>
+                                        Restore Selected Files
+                                    </button>
+                                </div>
+                                <div class="col-12 col-lg-auto" id="restoreProgressContainer" style="display:none;">
+                                    <span id="restoreProgress" class="text-info">
+                                        <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                                        Restoring, please wait...
+                                    </span>
+                                </div>
+                            </form>
+                            {% endblock %}
                         </div>
                     </div>
                 </div>
             </div>
-            <div class="col-md-6">
+        </div>
+        <!-- Backup Archives in Set Accordion (Center) -->
+        <div class="col-md-4">
+            <div class="accordion" id="backupArchivesAccordion">
                 <div class="accordion-item">
                     <h2 class="accordion-header" id="headingTwo">
-                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo" aria-expanded="false" aria-controls="collapseTwo">
-                            Backup Archives included in this Manifest
+                        <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo" aria-expanded="false" aria-controls="collapseTwo">
+                            Backup Archives in Set
                         </button>
                     </h2>
-                    <div id="collapseTwo" class="accordion-collapse collapse" aria-labelledby="headingTwo" data-bs-parent="#backupInfoAccordion">
+                    <div id="collapseTwo" class="accordion-collapse collapse" aria-labelledby="headingTwo" data-bs-parent="#backupArchivesAccordion">
                         <div class="accordion-body">
                             <ul class="list-group list-group-flush">
                                 {% for tarball in tarball_summary %}
-                                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                                        {{ tarball.name }}
-                                        {% if tarball.encrypted %}
-                                            <span class="ms-2" title="Encrypted">
-                                                <i class="fa-solid fa-lock text-primary"></i>
+                                    <li class="list-group-item d-flex align-items-center">
+                                        <span>
+                                            {{ tarball.name }}
+                                            {% if tarball.encrypted == true or tarball.encrypted == "true" or tarball.encrypted == 1 %}
+                                                <span class="ms-4" title="Encryption enabled" style="font-size: 1em;">
+                                                    <i class="fa fa-lock text-warning me-2"></i>
+                                                </span>
+                                            {% else %}
+                                                <span class="ms-4" title="Encryption disabled" style="font-size: 1em;">
+                                                    <i class="fa fa-lock-open text-secondary me-2"></i>
+                                                </span>
+                                            {% endif %}
+                                            {% if tarball.synced == true or tarball.synced == "true" or tarball.synced == 1 %}
+                                                <span class="ms-1" title="Sync enabled" style="font-size: 1em;">
+                                                    <i class="fa fa-cloud-upload-alt text-success me-2"></i>
+                                                </span>
+                                            {% else %}
+                                                <span class="ms-1" title="Sync disabled" style="font-size: 1em;">
+                                                    <i class="fa fa-cloud-upload-alt text-secondary me-2"></i>
+                                                </span>
+                                            {% endif %}
+                                            <span class="ms-1">
+                                                <span class="badge bg-secondary rounded-pill" style="font-size: 0.75em;">{{ tarball.size }}</span>
                                             </span>
-                                        {% endif %}
-                                        <span class="badge bg-secondary rounded-pill">{{ tarball.size }}</span>
+                                        </span>
                                     </li>
                                 {% endfor %}
                             </ul>
@@ -61,10 +127,25 @@
                 </div>
             </div>
         </div>
+        <!-- Backup Configuration Accordion (Right) -->
+        <div class="col-md-4">
+            <div class="accordion" id="backupInfoAccordion">
+                <div class="accordion-item">
+                    <h2 class="accordion-header" id="headingOne">
+                        <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne" aria-expanded="false" aria-controls="collapseOne">
+                            Backup Configuration
+                        </button>
+                    </h2>
+                    <div id="collapseOne" class="accordion-collapse collapse" aria-labelledby="headingOne" data-bs-parent="#backupInfoAccordion">
+                        <div class="accordion-body">
+                            {% include "partials/job_config_summary.html" %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
-    <!-- END: Accordion -->
-
-    <!-- Table of all files in backup set -->
+    <!-- The rest of your page, e.g. the manifest table card, goes here -->
     <div class="card mb-4">
         <div class="card-header">
             All Files in Backup Set
@@ -74,6 +155,7 @@
             <table id="manifestTable" class="table table-striped table-bordered table-hover display responsive">
                 <thead>
                     <tr>
+                        <th><input type="checkbox" id="selectAllFiles"></th>
                         <th>Tarball</th>
                         <th>Path</th>
                         <th>Size</th>
@@ -93,34 +175,204 @@
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/global.js') }}"></script>
 <script>
-    $(document).ready(function () {
-        // Extract job_name and backup_set_id from URL for API call
-        const urlParts = window.location.pathname.split('/');
-        const jobName = urlParts[urlParts.length - 2];
-        const backupSetId = urlParts[urlParts.length - 1];
-        const apiUrl = `/api/manifest/${jobName}/${backupSetId}`;
+$(document).ready(function () {
+    // Extract job_name and backup_set_id from URL for API call
+    const urlParts = window.location.pathname.split('/');
+    const jobName = decodeURIComponent(urlParts[urlParts.length - 2]);
+    const backupSetId = decodeURIComponent(urlParts[urlParts.length - 1]);
+    const apiUrl = `/api/manifest/${jobName}/${backupSetId}/json`;
 
-        // Fetch manifest data for the table
-        $.getJSON(apiUrl, function (data) {
-            $('#manifestTable').DataTable({
-                data: data.files || [],
-                columns: [
-                    { data: 'tarball' },
-                    { data: 'path' },
-                    { data: 'size' },
-                    { data: 'modified' }
-                ],
-                order: [[0, 'asc']],
-                responsive: true,
-                paging: true,
-                searching: true,
-                ordering: true,
-                lengthMenu: [25, 50, 100, 200]
-            });
-        }).fail(function (jqXHR, textStatus, errorThrown) {
-            console.error("Failed to load manifest JSON for table:", textStatus, errorThrown);
-            $('#manifestTable tbody').html('<tr><td colspan="4" class="text-center text-danger">Failed to load manifest file data.</td></tr>');
+    // Fetch manifest data for the table and initialize DataTable
+    $.getJSON(apiUrl, function (data) {
+        $('#manifestTable').DataTable({
+            data: data.files || [],
+            columns: [
+                {
+                    data: null,
+                    orderable: false,
+                    className: 'text-center',
+                    render: function (data, type, row, meta) {
+                        return `<input type="checkbox" class="file-checkbox" value="${row.path}">`;
+                    }
+                },
+                { data: 'tarball', title: 'Tarball' },
+                { data: 'path', title: 'Path' },
+                { data: 'size', title: 'Size' },
+                { data: 'modified', title: 'Last Modified' }
+            ],
+            order: [[1, 'asc']],
+            responsive: true,
+            paging: true,
+            searching: true,
+            ordering: true,
+            lengthMenu: [25, 50, 100, 200]
         });
+    }).fail(function (jqXHR, textStatus, errorThrown) {
+        console.error("Failed to load manifest JSON for table:", textStatus, errorThrown);
+        $('#manifestTable tbody').html('<tr><td colspan="5" class="text-center text-danger">Failed to load manifest file data.</td></tr>');
     });
+
+    // Show custom path input if "Custom Directory" is default
+    if ($('#restoreCustom').is(':checked')) {
+        $('#customPathCol').show();
+    }
+
+    // Toggle custom path input based on selected restore location
+    $('input[name="restoreLocation"]').change(function() {
+        if ($('#restoreCustom').is(':checked')) {
+            $('#customPathCol').show();
+        } else {
+            $('#customPathCol').hide();
+        }
+    });
+
+    let restoreType = "full";
+    let selectedFiles = [];
+
+    $('#restoreFullBtn').click(function() {
+        restoreType = "full";
+        selectedFiles = [];
+        startRestore();
+    });
+
+    $('#restoreSelectedBtn').click(function() {
+        restoreType = "selected";
+        selectedFiles = [];
+        $('.file-checkbox:checked').each(function() {
+            selectedFiles.push($(this).val());
+        });
+        startRestore();
+    });
+
+    function isValidPath(path) {
+        // Basic check: not empty, no illegal chars (Linux/Unix)
+        return path && !/[<>:"|?*]/.test(path);
+    }
+
+    function startRestore() {
+        const locationType = $('input[name="restoreLocation"]:checked').val();
+        const customPath = $('#customRestorePath').val();
+
+        // Custom path validation
+        if (locationType === "custom") {
+            if (!isValidPath(customPath)) {
+                alert("Please enter a valid destination path for custom restore.");
+                $('#restoreFullBtn, #restoreSelectedBtn').prop('disabled', false);
+                $('#restoreProgressContainer').hide();
+                $('#customRestorePath').focus();
+                return;
+            }
+        }
+
+        // File selection validation for "Restore Selected Files"
+        if (restoreType === "selected" && selectedFiles.length === 0) {
+            alert("Please select at least one file to restore.");
+            $('#restoreFullBtn, #restoreSelectedBtn').prop('disabled', false);
+            $('#restoreProgressContainer').hide();
+            return;
+        }
+
+        // Overwrite warning for original locations
+        if (locationType === "original") {
+            if (!confirm("Warning: Restoring to original locations may overwrite existing files. Continue?")) {
+                $('#restoreFullBtn, #restoreSelectedBtn').prop('disabled', false);
+                $('#restoreProgressContainer').hide();
+                return;
+            }
+        }
+
+        // Overwrite warning for custom directory
+        if (locationType === "custom") {
+            if (!confirm("Warning: Files in the destination directory may be overwritten if they already exist. Continue?")) {
+                $('#restoreFullBtn, #restoreSelectedBtn').prop('disabled', false);
+                $('#restoreProgressContainer').hide();
+                return;
+            }
+        }
+
+        // Disable buttons and show progress
+        $('#restoreFullBtn, #restoreSelectedBtn').prop('disabled', true);
+        $('#restoreProgressContainer').show();
+
+        const payload = {
+            job_name: jobName,
+            backup_set_id: backupSetId,
+            restore_location: locationType,
+            custom_path: customPath
+        };
+        if (restoreType === "selected") {
+            payload.files = selectedFiles;
+            $.ajax({
+                url: '/api/restore/files',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify(payload),
+                success: handleRestoreResponse,
+                error: handleRestoreError
+            });
+        } else {
+            $.ajax({
+                url: '/api/restore/full',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify(payload),
+                success: handleRestoreResponse,
+                error: handleRestoreError
+            });
+        }
+    }
+
+    function handleRestoreResponse(response) {
+        if (response.redirect) {
+            window.location.href = response.redirect;
+        } else {
+            window.location.reload();
+        }
+    }
+
+    function handleRestoreError(xhr) {
+        $('#restoreProgressContainer').hide();
+        $('#restoreFullBtn, #restoreSelectedBtn').prop('disabled', false);
+        let msg = "Restore failed. Please check the logs.";
+        if (xhr.responseJSON && xhr.responseJSON.error) {
+            msg = xhr.responseJSON.error;
+            if (xhr.responseJSON.files) {
+                msg += "\nFiles: " + xhr.responseJSON.files.join(', ');
+            }
+        }
+        alert(msg);
+    }
+
+    // Enable/disable Restore Selected button
+    $(document).on('change', '.file-checkbox, #selectAllFiles', function() {
+        $('#restoreSelectedBtn').prop('disabled', $('.file-checkbox:checked').length === 0);
+    });
+
+    // Select/Deselect all checkboxes
+    $(document).on('change', '#selectAllFiles', function() {
+        $('.file-checkbox').prop('checked', this.checked).trigger('change');
+    });
+
+    function pollRestoreStatus() {
+        $.getJSON(`/api/restore/status/${jobName}/${backupSetId}`, function(data) {
+            if (data.running) {
+                $('#restoreProgressContainer').show();
+                $('#restoreFullBtn, #restoreSelectedBtn').prop('disabled', true);
+            } else {
+                $('#restoreProgressContainer').hide();
+                $('#restoreFullBtn, #restoreSelectedBtn').prop('disabled', false);
+            }
+        });
+    }
+
+    // Poll on page load and every 5 seconds
+    pollRestoreStatus();
+    setInterval(pollRestoreStatus, 5000);
+
+    // Enable Bootstrap 5 tooltips
+    document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function (el) {
+        new bootstrap.Tooltip(el);
+    });
+});
 </script>
 {% endblock %}
