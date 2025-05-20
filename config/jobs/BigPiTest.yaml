@@ -45,8 +45,8 @@ exclude:
 schedules:
   - cron: "0 2 * * 7"  # Minute 0, Hour 2 (2:00 AM), Any Day of Month, Any Month, Day of Week 7 (Sunday)
     type: "full"       # full or diff
-    enabled: true      # Set to false to disable this schedule
+    enabled: false      # Set to false to disable this schedule
 
   - cron: "0 2 * * 1-6" # Minute 0, Hour 2 (2:00 AM), Any Day of Month, Any Month, Day of Week 1 through 6 (Monday to Saturday)
     type: "diff"       # Run a differential backup
-    enabled: true     # This schedule is active
+    enabled: false     # This schedule is active

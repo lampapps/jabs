@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # restore_jabs_archives.py
+# Stand alone script that is moved with the JABS archive files for manual restoration.
 
 import os
 import glob

@@ -1,8 +1,15 @@
 import os
 import secrets
 import logging
+from dotenv import load_dotenv
 from app.settings import LOG_DIR
 from app.utils.logger import ensure_dir  # Use your existing util
+
+# Load .env file (by default, looks in current directory)
+load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
+
+# Get the passphrase
+PASSPHRASE = os.getenv("JABS_ENCRYPT_PASSPHRASE")
 
 # Generate a random secret key if not set
 if "JABS_SECRET_KEY" not in os.environ:

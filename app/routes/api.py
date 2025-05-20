@@ -255,7 +255,8 @@ def restore_full():
             "files": result["overwrite_warnings"]
         }), 409
     if result["errors"]:
-        flash("Some files failed to restore.", "danger")
+        first = result["errors"][0]
+        flash(f"{first['error']}", "danger")
     else:
         flash("Full restore completed.", "success")
     return jsonify({"redirect": url_for('dashboard.view_manifest', job_name=job_name, backup_set_id=backup_set_id)})
@@ -287,7 +288,8 @@ def restore_files():
             "files": result["overwrite_warnings"]
         }), 409
     if result["errors"]:
-        flash("Some files failed to restore.", "danger")
+        first = result["errors"][0]
+        flash(f"{first['error']}", "danger")
     else:
         flash("Selected files restored.", "success")
     return jsonify({"redirect": url_for('dashboard.view_manifest', job_name=job_name, backup_set_id=backup_set_id)})

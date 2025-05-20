@@ -6,9 +6,16 @@ import yaml
 import os
 from app.utils.event_logger import initialize_event, update_event, finalize_event, get_event_status
 from datetime import datetime, timedelta
+from dotenv import load_dotenv
 
 # Set the working directory to the project root
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
+
+# Load .env file (by default, looks in current directory)
+load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
+
+# Get the passphrase
+PASSPHRASE = os.getenv("JABS_ENCRYPT_PASSPHRASE")
 
 try:
     from core.backup import run_backup

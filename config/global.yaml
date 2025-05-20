@@ -32,8 +32,8 @@ drives:
     label: "Root"
   - path: "/media/jim2/backupdrive"
     label: "Backup Drive"
-  - path: "/media/jim2/pishare/backups"
-    label: "Pi Share"
+#  - path: "/media/jim2/pishare/backups"
+#    label: "Pi Share"
 
 s3_buckets:
   - bucket: "lampapps-jabs1"

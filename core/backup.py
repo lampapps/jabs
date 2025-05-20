@@ -367,7 +367,7 @@ def run_backup(config, backup_type, encrypt=False, sync=False, event_id=None, jo
             else:
                 logger.warning("No tarballs created, skipping manifest generation.")
 
-            # 2. Now encrypt and remove originals
+            # 2. Now encrypt and remove originals 
             if encrypt and tarball_paths:
                 tarball_paths = encrypt_tarballs(tarball_paths, config, logger)
 
@@ -403,12 +403,10 @@ def run_backup(config, backup_type, encrypt=False, sync=False, event_id=None, jo
                 config=config
             )
 
+            # --- WRITE MANIFEST BEFORE ENCRYPTION ---
             new_tar_info = []
             for tar_path in tarball_paths:
-                new_tar_info.extend(extract_tar_info(tar_path))
-
-            if encrypt and tarball_paths:
-                tarball_paths = encrypt_tarballs(tarball_paths, config, logger)
+                new_tar_info.extend(extract_tar_info(tar_path, encryption_enabled=encrypt))
 
             if tarball_paths:
                 logger.info("Writing manifest files...")
@@ -427,6 +425,10 @@ def run_backup(config, backup_type, encrypt=False, sync=False, event_id=None, jo
                     logger.error(f"Failed to write manifest files: {e}", exc_info=True)
             else:
                 logger.warning("No tarballs created, skipping manifest generation.")
+
+            # --- NOW ENCRYPT AND REMOVE ORIGINALS ---
+            if encrypt and tarball_paths:
+                tarball_paths = encrypt_tarballs(tarball_paths, config, logger)
 
             logger.info(f"Differential backup SUCCESS: {len(modified_files)} files in {len(tarball_paths)} tarballs.")
 
@@ -455,4 +457,6 @@ def run_backup(config, backup_type, encrypt=False, sync=False, event_id=None, jo
         raise
     finally:
         release_lock(lock_file)
+
+
 

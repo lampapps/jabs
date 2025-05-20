@@ -1,4 +1,4 @@
-# /utils/manifest.py
+# /utils/manifest.py 
 import os
 import json
 import tarfile
@@ -54,6 +54,14 @@ def build_tarball_summary(backup_set_path, *, show_full_name=True):
                     glob.glob(os.path.join(backup_set_path, '*.tar.gz.gpg'))
     timestamp_pattern = re.compile(r'_(\d{8}_\d{6})\.tar\.gz')
     summary = []
+
+    # Check for a marker file that indicates sync (e.g., .synced or similar) 
+    synced_marker = os.path.join(backup_set_path, ".synced")
+    is_synced = os.path.exists(synced_marker)
+
+    logger = setup_logger("manifest_debug", log_file="logs/manifest_debug.log")
+    logger.info(f"[DEBUG] build_tarball_summary: backup_set_path={backup_set_path}, .synced exists? {is_synced}")
+
     for tar_path in tarball_files:
         base = os.path.basename(tar_path)
         if show_full_name:
@@ -76,14 +84,16 @@ def build_tarball_summary(backup_set_path, *, show_full_name=True):
                 "name": tarball_name,
                 "size": sizeof_fmt(size_bytes),
                 "timestamp_str": timestamp_str,
-                "encrypted": is_encrypted
+                "encrypted": is_encrypted,
+                "synced": is_synced,  # <-- Add this line
             })
         except Exception:
             summary.append({
                 "name": tarball_name,
                 "size": "Error",
                 "timestamp_str": timestamp_str,
-                "encrypted": is_encrypted
+                "encrypted": is_encrypted,
+                "synced": is_synced,  # <-- Add this line
             })
     return sorted(summary, key=lambda item: item['timestamp_str'], reverse=True)
 
@@ -271,39 +281,43 @@ def get_merged_cleaned_yaml_config(job_config_path):
     except Exception as e:
         return f"# Error reading config file {job_config_path}: {e}"
 
-def get_tarball_summary(backup_set_path):
-    tarball_files = []
-    if not os.path.isdir(backup_set_path):
-        return []
-    tarball_files = [
-        os.path.join(backup_set_path, f)
-        for f in os.listdir(backup_set_path)
-        if f.endswith('.tar.gz') or f.endswith('.tar.gz.gpg')
-    ]
-    summary_data_for_sorting = []
+def get_tarball_summary(backup_set_path, *, show_full_name=True):
+    import glob, os, re
+    tarball_files = glob.glob(os.path.join(backup_set_path, '*.tar.gz')) + \
+                    glob.glob(os.path.join(backup_set_path, '*.tar.gz.gpg'))
     timestamp_pattern = re.compile(r'_(\d{8}_\d{6})\.tar\.gz')
+    summary = []
+
+    # Always check for .synced marker at runtime
+    synced_marker = os.path.join(backup_set_path, ".synced")
+    is_synced = os.path.exists(synced_marker)
+
     for tar_path in tarball_files:
-        basename = os.path.basename(tar_path)
+        base = os.path.basename(tar_path)
+        tarball_name = base if show_full_name else base.rsplit('.', 2)[0]
+        is_encrypted = base.endswith('.gpg')
         timestamp_str = '00000000_000000'
-        match = timestamp_pattern.search(basename)
+        match = timestamp_pattern.search(base)
         if match:
             timestamp_str = match.group(1)
-        is_encrypted = basename.endswith('.gpg')
         try:
             size_bytes = os.path.getsize(tar_path)
-            summary_data_for_sorting.append({
-                "name": basename,
+            summary.append({
+                "name": tarball_name,
                 "size": sizeof_fmt(size_bytes),
                 "timestamp_str": timestamp_str,
-                "encrypted": is_encrypted
+                "encrypted": is_encrypted,
+                "synced": is_synced,
             })
         except Exception:
-            summary_data_for_sorting.append({
-                "name": basename,
+            summary.append({
+                "name": tarball_name,
                 "size": "Error",
                 "timestamp_str": timestamp_str,
-                "encrypted": is_encrypted
+                "encrypted": is_encrypted,
+                "synced": is_synced,
             })
-    return sorted(summary_data_for_sorting, key=lambda item: item['timestamp_str'], reverse=True)
+    return sorted(summary, key=lambda item: item['timestamp_str'], reverse=True)
+
 
 

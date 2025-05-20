@@ -16,8 +16,10 @@ JABS is a Python-based backup utility designed for creating local and cloud (AWS
     *   View backup job configurations.
     *   View application logs (`scheduler.log`, `backup.log`).
     *   Monitor scheduler status (heartbeat).
+    *   **Restore files or entire backup sets directly from the web dashboard.**
 *   **Manifest Files:** Exports an independent HTML manifest for each backup set listing all files in all archives. The manifest also provides the backup job's configuration settings and a list of all archives in the set. This manifest is stored with the backup set and synced to AWS.
 *   **Encryption:** Optionally encrypts each tarball using GPG with a passphrase. Encrypted archives have a `.gpg` extension and can only be restored with the correct passphrase.
+*   **Restore Utility:** Each backup set includes a `restore.py` script that can be used to restore files or directories from the backup set, including handling encrypted archives.
 
 ## Installation
 
@@ -29,8 +31,8 @@ JABS is a Python-based backup utility designed for creating local and cloud (AWS
 
 2.  **Clone the Repository:**
     ```bash
-    git clone <your-repository-url> jabs4
-    cd jabs4
+    git clone <your-repository-url> jabs
+    cd jabs
     ```
 
 3.  **Set up Virtual Environment (Recommended):**
@@ -52,160 +54,73 @@ JABS is a Python-based backup utility designed for creating local and cloud (AWS
 
 ## Configuration
 
-1.  **Job Configuration (`config/*.yaml`):**
-    *   Create one `.yaml` file in the `config/` directory for each backup job.
-    *   Copy and modify [`config/backup_example.yaml`](config/backup_example.yaml) as a template.
-    *   Key fields:
-        *   `job_name`: Unique name for the job.
-        *   `source`: Absolute path to the directory to back up.
-        *   `destination`: Absolute path to the *parent* directory for local backups (job-specific folder will be created inside).
-        *   `keep_sets`: Number of backup sets to retain locally.
-        *   `max_tarball_size`: Max size (MB) for individual tar archives.
-        *   `exclude`: List of glob patterns for files/directories to exclude.
-        *   `aws`: S3 configuration (`profile`, `region`, `bucket`, `prefix`).
-        *   `schedules`: List of schedules with `cron` expression, `type` (full/diff), `sync` (true/false), and `enabled` (true/false).
-        *   `encryption`: (Optional) Enable encryption for tarballs. Example:
-            ```yaml
-            encryption:
-              enabled: true
-              method: gpg
-              passphrase_env: JABS_ENCRYPT_PASSPHRASE
-            ```
-            - Set `enabled: true` to turn on encryption.
-            - `method: gpg` uses GPG symmetric encryption.
-            - `passphrase_env` is the name of the environment variable holding your GPG passphrase.
+You can configure JABS **either by editing YAML files directly** or **using the built-in web dashboard**.
 
-2.  **Drive/S3 Monitoring (Optional):**
-    *   Add `drives` and `s3_buckets` to your `config/global.yaml` to configure which local drives and S3 buckets are monitored on the dashboard.
-    *   Example structure:
-        ```yaml
-        # In config/global.yaml:
-        drives:
-          - /
-          - /media/backupdrive
-        s3_buckets:
-          - my-jabs-bucket-1
-          - another-s3-bucket
-        ```
+### 1. **Web Dashboard Configuration (Recommended)**
 
-## Recent Improvements
+- Launch the Flask dashboard (`python run.py` or as described in your deployment instructions).
+- Navigate to the **"Jobs"**  section in the dashboard.
+- You can:
+    - Create new backup jobs (using provided templates in `config/jobs/templates`).
+    - Edit existing job configurations (sources, destinations, schedules, encryption, etc.).
+    - Set up S3 sync, backup rotation, and encryption options.
+    - Manage global settings such as monitored drives and S3 buckets.
+- All changes made in the dashboard are saved to the appropriate YAML files in the `config/` directory.
 
-- **Unified Config Rendering:** Both the dashboard and HTML manifests now display the merged, effective YAML configuration (job + global defaults), with comments stripped and consistent formatting.
-- **Global Settings Highlighted:** The `destination` and `aws` keys are always shown first in the rendered YAML config for clarity.
-- **Cleaner YAML Output:** All YAML shown in the dashboard and manifests is block-formatted, with proper indentation and no comments, making it easier to read and copy.
+### 2. **Manual YAML Configuration (Advanced/Optional)**
 
-## Running JABS
+- Create one `.yaml` file in the `config/jobs/` directory for each backup job.
+- Use the provided templates in `config/jobs/templates` as a starting point for your job configurations.
 
-1.  **Web Interface:**
-    *   Start the Flask development server:
-        ```bash
-        python run.py
-        ```
-    *   Access the dashboard in your browser (usually `http://localhost:5000` or `http://<your-server-ip>:5000`).
-    *   For production, use a proper WSGI server like Gunicorn or Waitress.
+#### **Drive/S3 Monitoring (Optional):**
+- Add `drives` and `s3_buckets` to your `config/global.yaml` to configure which local drives and S3 buckets are monitored on the dashboard.
 
-2.  **Manual Backups (CLI):**
-    *   Run a specific job using `cli.py`:
-        ```bash
-        # Full backup
-        python cli.py config/my_job.yaml --full
+## Encryption Passphrase Setup
 
-        # Differential backup with S3 sync
-        python cli.py config/my_job.yaml --diff --sync
+If you enable encryption for your backups, JABS uses a passphrase to encrypt and decrypt your tarballs using GPG.  
+The recommended way to provide this passphrase is by setting it in a `.env` file in your project root.
 
-        # Encrypted backup (if enabled in config)
-        JABS_ENCRYPT_PASSPHRASE='yourpassphrase' python cli.py config/my_job.yaml --full
-        ```
-        * If encryption is enabled, set the passphrase environment variable before running the backup.
+### **How to Set the Encryption Passphrase**
 
-3.  **Scheduled Backups (Cron):**
-    *   Add the `scheduler.py` script to your system's crontab.
-    *   Edit the crontab: `crontab -e`
-    *   Add a line similar to this (adjust paths for your setup), assuming the scheduler should check every minute:
-        ```crontab
-        * * * * * /path/to/your/jabs4/venv/bin/python /path/to/your/jabs4/scheduler.py >> /path/to/your/jabs4/logs/cron.log 2>&1
-        ```
-        *   `* * * * *`: Run every minute. Adjust as needed (e.g., `0 * * * *` for hourly).
-        *   `/path/to/your/jabs4/venv/bin/python`: Absolute path to the Python interpreter in your virtual environment.
-        *   `/path/to/your/jabs4/scheduler.py`: Absolute path to the scheduler script.
-        *   `>> /path/to/your/jabs4/logs/cron.log 2>&1`: (Optional) Redirect cron output to a log file.
+1. **Create a `.env` file** in your project root (if it does not already exist).
+
+2. **Add the following line** to your `.env` file, replacing `yourpassphrase` with your actual passphrase:
+    ```
+    JABS_ENCRYPT_PASSPHRASE=yourpassphrase
+    ```
+
+   Example:
+    ```
+    JABS_ENCRYPT_PASSPHRASE=jabs!
+    ```
+    
+**Note:**  
+- Never commit your `.env` file with sensitive passphrases to version control.
+- The passphrase is required to restore encrypted backups, either via the dashboard or `restore.py`.
+
+---
 
 ## Restoring Backups
 
-JABS creates standard `.tar.gz` archives, optionally encrypted as `.tar.gz.gpg`, allowing you to restore files using common operating system tools like `tar` and `gpg`. The process depends on whether you are restoring from a full backup or applying differentials.
+JABS provides **two main ways to restore files or directories** from your backups:
 
-**Using the Manifest:**
+### **1. Restore Using the Web Dashboard (Recommended)**
 
-*   Each backup set includes an HTML manifest. This manifest is also synced to AWS. A local copy of the manifest is also linked from the dashboard.
-*   These manifests list every file included in the backup set and which specific `.tar.gz` archive contains that file.
-*   Use the manifest to identify which tarball(s) you need if you only want to restore specific files or directories.
+- The web dashboard allows you to restore individual files, directories, or entire backup sets directly from your browser.
+- The dashboard uses the manifest to let you browse and select files to restore.
+- Handles both encrypted and unencrypted archives. If encrypted, you will be prompted for the passphrase.
+- Restores are performed using the included `restore.py` logic, ensuring correct handling of all backup features.
 
-**1. Restoring a Full Backup Set:**
+### **2. Restore Using the Included `restore.py` Script**
 
-*   Identify the directory of the full backup set you want to restore (e.g., `/path/to/storage/my-job-name/backup_set_YYYYMMDD_HHMMSS`).
-*   Navigate to a *temporary* or *target* directory where you want to restore the files.
-*   Extract all `.tar.gz` files from the backup set directory into your current location. The order usually doesn't matter for a full backup.
-
+- Each backup set includes a `restore.py` script.
+- You can run this script from the command line to restore specific files, directories, or the entire backup set.
+- The script automatically detects encrypted archives and prompts for the passphrase if needed.
+- Example usage:
     ```bash
-    # Example: Restore all tarballs from a specific full backup set
-    cd /path/to/restore/location/
-    find /path/to/jabs4/my-job-name/backup_set_YYYYMMDD_HHMMSS -name '*.tar.gz' -exec tar -xzvf {} \;
-    ```
-
-**2. Restoring from a Differential Backup:**
-
-*   **IMPORTANT:** You MUST first restore the corresponding **Full Backup** set that the differential is based on (see step 1).
-*   Identify the directory of the differential backup set you want to apply (e.g., `/path/to/my-job-name/backup_set_YYYYMMDD_HHMMSS_diff`).
-*   Ensure you are in the *same target directory* where you restored the full backup.
-*   Extract all `.tar.gz` files from the differential backup set directory. This will overwrite any files that were modified since the full backup.
-
-    ```bash
-    # Example: Apply a differential backup AFTER restoring the full backup
-    cd /path/to/restore/location/
-    find /media/backupdrive/jabs4/my-job-name/backup_set_YYYYMMDD_HHMMSS_diff -name '*.tar.gz' -exec tar -xzvf {} \;
-    ```
-
-    *   If you need to apply multiple differentials, apply them in chronological order after restoring the base full backup.
-
-**3. Restoring Encrypted Archives:**
-
-*   If your backup set contains `.tar.gz.gpg` files, you must decrypt them before extracting.
-*   You can use the provided `restore.sh` script or do it manually:
-
-    ```bash
-    # Decrypt an archive (you will be prompted for the passphrase)
-    gpg --output archive.tar.gz --decrypt archive.tar.gz.gpg
-
-    # Then extract as usual
-    tar -xzvf archive.tar.gz
-    ```
-
-*   To restore all encrypted and unencrypted archives in a folder, use the provided script:
-
-    ```bash
-    chmod +x restore.sh
-    ./restore.sh
-    ```
-
-    The script will list all archives, let you choose to restore or decrypt, and prompt for the passphrase if needed.
-
-**4. Restoring Specific Files or Directories:**
-
-*   Use the manifest (HTML or JSON) for the desired backup set (full or differential) to find the exact `.tar.gz` file(s) containing the specific file(s) or directory you need.
-*   Locate the required tarball(s) in the backup set directory.
-*   If encrypted, decrypt first as above.
-*   Use the `tar` command, specifying the archive and the exact path(s) of the file(s)/directory(ies) inside the archive you want to extract.
-
-    ```bash
-    # Example: Restore a specific file from a single tarball
-    cd /path/to/restore/location/
-    tar -xzvf /media/backupdrive/jabs4/my-job-name/backup_set_YYYYMMDD_HHMMSS/001_archive.tar.gz path/inside/archive/to/your/file.txt
-
-    # Example: Restore a specific directory from a single tarball
-    tar -xzvf /media/backupdrive/jabs4/my-job-name/backup_set_YYYYMMDD_HHMMSS/002_archive.tar.gz path/inside/archive/to/your/directory/
-    ```
-
-    *   If restoring a specific file from a *differential* backup, it represents the state of the file *at the time of that differential backup*.
+    # Restore a specific file
+    python3 restore.py
+---
 
 ## Directory Structure
 
@@ -250,6 +165,7 @@ jabs/
     |   |    │   ├── full_part_1_YYYYMMDD_HHMMSS.tar.gz
     |   |    │   ├── full_part_2_YYYYMMDD_HHMMSS.tar.gz
     |   |    │   ├── ... (other tarballs)
+    |   |    │   ├── restore.py    
     |   |    │   └── manifest_YYYYMMDD_HHMMSS.html
     |   |    ├── ... (other backup_sets)
     |   |    └── last_full.txt
@@ -264,12 +180,12 @@ s3://<bucket>/
     |   |        ├── full_part_1_YYYYMMDD_HHMMSS.tar.gz
     |   |        ├── full_part_2_YYYYMMDD_HHMMSS.tar.gz
     |   |        ├── ... (other tarballs)
+    |   |        ├── restore.py
     |   |        └── manifest_YYYYMMDD_HHMMSS.html
     |   └── ... (other jobs on same machine_name)
     └── ...
 
 ```
-
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

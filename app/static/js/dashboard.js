@@ -81,6 +81,25 @@ $(document).ready(function () {
         eventsTable.ajax.reload(null, false); // Reload data without resetting paging/state
     }, 5000); // Refresh every 5 seconds (adjust as needed)
 
+    // Purge dropdown logic
+    $(document).on('click', '.purge-action', function (e) {
+        e.preventDefault();
+        const status = $(this).data('status');
+        if (confirm(`Are you sure you want to purge all "${status}" events?`)) {
+            fetch(`/purge_events/${status}`, {method: 'POST'})
+                .then(resp => resp.json())
+                .then(data => {
+                    alert(data.message);
+                    // Reload the events table only, not the whole page
+                    if ($('#eventsTable').length && $.fn.DataTable.isDataTable('#eventsTable')) {
+                        $('#eventsTable').DataTable().ajax.reload(null, false);
+                    } else {
+                        location.reload();
+                    }
+                });
+        }
+    });
+
 }); // End document ready
 
 // Use a single DOMContentLoaded listener for chart initializations

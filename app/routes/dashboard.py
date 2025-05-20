@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, abort
+from flask import Blueprint, render_template, abort, jsonify, request
 from markupsafe import Markup
 import os
 import json
@@ -119,3 +119,24 @@ def view_manifest(job_name, backup_set_id):
         job_encryption=job_encryption,
         HOME_DIR=HOME_DIR
     )
+
+@dashboard_bp.route('/purge_events/<status>', methods=['POST'])
+def purge_events(status):
+    events_path = os.path.join('data', 'dashboard', 'events.json')
+    if not os.path.exists(events_path):
+        return jsonify({"message": "No events file found."}), 404
+    with open(events_path, 'r') as f:
+        try:
+            events_json = json.load(f)
+            events = events_json.get("data", [])
+        except Exception:
+            events = []
+            events_json = {"data": []}
+    original_count = len(events)
+    # Only keep events that are dicts and do not match the status
+    events = [e for e in events if isinstance(e, dict) and str(e.get('status', '')).lower() != status.lower()]
+    events_json["data"] = events
+    with open(events_path, 'w') as f:
+        json.dump(events_json, f, indent=2)
+    removed = original_count - len(events)
+    return jsonify({"message": f"Purged {removed} '{status}' events."})
