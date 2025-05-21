@@ -80,11 +80,20 @@ You can configure JABS **either by editing YAML files directly** or **using the 
 If you enable encryption for your backups, JABS uses a passphrase to encrypt and decrypt your tarballs using GPG.  
 The recommended way to provide this passphrase is by setting it in a `.env` file in your project root.
 
-### **How to Set the Encryption Passphrase**
+### **How to Set or Update the Encryption Passphrase**
+
+#### **Recommended: Use the Web Dashboard**
+
+- Go to the **Config** page in the web dashboard.
+- Use the **"Set encryption passphrase"** form to set or update the passphrase.
+- This will securely update the `JABS_ENCRYPT_PASSPHRASE` value in your `.env` file automatically.
+- The dashboard will indicate whether a passphrase is currently set.
+
+#### **Manual Method (Advanced/Optional)**
 
 1. **Create a `.env` file** in your project root (if it does not already exist).
 
-2. **Add the following line** to your `.env` file, replacing `yourpassphrase` with your actual passphrase:
+2. **Add or update the following line** in your `.env` file, replacing `yourpassphrase` with your actual passphrase:
     ```
     JABS_ENCRYPT_PASSPHRASE=yourpassphrase
     ```
@@ -93,10 +102,11 @@ The recommended way to provide this passphrase is by setting it in a `.env` file
     ```
     JABS_ENCRYPT_PASSPHRASE=jabs!
     ```
-    
+
 **Note:**  
 - Never commit your `.env` file with sensitive passphrases to version control.
 - The passphrase is required to restore encrypted backups, either via the dashboard or `restore.py`.
+- If you change the passphrase, you will need the old passphrase to restore backups made with it.
 
 ---
 

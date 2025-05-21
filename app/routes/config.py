@@ -2,6 +2,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, abort,
 import os
 import yaml
 from app.settings import JOBS_DIR, GLOBAL_CONFIG_PATH
+from dotenv import set_key, load_dotenv
 
 config_bp = Blueprint('config', __name__)
 
@@ -10,9 +11,16 @@ config_bp = Blueprint('config', __name__)
 def show_global_config():
     with open(GLOBAL_CONFIG_PATH) as f:
         global_config = yaml.safe_load(f)
+    # Load current passphrase status
+    from dotenv import load_dotenv
+    env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), ".env")
+    load_dotenv(env_path)
+    import os as _os
+    current_passphrase = bool(_os.environ.get("JABS_ENCRYPT_PASSPHRASE"))
     return render_template(
         "config.html",
-        global_config=global_config
+        global_config=global_config,
+        current_passphrase=current_passphrase
     )
 
 @config_bp.route("/config/save_global", methods=["POST"])
@@ -139,3 +147,15 @@ def delete_config(filename):
     os.remove(file_path)
     flash(f"Deleted {filename}.", "success")
     return redirect(url_for("jobs.jobs"))
+
+@config_bp.route("/config/set_passphrase", methods=["POST"])
+def set_passphrase():
+    passphrase = request.form.get("passphrase", "").strip()
+    if not passphrase:
+        flash("Passphrase cannot be empty.", "danger")
+        return redirect(url_for("config.config"))
+    env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), ".env")
+    load_dotenv(env_path)
+    set_key(env_path, "JABS_ENCRYPT_PASSPHRASE", passphrase)
+    flash("Encryption passphrase updated.", "success")
+    return redirect(url_for("config.config"))

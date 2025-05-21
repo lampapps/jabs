@@ -74,6 +74,22 @@
                     </a>
                 </div>
             </div>
+            <div class="mt-4">
+                <form method="post" action="{{ url_for('config.set_passphrase') }}">
+                    <div class="input-group">
+                        <input type="password" class="form-control" name="passphrase" id="passphraseInput" placeholder="Set encryption passphrase" required>
+                        <button class="btn btn-outline-secondary" type="button" id="togglePassphrase">
+                            <span id="toggleIcon" class="fa fa-eye"></span>
+                        </button>
+                        <button class="btn btn-primary" type="submit">Save Passphrase</button>
+                    </div>
+                    {% if current_passphrase %}
+                        <small class="form-text text-muted">Current passphrase is set.</small>
+                    {% else %}
+                        <small class="form-text text-danger">No passphrase set.</small>
+                    {% endif %}
+                </form>
+            </div>
         </div>
     </div>
 </div>
@@ -83,29 +99,51 @@
 <script src="https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/dist/js-yaml.min.js"></script>
 <script src="{{ url_for('static', filename='js/global.js') }}"></script>
 <script>
-  var editor = ace.edit("globalYamlEditor");
-  editor.session.setMode("ace/mode/yaml");
-  editor.setTheme("ace/theme/github");
-  editor.setFontSize("16px");
+  // Only initialize Ace editor if the element exists
+  var yamlEditorElem = document.getElementById("globalYamlEditor");
+  if (yamlEditorElem) {
+    var editor = ace.edit("globalYamlEditor");
+    editor.session.setMode("ace/mode/yaml");
+    editor.setTheme("ace/theme/github");
+    editor.setFontSize("16px");
 
-  var errorDiv = document.getElementById("yaml-error");
+    var errorDiv = document.getElementById("yaml-error");
 
-  function validateYAML() {
-    try {
-      jsyaml.load(editor.getValue());
-      errorDiv.textContent = "";
-    } catch (e) {
-      errorDiv.textContent = "YAML Error: " + e.message;
+    function validateYAML() {
+      try {
+        jsyaml.load(editor.getValue());
+        errorDiv.textContent = "";
+      } catch (e) {
+        errorDiv.textContent = "YAML Error: " + e.message;
+      }
     }
+
+    editor.session.on('change', validateYAML);
+    // Initial validation
+    validateYAML();
+
+    // On form submit, copy editor content to textarea
+    document.querySelector("#editGlobalModal form").onsubmit = function() {
+      document.getElementById("content").value = editor.getValue();
+    };
   }
 
-  editor.session.on('change', validateYAML);
-  // Initial validation
-  validateYAML();
-
-  // On form submit, copy editor content to textarea
-  document.querySelector("#editGlobalModal form").onsubmit = function() {
-    document.getElementById("content").value = editor.getValue();
-  };
+  // Passphrase show/hide toggle
+  const passInput = document.getElementById('passphraseInput');
+  const toggleBtn = document.getElementById('togglePassphrase');
+  const toggleIcon = document.getElementById('toggleIcon');
+  if (passInput && toggleBtn && toggleIcon) {
+      toggleBtn.addEventListener('click', function() {
+          if (passInput.type === 'password') {
+              passInput.type = 'text';
+              toggleIcon.classList.remove('fa-eye');
+              toggleIcon.classList.add('fa-eye-slash');
+          } else {
+              passInput.type = 'password';
+              toggleIcon.classList.remove('fa-eye-slash');
+              toggleIcon.classList.add('fa-eye');
+          }
+      });
+  }
 </script>
 {% endblock %}
