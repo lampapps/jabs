@@ -1,4 +1,5 @@
 # /core/backup.py
+
 import os
 import time
 import fnmatch
@@ -6,17 +7,17 @@ import tarfile
 import yaml
 import glob
 import shutil
-import json
 import fcntl
 import socket
-from datetime import datetime, timedelta
+from datetime import datetime
 from app.utils.logger import setup_logger, timestamp, ensure_dir
-from app.utils.manifest import write_manifest_files, MANIFEST_BASE, extract_tar_info
+from app.utils.manifest import write_manifest_files, extract_tar_info
 from app.utils.event_logger import remove_event_by_backup_set_id, update_event, finalize_event
-from core.encrypt import encrypt_file_gpg
 from app.settings import LOCK_DIR, RESTORE_SCRIPT_SRC
+from core.encrypt import encrypt_tarballs
 
 def load_job_config(path):
+    """Load a YAML job configuration file from the given path."""
     with open(path) as f:
         return yaml.safe_load(f)
 
@@ -62,6 +63,10 @@ def is_excluded(path, exclude_patterns, src_base):
     return False
 
 def acquire_lock(lock_path):
+    """
+    Acquire a file lock to prevent concurrent backups for the same job.
+    Returns the lock file handle if successful, or None if already locked.
+    """
     lock_file = open(lock_path, 'w')
     try:
         fcntl.flock(lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
@@ -71,6 +76,9 @@ def acquire_lock(lock_path):
         return None
 
 def release_lock(lock_file):
+    """
+    Release a previously acquired file lock.
+    """
     try:
         fcntl.flock(lock_file, fcntl.LOCK_UN)
         lock_file.close()
@@ -81,6 +89,7 @@ def create_tar_archives(src, dest_tar_dir, exclude_patterns, max_tarball_size_mb
     """
     Create multiple tar archives from the source directory or a list of files, 
     each up to max_tarball_size_mb (in MB).
+    Returns a list of tarball paths and their contents.
     """
     max_tarball_size = max_tarball_size_mb * 1024 * 1024  # Convert MB to bytes
     tarball_index = 1
@@ -118,7 +127,7 @@ def create_tar_archives(src, dest_tar_dir, exclude_patterns, max_tarball_size_mb
                 if not is_excluded(full_path, exclude_patterns, src):
                     files.append(full_path)
 
-    # Add files to tarballs
+    # Add files to tarballs, splitting if max size is reached
     for full_path in files:
         # Calculate the relative path (arcname) based on the source directory
         arcname = os.path.relpath(full_path, source_base)
@@ -154,6 +163,7 @@ def create_tar_archives(src, dest_tar_dir, exclude_patterns, max_tarball_size_mb
 def get_modified_files(src, last_full_time, exclude_patterns=None):
     """
     Identify files modified after the last full backup timestamp.
+    Returns a list of modified file paths.
     """
     modified = []
     exclude_patterns = exclude_patterns or []
@@ -163,6 +173,7 @@ def get_modified_files(src, last_full_time, exclude_patterns=None):
             dirnames[:] = []  # Skip excluded directories
             continue
 
+        # Filter out excluded subdirectories
         dirnames[:] = [
             d for d in dirnames
             if not is_excluded(os.path.join(dirpath, d), exclude_patterns, src)
@@ -190,7 +201,7 @@ def rotate_backups(job_dst, keep_sets, logger):
     :param keep_sets: The number of backup sets to retain.
     :param logger: Logger instance for logging messages.
     """
-    # Find all backup set directories sorted by timestamp
+    # Find all backup set directories sorted by timestamp (newest first)
     backup_sets = sorted(glob.glob(os.path.join(job_dst, "backup_set_*")), reverse=True)
 
     if len(backup_sets) > keep_sets:
@@ -220,39 +231,18 @@ def rotate_backups(job_dst, keep_sets, logger):
                 logger.error(f"Error deleting backup set {old_set} or its manifest: {e}")
 
 def find_latest_backup_set(job_dst):
-    """Find the most recent backup_set folder based on timestamp."""
+    """
+    Find the most recent backup_set folder based on timestamp.
+    Returns the path to the latest backup set, or None if none exist.
+    """
     pattern = os.path.join(job_dst, "backup_set_*")
     sets = sorted(glob.glob(pattern), reverse=True)
     return sets[0] if sets else None
 
-def encrypt_tarballs(tarball_paths, config, logger): 
-    """
-    Encrypts each tarball in tarball_paths using GPG and removes the original.
-    Returns a list of encrypted tarball paths.
-    """
-    from core.encrypt import encrypt_file_gpg
-
-    passphrase_env = (
-        config.get("encryption", {}).get("passphrase_env")
-        or "JABS_ENCRYPT_PASSPHRASE"
-    )
-    encrypted_paths = []
-    for tarball_path in tarball_paths:
-        encrypted_path = tarball_path + ".gpg"
-        try:
-            encrypt_file_gpg(tarball_path, encrypted_path, passphrase_env)
-            os.remove(tarball_path)
-            logger.info(f"Encrypted and removed: {tarball_path}")
-            encrypted_paths.append(encrypted_path)
-        except Exception as e:
-            logger.error(f"Failed to encrypt {tarball_path}: {e}", exc_info=True)
-            # Optionally: raise or continue
-    return encrypted_paths
-
-
 def run_backup(config, backup_type, encrypt=False, sync=False, event_id=None, job_config_path=None):
     """
-    Run the backup process.
+    Run the backup process for a given job configuration.
+    Handles full and differential backups, encryption, manifest writing, and backup rotation.
     :param config: Configuration dictionary.
     :param backup_type: Type of backup ("full" or "diff").
     :param encrypt: Whether to encrypt the backup.
@@ -303,6 +293,7 @@ def run_backup(config, backup_type, encrypt=False, sync=False, event_id=None, jo
     latest_backup_set_path = None
 
     try:
+        # --- LOAD CONFIGURATION AND SETUP PATHS ---
         exclude_patterns = config.get("exclude", [])
         max_tarball_size_mb = config.get("max_tarball_size", 1024)
         src = config["source"]
@@ -311,6 +302,7 @@ def run_backup(config, backup_type, encrypt=False, sync=False, event_id=None, jo
         keep_sets = config.get("keep_sets", 5)
 
         machine_name = socket.gethostname()
+        # Sanitize job and machine names for filesystem safety
         sanitized_job_name = "".join(c if c.isalnum() or c in ("-", "_") else "_" for c in job_name)
         sanitized_machine_name = "".join(c if c.isalnum() or c in ("-", "_") else "_" for c in machine_name)
         job_dst = os.path.join(raw_dst, sanitized_machine_name, sanitized_job_name)
@@ -323,6 +315,7 @@ def run_backup(config, backup_type, encrypt=False, sync=False, event_id=None, jo
         last_full_file = os.path.join(job_dst, "last_full.txt")
         need_full_backup = False
 
+        # If diff requested but no full backup exists, fallback to full
         if backup_type in ["diff", "differential"]:
             if not os.path.exists(last_full_file):
                 logger.info("No full backup found. Performing full backup instead of diff.")
@@ -334,11 +327,13 @@ def run_backup(config, backup_type, encrypt=False, sync=False, event_id=None, jo
                 backup_type = "full"
                 # fall through to full backup logic
 
+        # --- FULL BACKUP LOGIC ---
         if backup_type == "full":
             backup_set_id_string = now
             backup_set_dir = os.path.join(job_dst, f"backup_set_{backup_set_id_string}")
             ensure_dir(backup_set_dir)
 
+            # Create tarballs from the source directory
             tarball_paths, tarball_contents = create_tar_archives(
                 src, backup_set_dir, exclude_patterns, max_tarball_size_mb, logger, backup_type="full", config=config
             )
@@ -371,6 +366,7 @@ def run_backup(config, backup_type, encrypt=False, sync=False, event_id=None, jo
             if encrypt and tarball_paths:
                 tarball_paths = encrypt_tarballs(tarball_paths, config, logger)
 
+            # Write the last full backup timestamp
             with open(os.path.join(job_dst, "last_full.txt"), "w") as f:
                 f.write(backup_set_id_string)
 
@@ -378,6 +374,7 @@ def run_backup(config, backup_type, encrypt=False, sync=False, event_id=None, jo
 
             latest_backup_set_path = backup_set_dir
 
+        # --- DIFFERENTIAL BACKUP LOGIC ---
         elif backup_type in ["diff", "differential"]:
             with open(last_full_file) as f:
                 last_full_timestamp = f.read().strip()
@@ -393,6 +390,7 @@ def run_backup(config, backup_type, encrypt=False, sync=False, event_id=None, jo
                 logger.info("No modified files since last full backup.")
                 return None, event_id, None
 
+            # Create tarballs from the modified files
             tarball_paths, tarball_contents = create_tar_archives(
                 modified_files,
                 backup_set_dir,
@@ -403,7 +401,7 @@ def run_backup(config, backup_type, encrypt=False, sync=False, event_id=None, jo
                 config=config
             )
 
-            # --- WRITE MANIFEST BEFORE ENCRYPTION ---
+            # --- WRITE MANIFEST BEFORE ENCRYPTION --- 
             new_tar_info = []
             for tar_path in tarball_paths:
                 new_tar_info.extend(extract_tar_info(tar_path, encryption_enabled=encrypt))
@@ -437,8 +435,10 @@ def run_backup(config, backup_type, encrypt=False, sync=False, event_id=None, jo
         else:
             raise ValueError(f"Unsupported backup type: {backup_type}")
 
+        # --- ROTATE OLD BACKUPS ---
         rotate_backups(job_dst, keep_sets, logger)
 
+        # --- COPY RESTORE SCRIPT TO BACKUP SET ---
         try:
             shutil.copy2(RESTORE_SCRIPT_SRC, backup_set_dir)
         except Exception as e:
@@ -456,6 +456,7 @@ def run_backup(config, backup_type, encrypt=False, sync=False, event_id=None, jo
         )
         raise
     finally:
+        # Always release the lock, even if an error occurs
         release_lock(lock_file)
 
 
