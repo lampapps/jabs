@@ -78,7 +78,7 @@ def get_disk_usage():
 
 @api_bp.route('/api/s3_usage')
 def get_s3_usage():
-    # Use global.yaml instead of drives.yaml
+    # Use global.yaml instead of drives.yaml 
     try:
         with open(GLOBAL_CONFIG_PATH, "r") as f:
             config = yaml.safe_load(f)
@@ -302,3 +302,45 @@ def manifest_page(job_name, backup_set_id):
         backup_set_id=backup_set_id,
         HOME_DIR=HOME_DIR
     )
+
+@api_bp.route('/api/events/delete', methods=['POST'])
+def delete_events():
+    data = request.get_json()
+    ids = data.get('ids', [])
+    if not ids:
+        return jsonify({"message": "No IDs provided."}), 400
+    events_file = EVENTS_FILE
+    if not os.path.exists(events_file):
+        return jsonify({"message": "No events file found."}), 404
+    with open(events_file, 'r') as f:
+        events_json = json.load(f)
+        events = events_json.get("data", [])
+
+    # Find events to delete (so we can remove their manifests if they exist)
+    events_to_delete = [e for e in events if str(e.get('id') or e.get('starttimestamp')) in ids]
+
+    # Remove events from the list
+    events = [e for e in events if str(e.get('id') or e.get('starttimestamp')) not in ids]
+    events_json["data"] = events
+
+    # Save updated events file
+    with open(events_file, 'w') as f:
+        json.dump(events_json, f, indent=2)
+
+    # Remove corresponding manifest files if they exist
+    for event in events_to_delete:
+        job_name = event.get('job_name')
+        backup_set_id = event.get('backup_set_id')
+        if job_name and backup_set_id:
+            sanitized_job = "".join(c if c.isalnum() or c in ("-", "_") else "_" for c in job_name)
+            manifest_dir = os.path.join(BASE_DIR, "data", "manifests", sanitized_job)
+            json_path = os.path.join(manifest_dir, f"{backup_set_id}.json")
+            html_path = os.path.join(manifest_dir, f"{backup_set_id}.html")
+            for path in [json_path, html_path]:
+                try:
+                    if os.path.exists(path):
+                        os.remove(path)
+                except Exception:
+                    pass  # Ignore errors if file does not exist or cannot be deleted
+
+    return jsonify({"message": f"Deleted {len(ids)} event(s) and any corresponding manifests. Remove any remaining backup sets manually."})

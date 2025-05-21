@@ -110,24 +110,15 @@
             <span>
                 <i class="fa-regular fa-clock"></i> Event Log
             </span>
-            <div class="dropdown">
-                <button class="btn btn-danger btn-sm dropdown-toggle" type="button" id="purgeDropdown" data-bs-toggle="dropdown" aria-expanded="false" title="Purge events with selected status from the event log">
-                    Purge
-                </button>
-                <ul class="dropdown-menu" aria-labelledby="purgeDropdown">
-                    <li>
-                        <a class="dropdown-item purge-action" href="#" data-status="error">Error</a>
-                    </li>
-                    <li>
-                        <a class="dropdown-item purge-action" href="#" data-status="skipped">Skipped</a>
-                    </li>
-                </ul>
-            </div>
+            <button class="btn btn-danger btn-sm" id="delete-selected-btn" title="Delete selected events from the event log">
+                Delete Selected
+            </button>
         </div>
         <div class="card-body">
             <table id="eventsTable" class="table table-striped table-bordered table-hover display responsive">
                 <thead>
                     <tr>
+                        <th><input type="checkbox" id="select-all-events"></th>
                         <th>Start</th>
                         <th>Backup Title</th>
                         <th>Type</th>

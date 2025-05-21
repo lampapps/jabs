@@ -36,6 +36,16 @@ python3 restore.py
 </p>
 {% endblock %}
 
+{% block tarball_size %}
+{% for tarball in tarball_summary %}
+    <li class="list-group-item d-flex align-items-center">
+        <span>
+            {{ tarball.name }}
+        </span>
+    </li>
+{% endfor %}
+{% endblock %}
+
 {% block manifest_table %}
 <table id="manifestTable" class="table table-striped table-bordered table-hover display responsive">
     <thead>
@@ -63,8 +73,6 @@ python3 restore.py
     </tbody>
 </table>
 {% endblock %}
-
-
 
 {% block scripts %}
 <script>

@@ -6,6 +6,16 @@ $(document).ready(function () {
             dataSrc: 'data'     // Assumes response is { "data": [...] }
         },
         columns: [
+            {
+                data: null,
+                orderable: false,
+                className: 'select-checkbox text-center',
+                defaultContent: '',
+                render: function (data, type, row, meta) {
+                    // Use a unique identifier, e.g., event ID or a combo of fields
+                    return `<input type="checkbox" class="event-select" value="${row.id || row.starttimestamp || meta.row}">`;
+                }
+            },
             { data: 'starttimestamp', title: 'Start' },
             { data: 'job_name', title: 'Backup Title' },
             { data: 'backup_type', title: 'Type' },
@@ -22,7 +32,7 @@ $(document).ready(function () {
                         const linkText = data || row.job_name || 'View Manifest';
                         return `<a href="${manifestUrl}">${linkText}</a>`;
                     } else {
-                        // If no backup_set_id/job_name, just display the event text (passed as 'data')
+                        // If no backup_set_id/job_name, just display the event text (passed as 'data') 
                         return data || ''; // Use 'data' which is row.event
                     }
                 },
@@ -49,14 +59,14 @@ $(document).ready(function () {
             { data: 'status', title: 'Status' }
         ],
         columnDefs: [
-            { targets: [1, 2, 4, 5, 6], className: 'text-center' },
-            { targets: 0, responsivePriority: 3 },
-            { targets: 2, responsivePriority: 2 },
-            { targets: 3, responsivePriority: 1 },
-            { targets: 6, responsivePriority: 4 },
-            { targets: [1, 4, 5], responsivePriority: 100 },
+            { targets: [2, 3, 5, 6, 7], className: 'text-center' },
+            { targets: 1, responsivePriority: 3 },
+            { targets: 3, responsivePriority: 2 },
+            { targets: 4, responsivePriority: 1 },
+            { targets: 7, responsivePriority: 4 },
+            { targets: [2, 5, 6], responsivePriority: 100 },
             {
-                targets: 6,
+                targets: 7,
                 createdCell: function (td, cellData, rowData, row, col) {
                     if (cellData && cellData.toLowerCase() === 'error') {
                         $(td).css('background-color', 'rgba(129, 56, 62, 0.65)');
@@ -73,13 +83,13 @@ $(document).ready(function () {
         paging: true,
         searching: true,
         ordering: true,
-        order: [[0, 'desc']] // Order by Start Timestamp descending by default
+        order: [[1, 'desc']] // Order by Start Timestamp descending by default
     });
 
     // Refresh the table data periodically
-    setInterval(function () {
-        eventsTable.ajax.reload(null, false); // Reload data without resetting paging/state
-    }, 5000); // Refresh every 5 seconds (adjust as needed)
+    //setInterval(function () {
+    //    eventsTable.ajax.reload(null, false); // Reload data without resetting paging/state
+    //}, 5000); // Refresh every 5 seconds (adjust as needed)
 
     // Purge dropdown logic
     $(document).on('click', '.purge-action', function (e) {
@@ -98,6 +108,41 @@ $(document).ready(function () {
                     }
                 });
         }
+    });
+
+    // Select/Deselect all checkboxes
+    $('#eventsTable').on('change', '#select-all-events', function () {
+        const checked = this.checked;
+        $('#eventsTable tbody input.event-select').prop('checked', checked);
+    });
+
+    // When table is redrawn (pagination, etc.), keep select-all in sync
+    $('#eventsTable').on('draw.dt', function () {
+        $('#select-all-events').prop('checked', false);
+    });
+
+    // Delete selected events
+    $('#delete-selected-btn').on('click', function () {
+        const selectedIds = [];
+        $('#eventsTable tbody input.event-select:checked').each(function () {
+            selectedIds.push($(this).val());
+        });
+        if (selectedIds.length === 0) {
+            alert('No events selected.');
+            return;
+        }
+        if (!confirm(`Delete ${selectedIds.length} selected event(s)?`)) return;
+
+        fetch('/api/events/delete', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ids: selectedIds})
+        })
+        .then(resp => resp.json())
+        .then(data => {
+            alert(data.message || 'Deleted.');
+            eventsTable.ajax.reload(null, false);
+        });
     });
 
 }); // End document ready

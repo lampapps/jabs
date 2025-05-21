@@ -90,16 +90,16 @@
                     <div id="collapseTwo" class="accordion-collapse collapse" aria-labelledby="headingTwo" data-bs-parent="#backupArchivesAccordion">
                         <div class="accordion-body">
                             <ul class="list-group list-group-flush">
+                                {% block tarball_size %}
                                 {% for tarball in tarball_summary %}
                                     <li class="list-group-item d-flex align-items-center">
                                         <span>
                                             {{ tarball.name }}
-                                            <span class="ms-1">
                                                 <span class="badge bg-secondary rounded-pill" style="font-size: 0.75em;">{{ tarball.size }}</span>
-                                            </span>
                                         </span>
                                     </li>
                                 {% endfor %}
+                                {% endblock %}
                             </ul>
                             {% if tarball_summary|length == 0 %}
                                 <p class="text-center">No backup archives found or summary not available.</p>
