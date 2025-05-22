@@ -1,4 +1,7 @@
 $(document).ready(function () {
+    // --- Track selected event IDs ---
+    let selectedIds = new Set();
+
     // Initialize DataTables for the Events Table
     const eventsTable = $('#eventsTable').DataTable({
         ajax: {
@@ -105,40 +108,69 @@ $(document).ready(function () {
         }
     });
 
-    // Select/Deselect all checkboxes
+    // --- When a checkbox is clicked, update the Set ---
+    $('#eventsTable').on('change', 'input.event-select', function () {
+        const id = $(this).val();
+        if (this.checked) {
+            selectedIds.add(id);
+        } else {
+            selectedIds.delete(id);
+        }
+    });
+
+    // --- When the table is redrawn, restore checked state ---
+    $('#eventsTable').on('draw.dt', function () {
+        $('#eventsTable tbody input.event-select').each(function () {
+            if (selectedIds.has($(this).val())) {
+                this.checked = true;
+            }
+        });
+        // Optionally, update the "select all" checkbox
+        $('#select-all-events').prop('checked',
+            $('#eventsTable tbody input.event-select').length > 0 &&
+            $('#eventsTable tbody input.event-select:checked').length === $('#eventsTable tbody input.event-select').length
+        );
+    });
+
+    // --- Select/Deselect all checkboxes ---
     $('#eventsTable').on('change', '#select-all-events', function () {
         const checked = this.checked;
-        $('#eventsTable tbody input.event-select').prop('checked', checked);
-    });
-
-    // When table is redrawn (pagination, etc.), keep select-all in sync
-    $('#eventsTable').on('draw.dt', function () {
-        $('#select-all-events').prop('checked', false);
-    });
-
-    // Delete selected events
-    $('#delete-selected-btn').on('click', function () {
-        const selectedIds = [];
-        $('#eventsTable tbody input.event-select:checked').each(function () {
-            selectedIds.push($(this).val());
+        $('#eventsTable tbody input.event-select').each(function () {
+            this.checked = checked;
+            const id = $(this).val();
+            if (checked) {
+                selectedIds.add(id);
+            } else {
+                selectedIds.delete(id);
+            }
         });
-        if (selectedIds.length === 0) {
+    });
+
+    // --- Delete selected events ---
+    $('#delete-selected-btn').on('click', function () {
+        if (selectedIds.size === 0) {
             alert('No events selected.');
             return;
         }
-        if (!confirm(`Delete ${selectedIds.length} selected event(s)?`)) return;
+        if (!confirm(`Delete ${selectedIds.size} selected event(s)?`)) return;
 
         fetch('/api/events/delete', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ids: selectedIds})
+            body: JSON.stringify({ids: Array.from(selectedIds)})
         })
         .then(resp => resp.json())
         .then(data => {
             alert(data.message || 'Deleted.');
+            selectedIds.clear();
             eventsTable.ajax.reload(null, false);
         });
     });
+
+    // Refresh the table data periodically
+    setInterval(function () {
+        eventsTable.ajax.reload(null, false);
+    }, 10000); // every 10 seconds (adjust as needed)
 
 }); // End document ready
 
@@ -424,11 +456,6 @@ document.addEventListener("DOMContentLoaded", function () {
     // Optional: Refresh charts periodically (if needed)
     // setInterval(initializeDiskUsageChart, 60000); // Refresh disk usage every minute
     // setInterval(initializeS3UsageChart, 300000); // Refresh S3 usage every 5 minutes
-
-    // Refresh the table data periodically
-    //setInterval(function () {
-    //    eventsTable.ajax.reload(null, false); // Reload data without resetting paging/state
-    //}, 5000); // Refresh every 5 seconds (adjust as needed)
 
     // Handle window resize to update charts (Chart.js 3+ handles this mostly automatically with responsive: true)
     // You might only need custom resize logic for complex scenarios.
