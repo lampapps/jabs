@@ -1,9 +1,7 @@
 import os
-import logging
-from flask import Flask, render_template
-from app.settings import TEMPLATE_DIR, STATIC_DIR, LOG_DIR, VERSION
+from flask import Flask, render_template, send_from_directory
+from app.settings import TEMPLATE_DIR, STATIC_DIR, VERSION
 from app.routes import register_blueprints
-from app.utils.logger import ensure_dir
 
 def create_app():
     app = Flask(__name__, template_folder=TEMPLATE_DIR, static_folder=STATIC_DIR)
@@ -17,5 +15,13 @@ def create_app():
     @app.context_processor
     def inject_version():
         return dict(VERSION=VERSION)
+    
+    @app.route('/favicon.ico')
+    def favicon():
+        return send_from_directory(
+            os.path.join(app.root_path, 'static'),
+            'favicon.ico',
+            mimetype='image/vnd.microsoft.icon'
+        )
 
     return app

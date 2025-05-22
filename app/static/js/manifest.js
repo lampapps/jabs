@@ -19,9 +19,16 @@ $(document).ready(function () {
                     }
                 },
                 { data: 'tarball', title: 'Tarball' },
-                { data: 'path', title: 'Path' },
+                { data: 'path', title: 'File' },
                 { data: 'size', title: 'Size' },
                 { data: 'modified', title: 'Last Modified' }
+            ],
+            columnDefs: [
+                { targets: 3, className: 'text-center' },
+                { targets: 4, responsivePriority: 3 },
+                { targets: 1, responsivePriority: 2 },
+                { targets: 2, responsivePriority: 1 },
+                { targets: [0, 3], responsivePriority: 100 },
             ],
             order: [[1, 'asc']],
             responsive: true,
@@ -40,14 +47,25 @@ $(document).ready(function () {
         $('#customPathCol').show();
     }
 
-    // Toggle custom path input based on selected restore location
+    // Toggle custom path or source path input based on selected restore location
     $('input[name="restoreLocation"]').change(function() {
         if ($('#restoreCustom').is(':checked')) {
             $('#customPathCol').show();
+            $('#sourcePathCol').hide();
         } else {
             $('#customPathCol').hide();
+            $('#sourcePathCol').show();
         }
     });
+
+    // On page load, set the correct visibility
+    if ($('#restoreCustom').is(':checked')) {
+        $('#customPathCol').show();
+        $('#sourcePathCol').hide();
+    } else {
+        $('#customPathCol').hide();
+        $('#sourcePathCol').show();
+    }
 
     let restoreType = "full";
     let selectedFiles = [];

@@ -256,6 +256,20 @@ def run_backup(config, backup_type, encrypt=False, sync=False, event_id=None, jo
     logger.info(f"Starting backup job '{job_name}' with provided config.")
     logger.info(f"Backup type: {backup_type}, Encrypt: {encrypt}, Sync: {sync}")
 
+    # --- CHECK SOURCE EXISTS ---
+    src = config.get("source")
+    if not src or not os.path.exists(src):
+        error_msg = f"Source path does not exist: {src}"
+        logger.error(error_msg)
+        finalize_event(
+            event_id=event_id,
+            status="error",
+            event=error_msg,
+            backup_set_id=None,
+            runtime="00:00:00"
+        )
+        return None, event_id, None
+
     # --- ENCRYPTION PASSPHRASE CHECK ---
     encryption_cfg = config.get("encryption", {})
     if encryption_cfg.get("enabled", False) or encrypt:
@@ -300,6 +314,32 @@ def run_backup(config, backup_type, encrypt=False, sync=False, event_id=None, jo
         raw_dst = config["destination"]
         job_name = config.get("job_name") or "unknown_job"
         keep_sets = config.get("keep_sets", 5)
+
+        # --- CHECK DESTINATION IS ABSOLUTE AND WRITABLE ---
+        if not os.path.isabs(raw_dst):
+            error_msg = f"Destination path is not absolute: {raw_dst}"
+            logger.error(error_msg)
+            finalize_event(
+                event_id=event_id,
+                status="error",
+                event=error_msg,
+                backup_set_id=None,
+                runtime="00:00:00"
+            )
+            return None, event_id, None
+        # Check if parent directory exists and is writable
+        parent_dir = os.path.dirname(raw_dst)
+        if not os.path.exists(parent_dir) or not os.access(parent_dir, os.W_OK):
+            error_msg = f"Destination parent directory does not exist or is not writable: {parent_dir}"
+            logger.error(error_msg)
+            finalize_event(
+                event_id=event_id,
+                status="error",
+                event=error_msg,
+                backup_set_id=None,
+                runtime="00:00:00"
+            )
+            return None, event_id, None
 
         machine_name = socket.gethostname()
         # Sanitize job and machine names for filesystem safety
@@ -353,7 +393,8 @@ def run_backup(config, backup_type, encrypt=False, sync=False, event_id=None, jo
                         job_name=job_name,
                         backup_set_id=backup_set_id_string,
                         backup_set_path=backup_set_dir,
-                        new_tar_info=new_tar_info
+                        new_tar_info=new_tar_info,
+                        mode="full"  # <-- ADD THIS
                     )
                     logger.info(f"JSON Manifest written to: {json_manifest_path}")
                     logger.info(f"HTML Manifest written to: {html_manifest_path}")
@@ -415,7 +456,8 @@ def run_backup(config, backup_type, encrypt=False, sync=False, event_id=None, jo
                         job_name=job_name,
                         backup_set_id=backup_set_id_string,
                         backup_set_path=backup_set_dir,
-                        new_tar_info=new_tar_info
+                        new_tar_info=new_tar_info,
+                        mode="diff"  # <-- ADD THIS
                     )
                     logger.info(f"JSON Manifest written to: {json_manifest_path}")
                     logger.info(f"HTML Manifest written to: {html_manifest_path}")

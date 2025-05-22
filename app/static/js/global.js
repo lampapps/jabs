@@ -85,7 +85,7 @@ $(document).ready(function () { // Ensure DOM is ready
     // Initial check for scheduler status
     updateSchedulerStatus();
     // Periodically check scheduler status
-    setInterval(updateSchedulerStatus, 30000); // Check every 30 seconds
+    setInterval(updateSchedulerStatus, 60000); // Check every minute
     // --- End Scheduler Status Check ---
 
 }); // End document ready

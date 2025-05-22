@@ -167,8 +167,8 @@ jabs/
 ├── run.py
 └── scheduler.py
 
-# Structure of a local destination folder
-(destination_path)/
+# Structure of a local destination folder and AWS Bucket
+(destination_path)/ | s3://<bucket>/
     ├──(machine_name)/
     |   ├── (job_name)/
     |   |    ├── backup_set_YYYYMMDD_HHMMSS/
@@ -181,20 +181,6 @@ jabs/
     |   |    └── last_full.txt
     |   └── ... (other jobs on same machine_name)
     └── ...
-
-# Structure of S3 Destination - Only latest set to sync'd to S3
-s3://<bucket>/
-    ├──(machine_name)/
-    |   ├── (job_name)/
-    |   |    └── backup_set_YYYYMMDD_HHMMSS/
-    |   |        ├── full_part_1_YYYYMMDD_HHMMSS.tar.gz
-    |   |        ├── full_part_2_YYYYMMDD_HHMMSS.tar.gz
-    |   |        ├── ... (other tarballs)
-    |   |        ├── restore.py
-    |   |        └── manifest_YYYYMMDD_HHMMSS.html
-    |   └── ... (other jobs on same machine_name)
-    └── ...
-
 ```
 ## License
 

@@ -62,9 +62,9 @@ $(document).ready(function () {
             { targets: [2, 3, 5, 6, 7], className: 'text-center' },
             { targets: 1, responsivePriority: 3 },
             { targets: 3, responsivePriority: 2 },
-            { targets: 4, responsivePriority: 1 },
+            { targets: [2, 4], responsivePriority: 1 },
             { targets: 7, responsivePriority: 4 },
-            { targets: [2, 5, 6], responsivePriority: 100 },
+            { targets: [0, 5, 6], responsivePriority: 100 },
             {
                 targets: 7,
                 createdCell: function (td, cellData, rowData, row, col) {
@@ -85,11 +85,6 @@ $(document).ready(function () {
         ordering: true,
         order: [[1, 'desc']] // Order by Start Timestamp descending by default
     });
-
-    // Refresh the table data periodically
-    //setInterval(function () {
-    //    eventsTable.ajax.reload(null, false); // Reload data without resetting paging/state
-    //}, 5000); // Refresh every 5 seconds (adjust as needed)
 
     // Purge dropdown logic
     $(document).on('click', '.purge-action', function (e) {
@@ -430,10 +425,16 @@ document.addEventListener("DOMContentLoaded", function () {
     // setInterval(initializeDiskUsageChart, 60000); // Refresh disk usage every minute
     // setInterval(initializeS3UsageChart, 300000); // Refresh S3 usage every 5 minutes
 
+    // Refresh the table data periodically
+    //setInterval(function () {
+    //    eventsTable.ajax.reload(null, false); // Reload data without resetting paging/state
+    //}, 5000); // Refresh every 5 seconds (adjust as needed)
+
     // Handle window resize to update charts (Chart.js 3+ handles this mostly automatically with responsive: true)
     // You might only need custom resize logic for complex scenarios.
     // window.addEventListener('resize', function () {
     //     if (diskUsageChart) diskUsageChart.resize();
     //     if (s3UsageChart) s3UsageChart.resize();
     // });
+    
 });

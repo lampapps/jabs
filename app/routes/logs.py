@@ -35,9 +35,13 @@ def logs():
                 with open(fpath) as f:
                     content = f.read()
                 stats = get_log_stats(content)
-                # Add response code stats for server.log only
                 response_codes = parse_response_codes(fpath) if fname == "server.log" else None
-                logs.append((fname, content, stats, response_codes))
+
+                lines = content.splitlines()
+                trimmed_content = "\n".join(lines[-20:]) if len(lines) > 20 else content
+
+                # Pass both trimmed and full content
+                logs.append((fname, trimmed_content, stats, response_codes, content))
             except Exception:
-                logs.append((fname, "Could not read log.", {'total': 0, 'info': 0, 'warning': 0, 'error': 0, 'other': 0}, None))
+                logs.append((fname, "Could not read log.", {'total': 0, 'info': 0, 'warning': 0, 'error': 0, 'other': 0}, None, ""))
     return render_template("logs.html", logs=logs)

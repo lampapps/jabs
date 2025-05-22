@@ -44,6 +44,14 @@
                                         </label>
                                     </div>
                                 </div>
+                                <div class="col-12" id="sourcePathCol" style="display:none;">
+                                    <div class="input-group">
+                                        <span class="input-group-text">
+                                            Restore Path
+                                        </span>
+                                        <input type="text" class="form-control" value="{{ job_config.get('source', 'Not set') }}/" readonly>
+                                    </div>
+                                </div>
                                 <div class="col-12" id="customPathCol" style="display:none;">
                                     <div class="input-group">
                                         <span class="input-group-text" id="homeDirPrefix" data-bs-toggle="tooltip" title="Restore path will be relative to your home directory">
@@ -130,7 +138,7 @@
     <!-- The rest of your page, e.g. the manifest table card, goes here -->
     <div class="card mb-4">
         <div class="card-header">
-            All Files in Backup Set
+            All Files in Backup Set Relative to <code>{{ job_config.get('source', 'Not set') }}/...</code>
         </div>
         <div class="card-body">
             {% block manifest_table %}
@@ -139,7 +147,7 @@
                     <tr>
                         <th><input type="checkbox" id="selectAllFiles"></th>
                         <th>Tarball</th>
-                        <th>Path</th>
+                        <th>File:</th>
                         <th>Size</th>
                         <th>Last Modified</th>
                     </tr>

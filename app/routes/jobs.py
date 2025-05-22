@@ -1,10 +1,12 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash
+from flask import Blueprint, render_template, request, redirect, url_for, flash, abort
 import os
 import yaml
 import subprocess
 import sys
+from werkzeug.utils import secure_filename
+import re
 from app.settings import LOCK_DIR, BASE_DIR, JOBS_DIR, GLOBAL_CONFIG_PATH
-from cron_descriptor import get_description  # <-- Add this import
+from cron_descriptor import get_description
 
 jobs_bp = Blueprint('jobs', __name__)
 
@@ -155,4 +157,84 @@ def run_job(filename):
     except Exception as e:
         flash(f"Failed to start backup: {e}", "danger")
 
+    return redirect(url_for("jobs.jobs"))
+
+@jobs_bp.route("/config/copy", methods=["POST"])
+def copy_config():
+    source = request.form.get("copy_source")
+    new_job_name = request.form.get("new_job_name", "").strip()
+    next_url = request.form.get("next") or url_for("jobs.jobs")
+
+    # Validate job name (only allow letters, numbers, spaces, dashes, underscores)
+    if not source or not new_job_name or not all(c.isalnum() or c in " _-" for c in new_job_name):
+        flash("Invalid job name.", "danger")
+        return redirect(url_for("jobs.jobs"))
+
+    # Generate a safe file name
+    base_name = secure_filename(new_job_name.replace(" ", "_"))
+    if not base_name:
+        flash("Invalid job name.", "danger")
+        return redirect(url_for("jobs.jobs"))
+    new_filename = f"{base_name}.yaml"
+
+    # Determine source path (template or job)
+    src_path = os.path.join(JOBS_DIR, source)
+    dest_path = os.path.join(JOBS_DIR, new_filename)
+
+    if not os.path.exists(src_path):
+        flash("Source file does not exist.", "danger")
+        return redirect(url_for("jobs.jobs"))
+    if os.path.exists(dest_path):
+        flash("A file with that job name already exists.", "danger")
+        return redirect(url_for("jobs.jobs"))
+
+    # Read as text, replace job_name, and write out (preserve comments/formatting)
+    with open(src_path, "r") as src:
+        content = src.read()
+    # Replace the first occurrence of job_name: ... (with or without quotes)
+    content_new = re.sub(
+        r'^(job_name\s*:\s*)(["\']?.*?["\']?)\s*$', 
+        r'\1"' + new_job_name + r'"', 
+        content, 
+        count=1, 
+        flags=re.MULTILINE
+    )
+    with open(dest_path, "w") as dst:
+        dst.write(content_new)
+
+    flash(f"Copied {source} to {new_filename}.", "success")
+    return redirect(url_for("config.edit_config", filename=new_filename, next=next_url))
+
+@jobs_bp.route("/config/rename/<filename>", methods=["POST"])
+def rename_config(filename):
+    if not filename.endswith(".yaml") or "/" in filename or ".." in filename:
+        flash("Invalid original filename.", "danger")
+        return redirect(url_for("jobs.jobs"))
+    new_filename = request.form.get("new_filename")
+    if not new_filename or "/" in new_filename or ".." in new_filename or not new_filename.endswith(".yaml"):
+        flash("Invalid new filename.", "danger")
+        return redirect(url_for("jobs.jobs"))
+    src_path = os.path.join(JOBS_DIR, filename)
+    dest_path = os.path.join(JOBS_DIR, new_filename)
+    if not os.path.exists(src_path):
+        flash("Original file does not exist.", "danger")
+        return redirect(url_for("jobs.jobs"))
+    if os.path.exists(dest_path):
+        flash("A file with that name already exists.", "danger")
+        return redirect(url_for("jobs.jobs"))
+    os.rename(src_path, dest_path)
+    flash(f"Renamed {filename} to {new_filename}.", "success")
+    return redirect(url_for("jobs.jobs"))
+
+@jobs_bp.route("/config/delete/<filename>", methods=["POST"])
+def delete_config(filename):
+    if filename in ("drives.yaml", "example.yaml") or "/" in filename or ".." in filename or not filename.endswith(".yaml"):
+        flash("This file cannot be deleted.", "danger")
+        return redirect(url_for("jobs.jobs"))
+    file_path = os.path.join(JOBS_DIR, filename)
+    if not os.path.exists(file_path):
+        flash("File does not exist.", "danger")
+        return redirect(url_for("jobs.jobs"))
+    os.remove(file_path)
+    flash(f"Deleted {filename}.", "success")
     return redirect(url_for("jobs.jobs"))

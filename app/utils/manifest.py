@@ -81,7 +81,7 @@ def parse_size_to_bytes(size_str):
     value, unit = match.groups()
     return int(float(value) * units[unit.upper()])
 
-def write_manifest_files(file_list, job_config_path, job_name, backup_set_id, backup_set_path, new_tar_info):
+def write_manifest_files(file_list, job_config_path, job_name, backup_set_id, backup_set_path, new_tar_info, mode="full"):
     try:
         with open(job_config_path, 'r') as f:
             job_config_dict = yaml.safe_load(f)
@@ -120,7 +120,12 @@ def write_manifest_files(file_list, job_config_path, job_name, backup_set_id, ba
     manifest_data["job_name"] = job_name
     manifest_data["backup_set_id"] = backup_set_id
     manifest_data["config"] = merged_config
-    manifest_data["files"] = new_tar_info
+    if mode == "diff":
+        # Append all new diff files, even if path matches (keep all versions)
+        manifest_data["files"].extend(new_tar_info)
+    else:
+        # For full backup, overwrite
+        manifest_data["files"] = new_tar_info
     manifest_data["timestamp"] = datetime.now().isoformat()
 
     with open(json_path, "w") as f:

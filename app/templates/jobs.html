@@ -15,7 +15,7 @@
     <div class="row g-4">
         {% for config in configs %}
         <div class="col-12 col-md-6">
-            <div class="card shadow-sm h-100 border border-secondary-subtle border-2">
+            <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <span>
                         <i class="fa fa-file-code me-2"></i>
@@ -143,7 +143,7 @@
         <!-- Delete Modal -->
         <div class="modal fade" id="deleteJobModal-{{ config.file_name|replace('.', '-') }}" tabindex="-1" aria-labelledby="deleteJobLabel-{{ config.file_name|replace('.', '-') }}" aria-hidden="true">
           <div class="modal-dialog">
-            <form method="post" action="{{ url_for('config.delete_config', filename=config.file_name) }}" class="modal-content">
+            <form method="post" action="{{ url_for('jobs.delete_config', filename=config.file_name) }}" class="modal-content">
               <div class="modal-header">
                 <h5 class="modal-title" id="deleteJobLabel-{{ config.file_name|replace('.', '-') }}">Delete {{ config.file_name }}</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -165,7 +165,7 @@
 <!-- Create Job Modal -->
 <div class="modal fade" id="createJobModal" tabindex="-1" aria-labelledby="createJobLabel" aria-hidden="true">
   <div class="modal-dialog modal-lg">
-    <form method="post" action="{{ url_for('config.copy_config') }}" class="modal-content">
+    <form method="post" action="{{ url_for('jobs.copy_config') }}" class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title" id="createJobLabel">Create New Job</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -184,8 +184,12 @@
             </select>
         </div>
         <div class="mb-3">
-            <label for="new_filename" class="form-label">New filename:</label>
-            <input type="text" name="new_filename" id="new_filename" class="form-control" placeholder="new_job.yaml" required pattern="^[\w\-]+\.yaml$">
+            <label for="new_job_name" class="form-label">Job Name:</label>
+            <input type="text" name="new_job_name" id="new_job_name" class="form-control"
+                   placeholder="My Backup Job" required pattern="^[\w\- ]+$" oninput="updateFileNamePreview()">
+            <div class="form-text">
+                File will be saved as: <span id="fileNamePreview"></span>
+            </div>
         </div>
         <input type="hidden" name="next" value="{{ url_for('jobs.jobs') }}">
       </div>
@@ -196,6 +200,13 @@
     </form>
   </div>
 </div>
+<script>
+function updateFileNamePreview() {
+    let name = document.getElementById('new_job_name').value.trim().replace(/\s+/g, '_');
+    name = name.replace(/[^\w\-]/g, '');
+    document.getElementById('fileNamePreview').textContent = name ? (name + '.yaml') : '';
+}
+</script>
 {% endblock %}
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/global.js') }}"></script>
