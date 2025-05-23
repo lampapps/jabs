@@ -1,7 +1,7 @@
 import os
 import re
 from collections import Counter
-from flask import Blueprint, render_template, current_app
+from flask import Blueprint, render_template
 from app.settings import LOG_DIR
 
 logs_bp = Blueprint('logs', __name__)

@@ -388,18 +388,25 @@ def run_backup(config, backup_type, encrypt=False, sync=False, event_id=None, jo
                 logger.info("Writing manifest files...")
                 try:
                     json_manifest_path, html_manifest_path = write_manifest_files(
-                        file_list=tarball_paths,
                         job_config_path=job_config_path,
                         job_name=job_name,
                         backup_set_id=backup_set_id_string,
                         backup_set_path=backup_set_dir,
                         new_tar_info=new_tar_info,
-                        mode="full"  # <-- ADD THIS
+                        mode="full"  # or "diff"
                     )
                     logger.info(f"JSON Manifest written to: {json_manifest_path}")
                     logger.info(f"HTML Manifest written to: {html_manifest_path}")
                 except Exception as e:
                     logger.error(f"Failed to write manifest files: {e}", exc_info=True)
+                    finalize_event(
+                        event_id=event_id,
+                        status="error",
+                        event=f"Failed to write manifest files: {e}",
+                        backup_set_id=backup_set_id_string,
+                        runtime="00:00:00"
+                    )
+                    return None, event_id, None
             else:
                 logger.warning("No tarballs created, skipping manifest generation.")
 
@@ -451,7 +458,6 @@ def run_backup(config, backup_type, encrypt=False, sync=False, event_id=None, jo
                 logger.info("Writing manifest files...")
                 try:
                     json_manifest_path, html_manifest_path = write_manifest_files(
-                        file_list=tarball_paths,
                         job_config_path=job_config_path,
                         job_name=job_name,
                         backup_set_id=backup_set_id_string,
@@ -463,6 +469,14 @@ def run_backup(config, backup_type, encrypt=False, sync=False, event_id=None, jo
                     logger.info(f"HTML Manifest written to: {html_manifest_path}")
                 except Exception as e:
                     logger.error(f"Failed to write manifest files: {e}", exc_info=True)
+                    finalize_event(
+                        event_id=event_id,
+                        status="error",
+                        event=f"Failed to write manifest files: {e}",
+                        backup_set_id=backup_set_id_string,
+                        runtime="00:00:00"
+                    )
+                    return None, event_id, None
             else:
                 logger.warning("No tarballs created, skipping manifest generation.")
 

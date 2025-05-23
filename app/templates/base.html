@@ -35,18 +35,14 @@
     <div class="container-fluid p-0">
         <nav class="sb-topnav navbar navbar-expand-md navbar-dark bg-black fixed-top">
           <a class="navbar-brand ps-3" href="/">&#123; JABS &#125;</a>
-
           <!-- Mobile Scheduler Status Icon (Visible on xs, sm screens) -->
-          <!-- ms-auto pushes it right, me-2 adds space before toggler -->
           <span class="nav-item d-md-none ms-auto me-2" title="Scheduler Status">
               <i id="schedulerStatusIconMobile" class="fas fa-question-circle text-secondary fa-lg"></i>
           </span>
           <!-- End Mobile Scheduler Status Icon -->
-
           <button class="navbar-toggler me-3" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNavDropdown" aria-controls="navbarNavDropdown" aria-expanded="false" aria-label="Toggle navigation">
             <span class="navbar-toggler-icon"></span>
           </button>
-
           <div class="collapse navbar-collapse" id="navbarNavDropdown">
             <!-- Left-aligned nav links -->
             <ul class="navbar-nav me-auto mb-2 mb-md-0">
@@ -55,6 +51,9 @@
               </li>
               <li class="nav-item">
                 <a class="nav-link {% if request.endpoint == 'jobs.jobs' %}active{% endif %}" href="{{ url_for('jobs.jobs') }}">Jobs</a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link {% if request.endpoint == 'dashboard.storage_tree_view' %}active{% endif %}" href="{{ url_for('dashboard.storage_tree_view') }}">Storage Tree</a>
               </li>
               <li class="nav-item">
                 <a class="nav-link {% if request.endpoint == 'config.config' %}active{% endif %}" href="{{ url_for('config.config') }}">Config</a>
@@ -103,11 +102,6 @@
                 </ul>
                 </li>
             </ul>
-
-            <!-- Right-aligned items: Desktop only -->
-            <!-- Use d-none d-md-flex to ensure it's only on medium and larger screens -->
-            <!-- Use ms-auto to push to the right -->
-            <!-- Use align-items-center to vertically align icon and dropdown -->
             <ul class="navbar-nav d-none d-md-flex ms-auto align-items-center me-3">
                 <!-- Desktop Scheduler Status Icon -->
                 <li class="nav-item me-2" title="Scheduler Status"> <!-- Add me-2 for margin -->
@@ -115,8 +109,6 @@
                         <i id="schedulerStatusIconDesktop" class="fas fa-question-circle text-secondary fa-lg"></i> <!-- Renamed ID -->
                     </span>
                 </li>
-                <!-- END Desktop Scheduler Status Icon -->
-
                 <!-- Existing Theme switcher: desktop only -->
                 <li class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" id="themeDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">

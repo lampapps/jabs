@@ -9,6 +9,7 @@ encryption:
 
 aws:
   enabled: true
+  storage_class: "INTELLIGENT_TIERING"
   
 exclude:
   # General patterns

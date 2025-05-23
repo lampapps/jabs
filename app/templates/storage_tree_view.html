@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block title %}Storage Tree View{% endblock %}
+{% block top_scripts %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="container my-4">
+    <div class="d-flex justify-content-between align-items-center mb-4 ">
+        <h2 class="mb-0">Storage Tree View</h2>
+    </div>
+    <div class="row g-4">
+        <div class="col-12 col-lg-6">
+            <div class="card h-100">
+                <div class="card-header">
+                    <i class="fa fa-hdd me-2"></i> Local Destination
+                </div>
+                <div class="card-body bg-white text-dark">
+                    <div id="local-trees"></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-lg-6">
+            <div class="card h-100">
+                <div class="card-header">
+                    <i class="fa fa-cloud me-2"></i> AWS S3 Bucket
+                </div>
+                <div class="card-body bg-white text-dark">
+                    <div id="s3-trees"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jstree@3.3.15/dist/themes/default/style.min.css" />
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jstree@3.3.15/dist/jstree.min.js"></script>
+<script>
+    // These variables are injected by Flask/Jinja2
+    const localTrees = {{ local_tree_json | safe }};
+    const s3Trees = {{ s3_tree_json | safe }};
+
+    function toJsTree(node) {
+        // Sort children: directories/folders first, then files, both alphabetically
+        let children = (node.children || []).slice();
+        children.sort((a, b) => {
+            // Directories/folders before files
+            if ((a.type === "directory" || a.type === "folder") && b.type === "file") return -1;
+            if (a.type === "file" && (b.type === "directory" || b.type === "folder")) return 1;
+            // Alphabetical order (case-insensitive)
+            return a.name.localeCompare(b.name, undefined, {sensitivity: 'base'});
+        });
+        return {
+            text: node.name,
+            children: children.map(toJsTree),
+            icon: node.type === "file" ? "jstree-file" : "jstree-folder"
+        };
+    }
+
+    $(function() {
+        // Render all local trees
+        localTrees.forEach(function(treeObj, idx) {
+            const treeId = "local-tree-" + idx;
+            $("#local-trees").append(`<div class="mb-4"><h5>${treeObj.label}</h5><div id="${treeId}"></div></div>`);
+            $("#" + treeId).jstree({
+                'core': {
+                    'data': [toJsTree(treeObj.tree)]
+                },
+                "plugins": ["wholerow"]
+            });
+            $("#" + treeId).on("ready.jstree", function(e, data) {
+                data.instance.open_all();
+            });
+        });
+
+        // Render all S3 trees
+        s3Trees.forEach(function(treeObj, idx) {
+            const treeId = "s3-tree-" + idx;
+            $("#s3-trees").append(`<div class="mb-4"><h5>${treeObj.label}</h5><div id="${treeId}"></div></div>`);
+            $("#" + treeId).jstree({
+                'core': {
+                    'data': [toJsTree(treeObj.tree)]
+                },
+                "plugins": ["wholerow"]
+            });
+            $("#" + treeId).on("ready.jstree", function(e, data) {
+                data.instance.open_all();
+            });
+        });
+    });
+</script>
+<style>
+    /* Keep cards white even in dark mode */
+    .card.bg-white, .card-header.bg-white, .card-body.bg-white {
+        background-color: #fff !important;
+        color: #212529 !important;
+    }
+</style>
+{% endblock %}

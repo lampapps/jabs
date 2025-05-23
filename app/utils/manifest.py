@@ -81,7 +81,7 @@ def parse_size_to_bytes(size_str):
     value, unit = match.groups()
     return int(float(value) * units[unit.upper()])
 
-def write_manifest_files(file_list, job_config_path, job_name, backup_set_id, backup_set_path, new_tar_info, mode="full"):
+def write_manifest_files(job_config_path, job_name, backup_set_id, backup_set_path, new_tar_info, mode="full"):
     try:
         with open(job_config_path, 'r') as f:
             job_config_dict = yaml.safe_load(f)

@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, abort, jsonify, request
+from flask import Blueprint, render_template, abort, jsonify, request, current_app
 from markupsafe import Markup
 import os
 import json
@@ -11,8 +11,41 @@ import socket
 import yaml
 from cron_descriptor import get_description, ExpressionDescriptor
 from app.settings import HOME_DIR
+import boto3
 
 dashboard_bp = Blueprint('dashboard', 'dashboard')
+
+def load_storage_config(config_path):
+    with open(config_path, "r") as f:
+        config = yaml.safe_load(f)
+    drives = config.get("drives", [])
+    s3_buckets = config.get("s3_buckets", [])
+    return drives, s3_buckets
+
+def build_local_tree(path):
+    node = {"name": os.path.basename(path) or path, "type": "directory", "children": []}
+    try:
+        for entry in os.scandir(path):
+            if entry.is_dir(follow_symlinks=False):
+                node["children"].append(build_local_tree(entry.path))
+            else:
+                node["children"].append({"name": entry.name, "type": "file"})
+    except Exception:
+        pass  # Permission errors, etc.
+    return node
+
+def build_s3_tree(bucket_name, prefix="", s3_client=None):
+    if s3_client is None:
+        s3_client = boto3.client("s3")
+    node = {"name": bucket_name if not prefix else prefix.rstrip('/'), "type": "folder", "children": []}
+    paginator = s3_client.get_paginator('list_objects_v2')
+    for page in paginator.paginate(Bucket=bucket_name, Prefix=prefix, Delimiter='/'):
+        for cp in page.get('CommonPrefixes', []):
+            node["children"].append(build_s3_tree(bucket_name, cp['Prefix'], s3_client))
+        for obj in page.get('Contents', []):
+            if obj['Key'] != prefix:
+                node["children"].append({"name": os.path.basename(obj['Key']), "type": "file"})
+    return node
 
 @dashboard_bp.route("/")
 def dashboard():
@@ -118,5 +151,33 @@ def view_manifest(job_name, backup_set_id):
         global_encryption=global_encryption,
         job_encryption=job_encryption,
         HOME_DIR=HOME_DIR
+    )
+
+@dashboard_bp.route('/storage-tree')
+def storage_tree_view():
+    config_path = os.path.join(os.path.dirname(current_app.root_path), 'config', 'global.yaml')
+    with open(config_path, "r") as f:
+        config = yaml.safe_load(f)
+    # Get the single local destination and AWS bucket
+    destination = config.get("destination")
+    aws_cfg = config.get("aws", {})
+    bucket = aws_cfg.get("bucket")
+    local_trees = []
+    if destination:
+        local_trees.append({
+            "label": destination,
+            "tree": build_local_tree(destination)
+        })
+    s3_trees = []
+    if bucket:
+        s3_client = boto3.client("s3")
+        s3_trees.append({
+            "label": bucket,
+            "tree": build_s3_tree(bucket, s3_client=s3_client)
+        })
+    return render_template(
+        "storage_tree_view.html",
+        local_tree_json=json.dumps(local_trees),
+        s3_tree_json=json.dumps(s3_trees)
     )
 

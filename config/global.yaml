@@ -1,4 +1,4 @@
-# Global backup configuration settings
+# Default Backup Job Configuration:
 
 # Local destination for all backups jobs unless overridden in job config
 # The `destination` directory must have sufficient space for the backup sets.
@@ -19,12 +19,16 @@ aws:
   profile: "default"  # AWS CLI profile to use (default if not specified)
   region: "us-east-1"  # AWS region (overrides profile region if specified)
   bucket: "lampapps-jabs-dev"  # S3 bucket name (required for cloud backups)
+  storage_class: "STANDARD"  # Options: STANDARD, STANDARD_IA, ONEZONE_IA, INTELLIGENT_TIERING, GLACIER, DEEP_ARCHIVE, etc.
 
 # Encryption settings for backups unless overridden in job config
 encryption:
-  enabled: false
+  enabled: false  # true | false
   method: gpg  # Only 'gpg' supported for now
   passphrase_env: JABS_ENCRYPT_PASSPHRASE  # Name of env var holding passphrase
+
+
+# Dashboard Configuration:
 
 # Configure the drives and buckets that appear in the dashboard 
 drives:

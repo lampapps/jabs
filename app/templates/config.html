@@ -6,7 +6,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="container my-5">
+<div class="container my-4">
     <div class="row pb-0">
         <div class="col-12 col-md-8 mx-auto">
             <h2 class="mb-4">Global Configuration</h2>
@@ -20,6 +20,7 @@
                         <div class="alert alert-danger">{{ error }}</div>
                         <pre class="bg-light p-2 rounded">{{ raw_data }}</pre>
                     {% else %}
+                    <strong>Default Backup Job Configuration:</strong>
                         <ul class="mb-0 small">
                             <li><b>Destination:</b> <code>{{ global_config.destination or 'Not set' }}</code></li>
                             <li><b>AWS:</b>
@@ -35,6 +36,7 @@
                                     <li>Profile: <code>{{ global_config.aws.profile or 'Not set' }}</code></li>
                                     <li>Region: <code>{{ global_config.aws.region or 'Not set' }}</code></li>
                                     <li>Bucket: <code>{{ global_config.aws.bucket or 'Not set' }}</code></li>
+                                    <li>Storage Class: <code>{{ global_config.aws.storage_class or 'Not set' }}</code></li>
                                 </ul>
                             </li>
                             <li><b>Encryption:</b>
@@ -51,6 +53,9 @@
                                     <li>Passphrase Env: <code>{{ global_config.encryption.passphrase_env or 'Not set' }}</code></li>
                                 </ul>
                             </li>
+                        </ul>
+                        <strong>Dashboard Configuration:</strong>
+                        <ul class="mb-0 small">
                             <li><b>Drives:</b>
                                 <ul>
                                     {% for drive in global_config.drives or [] %}

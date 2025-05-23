@@ -54,23 +54,13 @@ JABS is a Python-based backup utility designed for creating local and cloud (AWS
 
 ## Configuration
 
-You can configure JABS **either by editing YAML files directly** or **using the built-in web dashboard**.
-
-### 1. **Web Dashboard Configuration (Recommended)**
-
-- Launch the Flask dashboard (`python run.py` or as described in your deployment instructions).
+- Launch the Flask dashboard (`python3 run.py`).
 - Navigate to the **"Jobs"**  section in the dashboard.
 - You can:
-    - Create new backup jobs (using provided templates in `config/jobs/templates`).
+    - Create new backup jobs using provided templates.
     - Edit existing job configurations (sources, destinations, schedules, encryption, etc.).
     - Set up S3 sync, backup rotation, and encryption options.
     - Manage global settings such as monitored drives and S3 buckets.
-- All changes made in the dashboard are saved to the appropriate YAML files in the `config/` directory.
-
-### 2. **Manual YAML Configuration (Advanced/Optional)**
-
-- Create one `.yaml` file in the `config/jobs/` directory for each backup job.
-- Use the provided templates in `config/jobs/templates` as a starting point for your job configurations.
 
 #### **Drive/S3 Monitoring (Optional):**
 - Add `drives` and `s3_buckets` to your `config/global.yaml` to configure which local drives and S3 buckets are monitored on the dashboard.
@@ -78,48 +68,28 @@ You can configure JABS **either by editing YAML files directly** or **using the 
 ## Encryption Passphrase Setup
 
 If you enable encryption for your backups, JABS uses a passphrase to encrypt and decrypt your tarballs using GPG.  
-The recommended way to provide this passphrase is by setting it in a `.env` file in your project root.
 
 ### **How to Set or Update the Encryption Passphrase**
-
-#### **Recommended: Use the Web Dashboard**
 
 - Go to the **Config** page in the web dashboard.
 - Use the **"Set encryption passphrase"** form to set or update the passphrase.
 - This will securely update the `JABS_ENCRYPT_PASSPHRASE` value in your `.env` file automatically.
 - The dashboard will indicate whether a passphrase is currently set.
 
-#### **Manual Method (Advanced/Optional)**
-
-1. **Create a `.env` file** in your project root (if it does not already exist).
-
-2. **Add or update the following line** in your `.env` file, replacing `yourpassphrase` with your actual passphrase:
-    ```
-    JABS_ENCRYPT_PASSPHRASE=yourpassphrase
-    ```
-
-   Example:
-    ```
-    JABS_ENCRYPT_PASSPHRASE=jabs!
-    ```
-
 **Note:**  
 - Never commit your `.env` file with sensitive passphrases to version control.
-- The passphrase is required to restore encrypted backups, either via the dashboard or `restore.py`.
+- The passphrase is required to restore encrypted backups.
 - If you change the passphrase, you will need the old passphrase to restore backups made with it.
-
----
 
 ## Restoring Backups
 
 JABS provides **two main ways to restore files or directories** from your backups:
 
-### **1. Restore Using the Web Dashboard (Recommended)**
+### **1. Restore Using the Web Dashboard**
 
 - The web dashboard allows you to restore individual files, directories, or entire backup sets directly from your browser.
 - The dashboard uses the manifest to let you browse and select files to restore.
-- Handles both encrypted and unencrypted archives. If encrypted, you will be prompted for the passphrase.
-- Restores are performed using the included `restore.py` logic, ensuring correct handling of all backup features.
+- Handles both encrypted and unencrypted archives.
 
 ### **2. Restore Using the Included `restore.py` Script**
 
@@ -128,9 +98,8 @@ JABS provides **two main ways to restore files or directories** from your backup
 - The script automatically detects encrypted archives and prompts for the passphrase if needed.
 - Example usage:
     ```bash
-    # Restore a specific file
     python3 restore.py
----
+    ```
 
 ## Directory Structure
 

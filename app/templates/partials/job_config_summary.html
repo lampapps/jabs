@@ -29,6 +29,7 @@
                             <li>Profile: <code>{{ global_config.get('aws', {}).get('profile', 'Not set') }}</code></li>
                             <li>Region: <code>{{ global_config.get('aws', {}).get('region', 'Not set') }}</code></li>
                             <li>Bucket: <code>{{ global_config.get('aws', {}).get('bucket', 'Not set') }}</code></li>
+                            <li>Storage Class: <code>{{ global_config.get('aws', {}).get('storage_class', 'Not set') }}</code></li>
                         </ul>
                     </li>
                     <li><b>Encryption:</b>
@@ -64,6 +65,7 @@
                             <li>Profile: <code>{{ job_config.get('aws', {}).get('profile', '— (uses global)') }}</code></li>
                             <li>Region: <code>{{ job_config.get('aws', {}).get('region', '— (uses global)') }}</code></li>
                             <li>Bucket: <code>{{ job_config.get('aws', {}).get('bucket', '— (uses global)') }}</code></li>
+                            <li>Storage Class: <code>{{ job_config.get('aws', {}).get('storage_class', '— (uses global)') }}</code></li>
                         </ul>
                     </li>
                     <li><b>Encryption:</b>
