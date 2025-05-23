@@ -7,16 +7,14 @@ import socket
 
 def sync_to_s3(backup_set_path, config, event_id=None):
     """
-    Sync the entire job directory (all backup sets for this job) to AWS S3, mirroring the local destination structure.
-    Only the current job's directory is synced; other jobs are not affected.
-    :param backup_set_path: Path to the latest backup set directory (used to determine job directory and for event logging).
+    Sync only the current backup set directory to AWS S3.
+    :param backup_set_path: Path to the latest backup set directory.
     :param config: Parsed YAML configuration with AWS details.
     :param event_id: The event ID to update.
     """
     job_name = config.get("job_name", "unknown")
     logger = setup_logger(job_name)
 
-    # Extract AWS and S3 configuration from the job config
     aws_config = config.get("aws", {})
     profile = aws_config.get("profile", "default")
     region = aws_config.get("region", None)
@@ -28,16 +26,16 @@ def sync_to_s3(backup_set_path, config, event_id=None):
     if not bucket:
         raise ValueError("AWS S3 bucket name is not specified in the configuration.")
 
-    # Determine the job directory (parent of the backup set)
+    # Determine the job directory and backup set directory
     sanitized_job_name = job_name.replace(" ", "_")
     job_dir = os.path.dirname(backup_set_path.rstrip("/"))
-    s3_path = f"s3://{bucket}/{prefix}/{sanitized_job_name}"
+    backup_set_name = os.path.basename(backup_set_path.rstrip("/"))
+    s3_path = f"s3://{bucket}/{prefix}/{sanitized_job_name}/{backup_set_name}"
 
-    logger.info(f"Syncing entire job directory: {job_dir} to S3 bucket: {bucket} under prefix: {prefix}/{sanitized_job_name}")
+    logger.info(f"Syncing backup set: {backup_set_path} to S3 bucket: {bucket} under prefix: {prefix}/{sanitized_job_name}/{backup_set_name}")
 
-    # Check if the local job directory exists before attempting sync
-    if not os.path.isdir(job_dir):
-        logger.error(f"Job directory does not exist: {job_dir}")
+    if not os.path.isdir(backup_set_path):
+        logger.error(f"Backup set directory does not exist: {backup_set_path}")
         return
 
     # Ensure the S3 bucket exists before syncing
@@ -49,23 +47,22 @@ def sync_to_s3(backup_set_path, config, event_id=None):
     logger.info(f"Bucket '{bucket}' exists.")
 
     try:
-        # Build the AWS CLI command for syncing the entire job directory
+        # Sync only the backup set directory to the S3 job prefix
         cmd = [
-            "aws", "s3", "sync", job_dir, s3_path,
-            "--profile", profile, "--delete",
+            "aws", "s3", "sync", backup_set_path, s3_path,
+            "--profile", profile,
             "--storage-class", storage_class
         ]
         if region:
             cmd.extend(["--region", region])
 
-        logger.info(f"Syncing {job_dir} to {s3_path} with storage class {storage_class}...")
+        logger.info(f"Syncing {backup_set_path} to {s3_path} with storage class {storage_class}...")
         subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-        logger.info(f"Sync to AWS S3 completed successfully for job: {job_name}")
+        logger.info(f"Sync to AWS S3 completed successfully for backup set: {backup_set_path}")
 
         logger.info("Sync and cleanup completed successfully.")
 
     except Exception as e:
-        # Log any errors and update the event status if event_id is provided
         logger.error(f"An error occurred during the sync process: {e}")
         if event_id:
             finalize_event(

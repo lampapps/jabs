@@ -194,13 +194,16 @@ def get_modified_files(src, last_full_time, exclude_patterns=None):
 
     return modified
 
-def rotate_backups(job_dst, keep_sets, logger):
+def rotate_backups(job_dst, keep_sets, logger, config=None):
     """
-    Rotate backup sets to keep only the latest 'keep_sets' sets and clean up corresponding JSON files and events.
+    Rotate backup sets to keep only the latest 'keep_sets' sets and clean up corresponding JSON files, events, and S3 folders.
     :param job_dst: The directory where backups are stored.
     :param keep_sets: The number of backup sets to retain.
     :param logger: Logger instance for logging messages.
+    :param config: Job config dict (needed for S3 cleanup).
     """
+    import subprocess
+
     # Find all backup set directories sorted by timestamp (newest first)
     backup_sets = sorted(glob.glob(os.path.join(job_dst, "backup_set_*")), reverse=True)
 
@@ -227,8 +230,25 @@ def rotate_backups(job_dst, keep_sets, logger):
                 # Remove the corresponding event from events.json
                 remove_event_by_backup_set_id(backup_set_id, logger)
 
+                # --- S3 CLEANUP ---
+                if config:
+                    aws_config = config.get("aws", {})
+                    bucket = aws_config.get("bucket")
+                    profile = aws_config.get("profile", "default")
+                    region = aws_config.get("region")
+                    machine_name = socket.gethostname()
+                    sanitized_job_name = "".join(c if c.isalnum() or c in ("-", "_") else "_" for c in job_name)
+                    prefix = machine_name
+                    s3_path = f"s3://{bucket}/{prefix}/{sanitized_job_name}/{os.path.basename(old_set)}"
+                    cmd = ["aws", "s3", "rm", s3_path, "--recursive", "--profile", profile]
+                    if region:
+                        cmd.extend(["--region", region])
+                    logger.info(f"Deleting S3 backup set: {s3_path}")
+                    subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+                    logger.info(f"Deleted S3 backup set: {s3_path}")
+
             except Exception as e:
-                logger.error(f"Error deleting backup set {old_set} or its manifest: {e}")
+                logger.error(f"Error deleting backup set {old_set} or its manifest/S3 folder: {e}")
 
 def find_latest_backup_set(job_dst):
     """
@@ -492,7 +512,7 @@ def run_backup(config, backup_type, encrypt=False, sync=False, event_id=None, jo
             raise ValueError(f"Unsupported backup type: {backup_type}")
 
         # --- ROTATE OLD BACKUPS ---
-        rotate_backups(job_dst, keep_sets, logger)
+        rotate_backups(job_dst, keep_sets, logger, config)
 
         # --- COPY RESTORE SCRIPT TO BACKUP SET ---
         try:
