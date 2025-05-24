@@ -49,25 +49,38 @@
               <li class="nav-item">
                 <a class="nav-link {% if request.endpoint == 'dashboard.dashboard' %}active{% endif %}" href="{{ url_for('dashboard.dashboard') }}">Dashboard</a>
               </li>
-              <li class="nav-item">
-                <a class="nav-link {% if request.endpoint == 'jobs.jobs' %}active{% endif %}" href="{{ url_for('jobs.jobs') }}">Jobs</a>
+              <li class="nav-item dropdown
+                  {% if request.endpoint in ['jobs.jobs', 'config.config', 'dashboard.storage_tree_view'] %}active{% endif %}">
+                <a class="nav-link dropdown-toggle
+                  {% if request.endpoint in ['jobs.jobs', 'config.config', 'dashboard.storage_tree_view'] %}active{% endif %}"
+                  href="#" id="configurationDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                  Configuration
+                </a>
+                <ul class="dropdown-menu" aria-labelledby="configurationDropdown">
+                  <li>
+                    <a class="dropdown-item {% if request.endpoint == 'jobs.jobs' %}active{% endif %}" href="{{ url_for('jobs.jobs') }}">Jobs</a>
+                  </li>
+                  <li>
+                    <a class="dropdown-item {% if request.endpoint == 'config.config' %}active{% endif %}" href="{{ url_for('config.config') }}">Global</a>
+                  </li>
+                  <li>
+                    <a class="dropdown-item {% if request.endpoint == 'dashboard.storage_tree_view' %}active{% endif %}" href="{{ url_for('dashboard.storage_tree_view') }}">Storage Tree</a>
+                  </li>
+                </ul>
               </li>
-              <li class="nav-item">
-                <a class="nav-link {% if request.endpoint == 'dashboard.storage_tree_view' %}active{% endif %}" href="{{ url_for('dashboard.storage_tree_view') }}">Storage Tree</a>
-              </li>
-              <li class="nav-item">
-                <a class="nav-link {% if request.endpoint == 'config.config' %}active{% endif %}" href="{{ url_for('config.config') }}">Config</a>
-              </li>
-              <li class="nav-item">
-                <a class="nav-link {% if request.endpoint == 'logs.logs' %}active{% endif %}" href="{{ url_for('logs.logs') }}">Logs</a>
-              </li>
-              <li class="nav-item dropdown">
-                <a class="nav-link dropdown-toggle {% if request.endpoint == 'dashboard.help' %}active{% endif %}" href="#" id="helpDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+              <li class="nav-item dropdown
+                  {% if request.endpoint in ['dashboard.help', 'dashboard.documentation', 'logs.logs'] %}active{% endif %}">
+                <a class="nav-link dropdown-toggle
+                  {% if request.endpoint in ['dashboard.help', 'dashboard.documentation', 'logs.logs'] %}active{% endif %}"
+                  href="#" id="helpDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                   Help
                 </a>
                 <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="helpDropdown">
                   <li>
-                    <a class="dropdown-item" href="{{ url_for('dashboard.documentation') }}">Documentation</a>
+                    <a class="dropdown-item {% if request.endpoint == 'dashboard.documentation' %}active{% endif %}" href="{{ url_for('dashboard.documentation') }}">Documentation</a>
+                  </li>
+                  <li>
+                    <a class="dropdown-item {% if request.endpoint == 'logs.logs' %}active{% endif %}" href="{{ url_for('logs.logs') }}">Logs</a>
                   </li>
                   <li>
                     <a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#aboutModal">About</a>

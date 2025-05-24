@@ -6,14 +6,15 @@
 
 {% block content %}
 <div class="container my-4">
-    <div class="d-flex justify-content-between align-items-center mb-4 ">
+    <div class="mb-4">
         <h2 class="mb-0">Storage Tree View</h2>
     </div>
     <div class="row g-4">
         <div class="col-12 col-lg-6">
             <div class="card h-100">
-                <div class="card-header">
-                    <i class="fa fa-hdd me-2"></i> Local Destination
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span><i class="fa fa-hdd me-2"></i> Local Destination</span>
+                    <span class="badge rounded-pill bg-secondary align-middle">Read Only</span>
                 </div>
                 <div class="card-body bg-white text-dark">
                     <div id="local-trees"></div>
@@ -22,8 +23,9 @@
         </div>
         <div class="col-12 col-lg-6">
             <div class="card h-100">
-                <div class="card-header">
-                    <i class="fa fa-cloud me-2"></i> AWS S3 Bucket
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span><i class="fa fa-cloud me-2"></i> AWS S3 Bucket</span>
+                    <span class="badge rounded-pill bg-secondary align-middle">Read Only</span>
                 </div>
                 <div class="card-body bg-white text-dark">
                     <div id="s3-trees"></div>

@@ -20,7 +20,7 @@ def show_global_config():
     import os as _os
     current_passphrase = bool(_os.environ.get("JABS_ENCRYPT_PASSPHRASE"))
     return render_template(
-        "config.html",
+        "globalconfig.html",  # changed from "config.html"
         global_config=global_config,
         current_passphrase=current_passphrase
     )
@@ -31,7 +31,7 @@ def save_global():
     try:
         yaml.safe_load(new_content)
     except yaml.YAMLError as e:
-        return render_template("config.html", raw_data=new_content, error=str(e))
+        return render_template("globalconfig.html", raw_data=new_content, error=str(e))  # changed
     with open(GLOBAL_CONFIG_PATH, "w") as f:
         f.write(new_content)
     flash("Global configuration saved.", "success")
