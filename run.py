@@ -5,8 +5,13 @@ from dotenv import load_dotenv
 from app.settings import LOG_DIR
 from app.utils.logger import ensure_dir  # Use your existing util
 
+env_path = os.path.join(os.path.dirname(__file__), ".env")
+if not os.path.exists(env_path):
+    with open(env_path, "w") as f:
+        pass  # Create an empty .env file
+
 # Load .env file (by default, looks in current directory)
-load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
+load_dotenv(env_path)
 
 # Get the passphrase
 PASSPHRASE = os.getenv("JABS_ENCRYPT_PASSPHRASE")
