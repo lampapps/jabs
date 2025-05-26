@@ -28,8 +28,7 @@ def sync_to_s3(backup_set_path, config, event_id=None):
 
     # Determine the job directory and backup set directory
     sanitized_job_name = job_name.replace(" ", "_")
-    job_dir = os.path.dirname(backup_set_path.rstrip("/"))
-    backup_set_name = os.path.basename(backup_set_path.rstrip("/"))
+    backup_set_name = os.path.basename(backup_set_path.rstrip("/\\"))
     s3_path = f"s3://{bucket}/{prefix}/{sanitized_job_name}/{backup_set_name}"
 
     logger.info(f"Syncing backup set: {backup_set_path} to S3 bucket: {bucket} under prefix: {prefix}/{sanitized_job_name}/{backup_set_name}")

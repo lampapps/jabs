@@ -1,7 +1,5 @@
 job_name: "JABS DEV"  # The name of the backup job (used for logging and organization)
 source: "/home/jim2/jabs_dev"  # The source directory to back up
-
-keep_sets: 2  # Number of backup sets to retain (older sets will be deleted automatically)
 max_tarball_size: 1  # Maximum size of each tarball in MB (e.g., 1024 MB = 1 GB)
 
 encryption:
@@ -45,6 +43,6 @@ schedules:
     type: "diff"
     enabled: true
 
-  - cron: "*/5 * * * *"    
+  - cron: "0 11 * * *"    
     type: "diff"           # full | diff
     enabled: false          # true | false

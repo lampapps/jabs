@@ -1,7 +1,7 @@
 import os
 import sys
 
-VERSION = "1.0.0"
+VERSION = "v0.1.0"
 
 # --- Application Configuration ---
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
@@ -26,6 +26,6 @@ EVENTS_FILE = os.path.join(DATA_DIR, 'dashboard', 'events.json')
 LOG_DIR = os.path.join(BASE_DIR, 'logs')
 MAX_LOG_LINES = 1000
 
-# --- Restore Base Configuration ---
+# --- Restore Configuration ---
 HOME_DIR = os.path.expanduser("~")
 RESTORE_SCRIPT_SRC = os.path.join(BASE_DIR, 'restore.py')

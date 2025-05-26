@@ -5,7 +5,6 @@ import logging
 import yaml
 import os
 from app.utils.event_logger import initialize_event, update_event, finalize_event, get_event_status
-from datetime import datetime, timedelta
 from dotenv import load_dotenv
 
 # Set the working directory to the project root

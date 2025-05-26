@@ -2,8 +2,6 @@
 # Job-specific settings
 job_name: "jim2 Home"  # The name of the backup job (used for logging and organization)
 source: "/home/jim2" # The source directory to back up
-keep_sets: 2              # Number of backup sets to retain (older sets will be deleted automatically) 
-max_tarball_size: 2048    # Maximum size of each tarball in MB (e.g., 1024 MB = 1 GB)
 
 encryption: 
   enabled: true          # true or false, can be overridden by CLI

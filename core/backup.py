@@ -11,9 +11,9 @@ import fcntl
 import socket
 from datetime import datetime
 from app.utils.logger import setup_logger, timestamp, ensure_dir
-from app.utils.manifest import write_manifest_files, extract_tar_info
+from app.utils.manifest import write_manifest_files, extract_tar_info, merge_configs
 from app.utils.event_logger import remove_event_by_backup_set_id, update_event, finalize_event
-from app.settings import LOCK_DIR, RESTORE_SCRIPT_SRC
+from app.settings import LOCK_DIR, RESTORE_SCRIPT_SRC, GLOBAL_CONFIG_PATH
 from core.encrypt import encrypt_tarballs
 
 def load_job_config(path):
@@ -29,16 +29,17 @@ def is_excluded(path, exclude_patterns, src_base):
     :param src_base: The base source directory for the backup.
     :return: True if the path should be excluded, False otherwise.
     """
-    # Convert the path to a relative path for matching
-    rel_path = os.path.relpath(path, src_base).replace(os.sep, "/")
+    # Convert the path to a relative path for matching, always using forward slashes
+    rel_path = os.path.relpath(path, src_base)
+    rel_path = rel_path.replace(os.sep, "/")
 
     # Skip the current directory (.) and parent directory (..)
     if rel_path in [".", ".."]:
         return False
 
     for pattern in exclude_patterns:
-        # Normalize the pattern to remove trailing slashes
-        normalized_pattern = pattern.rstrip("/")
+        # Normalize the pattern to use forward slashes and remove trailing slashes
+        normalized_pattern = pattern.replace(os.sep, "/").rstrip("/")
 
         # Match exact patterns
         if fnmatch.fnmatch(rel_path, normalized_pattern):
@@ -328,6 +329,12 @@ def run_backup(config, backup_type, encrypt=False, sync=False, event_id=None, jo
 
     try:
         # --- LOAD CONFIGURATION AND SETUP PATHS ---
+        with open(GLOBAL_CONFIG_PATH) as f:
+            global_config = yaml.safe_load(f)
+        with open(job_config_path) as f:
+            job_config = yaml.safe_load(f)
+        config = merge_configs(global_config, job_config)
+
         exclude_patterns = config.get("exclude", [])
         max_tarball_size_mb = config.get("max_tarball_size", 1024)
         src = config["source"]

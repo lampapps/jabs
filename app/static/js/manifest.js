@@ -30,6 +30,11 @@ $(document).ready(function () {
                 { targets: 2, responsivePriority: 1 },
                 { targets: [0, 3], responsivePriority: 100 },
             ],
+            language: {
+                search: "Filter files:",
+                lengthMenu: "Show _MENU_ files",
+                info: "Showing _START_ to _END_ of _TOTAL_ files",
+            },
             order: [[1, 'asc']],
             responsive: true,
             paging: true,

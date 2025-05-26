@@ -151,7 +151,8 @@ def write_manifest_files(job_config_path, job_name, backup_set_id, backup_set_pa
             job_config_path=job_config_path,
             all_files=manifest_data["files"],
             timestamp=last_file_modified,
-            tarball_summary=tarball_summary
+            tarball_summary=tarball_summary,
+            used_config=merged_config
         ))
 
     return json_path, html_path
@@ -162,7 +163,8 @@ def render_html_manifest(
     job_config_path,
     all_files,
     timestamp,
-    tarball_summary
+    tarball_summary,
+    used_config=None
 ):
     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     template_path = os.path.join(base_dir, "templates", "manifest_archived.html")
@@ -211,7 +213,8 @@ def render_html_manifest(
             global_config=global_config,
             job_config=job_config,
             global_encryption=global_encryption,
-            job_encryption=job_encryption
+            job_encryption=job_encryption,
+            used_config=used_config
         )
     except Exception as e:
         return f"<html><body>Error rendering manifest: {e}</body></html>"

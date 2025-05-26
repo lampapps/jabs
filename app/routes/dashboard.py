@@ -138,6 +138,7 @@ def view_manifest(job_name, backup_set_id):
             manifest_timestamp = dt_object.strftime("%A, %B %d, %Y at %I:%M %p")
         except Exception:
             pass
+    used_config = manifest_data.get("config", {})
     return render_template(
         'manifest.html',
         job_name=manifest_data.get("job_name", job_name),
@@ -146,11 +147,8 @@ def view_manifest(job_name, backup_set_id):
         config_content=cleaned_config,
         all_files=manifest_data.get("files", []),
         tarball_summary=tarball_summary_list,
-        global_config=global_config,
-        job_config=job_config if job_config_path else {},
-        global_encryption=global_encryption,
-        job_encryption=job_encryption,
-        HOME_DIR=HOME_DIR
+        used_config=used_config,
+        HOME_DIR=HOME_DIR,
     )
 
 @dashboard_bp.route('/storage-tree')

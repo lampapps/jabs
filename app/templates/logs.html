@@ -29,7 +29,6 @@
             {% endfor %}
         </ol>
     </nav>
-
     <div class="row g-4 justify-content-center">
         {% for name, content, stats, response_codes, full_content in logs %}
         <div class="col-12">
@@ -80,12 +79,15 @@
 <pre class="bg-light text-dark p-2 rounded"
      style="max-height: 500px; min-height: 250px; font-size: 0.92em; overflow:auto; white-space: pre-wrap; word-break: break-all;">{{ content }}</pre>
                 </div>
-                <div class="card-footer d-flex justify-content-between align-items-center">
-                    <button type="button" class="btn btn-info btn-sm" data-bs-toggle="modal" data-bs-target="#viewLogModal-{{ name|replace('.', '-') }}">
+                <div class="card-footer d-flex justify-content-end align-items-center">
+                    <button type="button" class="btn btn-info btn-sm ms-auto" data-bs-toggle="modal" data-bs-target="#viewLogModal-{{ name|replace('.', '-') }}">
                         <i class="fa fa-eye"></i> View Full
                     </button>
-                    <a href="#top" class="btn btn-link btn-sm">Back to Top</a>
                 </div>
+            </div>
+            <!-- Back to Top link at the bottom of each card -->
+            <div class="text-end mt-1 mb-4" style="max-width: 1300px; margin-left: auto; margin-right: auto;">
+                <a href="#top" class="btn btn-link btn-sm">Back to Top</a>
             </div>
         </div>
         <!-- View Modal -->

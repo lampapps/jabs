@@ -199,13 +199,11 @@ def main():
         if not archives:
             print("No archives found to process. Exiting.")
             break
-        
         display_archives(archives)
         print("\nOptions:")
         print("  Enter a number to process a specific archive.")
         print("  Type 'all' to process all listed archives (oldest first based on filename timestamp).")
         print("  Type 'q' to quit.")
-
         try:
             choice = input("Your choice: ").strip().lower()
         except EOFError:
@@ -214,13 +212,11 @@ def main():
         except KeyboardInterrupt:
             print("\nExiting.")
             break
-
         if choice == 'q':
             print("Exiting.")
             break
         elif choice == 'all':
             print("\nProcessing all archives (oldest first)...")
-            
             detailed_archives = []
             for name in archives:
                 timestamp = extract_timestamp_from_filename(name)
@@ -234,12 +230,9 @@ def main():
                     # Use a far future date for primary sort key, then name for secondary
                     return (datetime.max, item['name']) 
                 return (item['timestamp'], item['name'])
-
             sorted_archives_to_process = sorted(detailed_archives, key=sort_key)
-            
             if not sorted_archives_to_process:
                 print("No archives to process after sorting.") # Should not happen if archives list was not empty
-            
             for archive_item in sorted_archives_to_process:
                 archive_name_to_process = archive_item['name']
                 if archive_item['timestamp']:

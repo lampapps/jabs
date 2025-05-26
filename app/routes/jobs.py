@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, abort
+from flask import Blueprint, render_template, request, redirect, url_for, flash
 import os
 import yaml
 import subprocess
@@ -7,6 +7,7 @@ from werkzeug.utils import secure_filename
 import re
 from app.settings import LOCK_DIR, BASE_DIR, JOBS_DIR, GLOBAL_CONFIG_PATH
 from cron_descriptor import get_description
+import tempfile
 
 jobs_bp = Blueprint('jobs', __name__)
 
@@ -145,7 +146,10 @@ def run_job(filename):
         args.append("--sync")
 
     try:
-        with open('/tmp/backup_stdout.log', 'w') as out, open('/tmp/backup_stderr.log', 'w') as err:
+        temp_dir = tempfile.gettempdir()
+        stdout_log = os.path.join(temp_dir, "backup_stdout.log")
+        stderr_log = os.path.join(temp_dir, "backup_stderr.log")
+        with open(stdout_log, 'w') as out, open(stderr_log, 'w') as err:
             subprocess.Popen(
                 args,
                 stdout=out,
@@ -207,21 +211,47 @@ def copy_config():
 
 @jobs_bp.route("/config/rename/<filename>", methods=["POST"])
 def rename_config(filename):
-    if not filename.endswith(".yaml") or "/" in filename or ".." in filename:
+    import pathlib
+
+    # Only allow .yaml files, no path separators, no parent directory traversal
+    if (
+        not filename.endswith(".yaml")
+        or os.path.sep in filename
+        or (os.path.altsep and os.path.altsep in filename)
+        or ".." in filename
+    ):
         flash("Invalid original filename.", "danger")
         return redirect(url_for("jobs.jobs"))
+
     new_filename = request.form.get("new_filename")
-    if not new_filename or "/" in new_filename or ".." in new_filename or not new_filename.endswith(".yaml"):
+    if (
+        not new_filename
+        or os.path.sep in new_filename
+        or (os.path.altsep and os.path.altsep in new_filename)
+        or ".." in new_filename
+        or not new_filename.endswith(".yaml")
+    ):
         flash("Invalid new filename.", "danger")
         return redirect(url_for("jobs.jobs"))
+
+    # Use pathlib for cross-platform path handling
     src_path = os.path.join(JOBS_DIR, filename)
     dest_path = os.path.join(JOBS_DIR, new_filename)
+
+    # Ensure both paths are within JOBS_DIR (prevent directory traversal)
+    jobs_dir_path = pathlib.Path(JOBS_DIR).resolve()
+    if not pathlib.Path(src_path).resolve().parent == jobs_dir_path or \
+       not pathlib.Path(dest_path).resolve().parent == jobs_dir_path:
+        flash("Invalid file path.", "danger")
+        return redirect(url_for("jobs.jobs"))
+
     if not os.path.exists(src_path):
         flash("Original file does not exist.", "danger")
         return redirect(url_for("jobs.jobs"))
     if os.path.exists(dest_path):
         flash("A file with that name already exists.", "danger")
         return redirect(url_for("jobs.jobs"))
+
     os.rename(src_path, dest_path)
     flash(f"Renamed {filename} to {new_filename}.", "success")
     return redirect(url_for("jobs.jobs"))

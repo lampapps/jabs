@@ -4,8 +4,6 @@
         <ul class="mb-0 small">
             <li><b>Job Name:</b> <code>{{ job_config.get('job_name', 'Not set') }}</code></li>
             <li><b>Source:</b> <code>{{ job_config.get('source', 'Not set') }}</code></li>
-            <li><b>Keep Sets:</b> <code>{{ job_config.get('keep_sets', 'Not set') }}</code></li>
-            <li><b>Max Tarball Size (MB):</b> <code>{{ job_config.get('max_tarball_size', 'Not set') }}</code></li>
         </ul>
     </div>
 </div>
@@ -17,15 +15,11 @@
                 <strong>Global Settings</strong>
                 <ul class="mb-0 small">
                     <li><b>Destination:</b> <code>{{ global_config.destination or 'Not set' }}</code></li>
+                    <li><b>Keep Sets:</b> <code>{{ global_config.keep_sets or 'Not set' }}</code></li>
+                    <li><b>Max Tarball Size (MB):</b> <code>{{ global_config.max_tarball_size or 'Not set' }}</code></li>
                     <li><b>AWS:</b>
                         <ul>
-                            <li>Enabled: <code>
-                                {% if global_config.get('aws', {}).get('enabled') is not none %}
-                                    {{ global_config.get('aws', {}).get('enabled') }}
-                                {% else %}
-                                    Not set
-                                {% endif %}
-                            </code></li>
+                            <li>Enabled: <code>{{ global_config.get('aws', {}).get('enabled', 'Not set') }}</code></li>
                             <li>Profile: <code>{{ global_config.get('aws', {}).get('profile', 'Not set') }}</code></li>
                             <li>Region: <code>{{ global_config.get('aws', {}).get('region', 'Not set') }}</code></li>
                             <li>Bucket: <code>{{ global_config.get('aws', {}).get('bucket', 'Not set') }}</code></li>
@@ -34,14 +28,7 @@
                     </li>
                     <li><b>Encryption:</b>
                         <ul>
-                            <li>Enabled: <code>
-                                {% if global_encryption.enabled is not none %}
-                                    {{ global_encryption.enabled }}
-                                {% else %}
-                                    Not set
-                                {% endif %}
-                            </code></li>
-                            <li>Method: <code>{{ global_encryption.method or 'Not set' }}</code></li>
+                            <li>Enabled: <code>{{ global_config.get('encryption', {}).get('enabled', 'Not set') }}</code></li>
                             <li>Passphrase Env: <code>{{ global_encryption.passphrase_env or 'Not set' }}</code></li>
                         </ul>
                     </li>
@@ -53,15 +40,11 @@
                 <strong>Job Overrides</strong>
                 <ul class="mb-0 small">
                     <li><b>Destination:</b> <code>{{ job_config.destination or '— (uses global)' }}</code></li>
+                    <li><b>Keep Sets:</b> <code>{{ job_config.keep_sets or '— (uses global)' }}</code></li>
+                    <li><b>Max Tarball Size (MB):</b> <code>{{ job_config.max_tarball_size or '— (uses global)' }}</code></li>
                     <li><b>AWS:</b>
                         <ul>
-                            <li>Enabled: <code>
-                                {% if job_config.get('aws', {}).get('enabled') is not none %}
-                                    {{ job_config.get('aws', {}).get('enabled') }}
-                                {% else %}
-                                    — (uses global)
-                                {% endif %}
-                            </code></li>
+                            <li>Enabled: <code>{{ job_config.get('aws', {}).get('enabled', '— (uses global)') }}</code></li>
                             <li>Profile: <code>{{ job_config.get('aws', {}).get('profile', '— (uses global)') }}</code></li>
                             <li>Region: <code>{{ job_config.get('aws', {}).get('region', '— (uses global)') }}</code></li>
                             <li>Bucket: <code>{{ job_config.get('aws', {}).get('bucket', '— (uses global)') }}</code></li>
@@ -70,8 +53,7 @@
                     </li>
                     <li><b>Encryption:</b>
                         <ul>
-                            <li>Enabled: <code>{{ job_encryption.enabled if job_encryption.enabled is not none else 'Not set' }}</code></li>
-                            <li>Method: <code>{{ job_encryption.method or '— (uses global)' }}</code></li>
+                            <li>Enabled: <code>{{ job_encryption.enabled or '— (uses global)' }}</code></li>
                             <li>Passphrase Env: <code>{{ job_encryption.passphrase_env or '— (uses global)' }}</code></li>
                         </ul>
                     </li>
