@@ -40,16 +40,38 @@ def build_local_tree(path):
 
 def build_s3_tree(bucket_name, prefix="", s3_client=None):
     """Recursively build a tree structure for an S3 bucket."""
+    import botocore
     if s3_client is None:
         s3_client = boto3.client("s3")
     node = {"name": bucket_name if not prefix else prefix.rstrip('/'), "type": "folder", "children": []}
     paginator = s3_client.get_paginator('list_objects_v2')
-    for page in paginator.paginate(Bucket=bucket_name, Prefix=prefix, Delimiter='/'):
-        for cp in page.get('CommonPrefixes', []):
-            node["children"].append(build_s3_tree(bucket_name, cp['Prefix'], s3_client))
-        for obj in page.get('Contents', []):
-            if obj['Key'] != prefix:
-                node["children"].append({"name": os.path.basename(obj['Key']), "type": "file"})
+    try:
+        for page in paginator.paginate(Bucket=bucket_name, Prefix=prefix, Delimiter='/'):
+            for cp in page.get('CommonPrefixes', []):
+                node["children"].append(build_s3_tree(bucket_name, cp['Prefix'], s3_client))
+            for obj in page.get('Contents', []):
+                if obj['Key'] != prefix:
+                    node["children"].append({"name": os.path.basename(obj['Key']), "type": "file"})
+    except botocore.exceptions.ClientError as e:
+        error_code = e.response['Error']['Code']
+        if error_code == 'NoSuchBucket':
+            return {
+                "name": f"Error: S3 bucket '{bucket_name}' does not exist.",
+                "type": "error",
+                "children": []
+            }
+        else:
+            return {
+                "name": f"S3 error: {str(e)}",
+                "type": "error",
+                "children": []
+            }
+    except Exception as e:
+        return {
+            "name": f"S3 error: {str(e)}",
+            "type": "error",
+            "children": []
+        }
     return node
 
 @dashboard_bp.route("/")
@@ -162,6 +184,8 @@ def view_manifest(job_name, backup_set_id):
 @dashboard_bp.route('/storage-tree')
 def storage_tree_view():
     """Render the storage tree view for local and S3 storage."""
+    import botocore
+
     config_path = os.path.join(os.path.dirname(current_app.root_path), 'config', 'global.yaml')
     with open(config_path, "r", encoding="utf-8") as f:
         config = yaml.safe_load(f)
@@ -178,10 +202,40 @@ def storage_tree_view():
     s3_trees = []
     if bucket:
         s3_client = boto3.client("s3")
-        s3_trees.append({
-            "label": bucket,
-            "tree": build_s3_tree(bucket, s3_client=s3_client)
-        })
+        try:
+            s3_trees.append({
+                "label": bucket,
+                "tree": build_s3_tree(bucket, s3_client=s3_client)
+            })
+        except botocore.exceptions.ClientError as e:
+            error_code = e.response['Error']['Code']
+            if error_code == 'NoSuchBucket':
+                s3_trees.append({
+                    "label": bucket,
+                    "tree": {
+                        "name": f"Error: S3 bucket '{bucket}' does not exist.",
+                        "type": "error",
+                        "children": []
+                    }
+                })
+            else:
+                s3_trees.append({
+                    "label": bucket,
+                    "tree": {
+                        "name": f"S3 error: {str(e)}",
+                        "type": "error",
+                        "children": []
+                    }
+                })
+        except Exception as e:
+            s3_trees.append({
+                "label": bucket,
+                "tree": {
+                    "name": f"S3 error: {str(e)}",
+                    "type": "error",
+                    "children": []
+                }
+            })
     return render_template(
         "storage_tree_view.html",
         local_tree_json=json.dumps(local_trees),
