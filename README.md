@@ -252,6 +252,15 @@ jabs/
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
+## Credits
 
+This project uses the following open source libraries:
 
+- [Chart.js](https://www.chartjs.org/) - MIT License
+- [chartjs-plugin-datalabels](https://chartjs-plugin-datalabels.netlify.app/) - MIT License
+- [DataTables.js](https://datatables.net/) - MIT License
+- [Bootstrap](https://getbootstrap.com/) - MIT License
+- [Font Awesome](https://fontawesome.com/) - CC BY 4.0 License
+
+See each library's website for full license details.
 

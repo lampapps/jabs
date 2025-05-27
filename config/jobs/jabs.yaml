@@ -43,6 +43,6 @@ schedules:
     type: "diff"
     enabled: true
 
-  - cron: "0 11 * * *"    
+  - cron: "0 16 * * *"    
     type: "diff"           # full | diff
-    enabled: false          # true | false
+    enabled: true          # true | false

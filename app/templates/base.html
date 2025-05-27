@@ -38,7 +38,9 @@
           <!-- Mobile Icons (Visible on xs, sm screens) -->
           <span class="nav-item d-md-none ms-auto me-2" title="Scheduler Status">
               {% include 'partials/development_env_banner.html' %}
-              <i id="schedulerStatusIconMobile" class="fas fa-question-circle text-secondary fa-lg"></i>
+              <a href="{{ url_for('dashboard.scheduler_heartbeat') }}" title="View Scheduler Heartbeat">
+                  <i id="schedulerStatusIconMobile" class="fas fa-question-circle text-secondary fa-lg"></i>
+              </a>
           </span>
           <!-- End Mobile Icons -->
           <button class="navbar-toggler me-3" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNavDropdown" aria-controls="navbarNavDropdown" aria-expanded="false" aria-label="Toggle navigation">
@@ -68,6 +70,11 @@
                   <li>
                     <a class="dropdown-item {% if request.endpoint == 'config.config' %}active{% endif %}" href="{{ url_for('config.config') }}">
                       <i class="fas fa-sliders-h me-1"></i> Global
+                    </a>
+                  </li>
+                  <li>
+                    <a class="dropdown-item {% if request.endpoint == 'dashboard.scheduler_heartbeat' %}active{% endif %}" href="{{ url_for('dashboard.scheduler_heartbeat') }}">
+                      <i class="fas fa-clock me-1"></i> Scheduler
                     </a>
                   </li>
                   <li>
@@ -134,9 +141,11 @@
                 <!-- Desktop Icons -->
                 <li>{% include 'partials/development_env_banner.html' %}</li>
                 <li class="nav-item me-2" title="Scheduler Status">
-                    <span title="Scheduler Status">
-                        <i id="schedulerStatusIconDesktop" class="fas fa-question-circle text-secondary fa-lg"></i>
-                    </span>
+                    <a href="{{ url_for('dashboard.scheduler_heartbeat') }}" title="View Scheduler Heartbeat">
+                        <span title="Scheduler Status">
+                            <i id="schedulerStatusIconDesktop" class="fas fa-question-circle text-secondary fa-lg"></i>
+                        </span>
+                    </a>
                 </li>
                 <!-- Existing Theme switcher: desktop only -->
                 <li class="nav-item dropdown">

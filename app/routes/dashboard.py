@@ -1,6 +1,7 @@
 """Flask routes for the JABS dashboard web interface, including job status, documentation, and storage tree views."""
 
 import os
+import re
 import json
 import socket
 from datetime import datetime
@@ -12,6 +13,7 @@ import boto3
 
 from flask import Blueprint, render_template, abort, current_app
 from markupsafe import Markup
+from datetime import datetime
 from app.settings import BASE_DIR, MANIFEST_BASE, GLOBAL_CONFIG_PATH, HOME_DIR
 from app.utils.manifest import get_tarball_summary, get_merged_cleaned_yaml_config
 from app.utils.dashboard_helpers import find_config_path_by_job_name, load_config
@@ -241,4 +243,48 @@ def storage_tree_view():
         "storage_tree_view.html",
         local_tree_json=json.dumps(local_trees),
         s3_tree_json=json.dumps(s3_trees)
+    )
+
+@dashboard_bp.route("/scheduler_heartbeat")
+def scheduler_heartbeat():
+    log_path = "logs/scheduler.log"
+    check_pattern = re.compile(r"(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}),\d+ - (INFO|ERROR) - scheduler - Triggered (\d+) job\(s\) during this check\.")
+    match_pattern = re.compile(r"job '([^']+)'")
+    times = []
+    triggers = []
+    errors = []
+    jobnames = []
+    with open(log_path, encoding="utf-8") as f:
+        lines = f.readlines()
+    i = 0
+    while i < len(lines):
+        m = check_pattern.search(lines[i])
+        if m:
+            times.append(m.group(1))
+            triggers.append(int(m.group(3)))
+            errors.append(m.group(2) == "ERROR")
+            # Look back for job names since last "Check Started"
+            jobs = []
+            j = i - 1
+            while j >= 0 and "Scheduler Check Started" not in lines[j]:
+                match = match_pattern.search(lines[j])
+                if match:
+                    jobs.append(match.group(1))
+                j -= 1
+            jobnames.append(", ".join(reversed(jobs)) if jobs else "")
+        i += 1
+
+    # Build absolute paths for user reference
+    base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../'))
+    venv_python = os.path.join(base_dir, 'venv', 'bin', 'python3')
+    scheduler_py = os.path.join(base_dir, 'scheduler.py')
+
+    return render_template(
+        "scheduler_heartbeat.html",
+        times=times,
+        triggers=triggers,
+        errors=errors,
+        jobnames=jobnames,
+        venv_python=venv_python,
+        scheduler_py=scheduler_py
     )
