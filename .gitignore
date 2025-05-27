@@ -12,3 +12,11 @@ venv/
 
 /locks/*
 !/locks/.gitkeep
+
+# Ignore all yaml files in config/jobs
+/config/jobs/*.yaml
+/config/jobs/*.yml
+
+# Do NOT ignore yaml files in config/jobs/templates
+!config/jobs/templates/*.yaml
+!config/jobs/templates/*.yml
