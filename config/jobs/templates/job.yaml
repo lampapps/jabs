@@ -9,17 +9,6 @@ job_name: "My Documents"  # The name of the backup job (used for logging and org
 # Ensure the `source` directory exists and contains the files you want to back up.
 source: "/home/user/Documents"  # The source directory to back up
 
-# Backup retention and size settings
-keep_sets: 2  # Number of backup sets to retain (older sets will be deleted automatically)
-max_tarball_size: 2048  # Maximum size of each tarball in MB (e.g., 1024 MB = 1 GB)
-
-# GPG symmetric encryption for tarballs
-encryption:
-  enabled: true         # Default, false can be overridden by CLI
-
-aws:
-  enabled: true          # true or false, can be overridden by CLI
-
 # Use the `exclude` list to specify files or directories to skip during the backup process.
 exclude:
   # General patterns
@@ -63,7 +52,7 @@ exclude:
 #   - "**/logs/**/debug.log": Excludes `debug.log` files in any `logs` subdirectory.
 #   - "**/!(keep_this_dir)/": Excludes all directories except `keep_this_dir` (requires extended globbing).
 
-# Scheduling - Define when and how backups should run automatically. You can more than 2 schedules.
+# Scheduling - Define when and how backups should run automatically. You can set more than 2 schedules.
 # Cron Syntax:
   #        .---------------- minute (0 - 59)
   #        | .------------- hour (0 - 23)
@@ -75,18 +64,19 @@ exclude:
 schedules:
   - cron: "0 2 * * 7"    # Runs at 2:00 AM, every Sunday
     type: "full"         # full or diff
-    sync: true           # Sync to S3 after backup, true or false
     enabled: false       # Scheduled to run, true or false
 
   - cron: "0 2 * * 1-6"  # Runs at 2:00 AM, Monday to Saturday
-    type: "diff"      
-    sync: false        
+    type: "diff"           
     enabled: false 
 
 # #######################################################################################################################
 # The below settings are set globally for all jobs. You may uncomment them to override global defaults for this job only.
 
 # destination: "/path/to/backup/folder"  # The destination directory for local backups
+
+# keep_sets: 2  # Number of backup sets to retain (older sets will be deleted automatically)
+# max_tarball_size: 2048  # Maximum size of each tarball in MB (e.g., 1024 MB = 1 GB)
 
 # aws:
 #  profile: "default"   # AWS CLI profile to use (default if not specified)

@@ -3,12 +3,6 @@
 job_name: "Example Name"  # The name of the backup job (used for logging and organization)
 source: "/path/to/source" # The source directory to back up
 
-encryption: 
-  enabled: false          # true or false, can be overridden by CLI
-
-aws:
-  enabled: false          # true or false, can be overridden by CLI
-
 exclude:
   - ".*"                 # Exclude all hidden files and directories (e.g., .git, .env)
   - "*.tmp"              # Exclude temporary files
@@ -30,3 +24,11 @@ schedules:
   - cron: "0 2 * * 1-6"  # Runs at 2:00 AM, Monday to Saturday
     type: "diff"          
     enabled: false 
+
+# Uncomment below to override Global Configuration if desired
+
+#encryption: 
+  #enabled: false          # true or false, false can be overridden by CLI
+
+#aws:
+  #enabled: false          # true or false, false can be overridden by CLI

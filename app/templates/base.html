@@ -63,13 +63,13 @@
                 </a>
                 <ul class="dropdown-menu" aria-labelledby="configurationDropdown">
                   <li>
-                    <a class="dropdown-item {% if request.endpoint == 'jobs.jobs_view' %}active{% endif %}" href="{{ url_for('jobs.jobs_view') }}">
-                      <i class="fas fa-tasks me-1"></i> Jobs
+                    <a class="dropdown-item {% if request.endpoint == 'config.config' %}active{% endif %}" href="{{ url_for('config.config') }}">
+                      <i class="fas fa-sliders-h me-1"></i> Global
                     </a>
                   </li>
                   <li>
-                    <a class="dropdown-item {% if request.endpoint == 'config.config' %}active{% endif %}" href="{{ url_for('config.config') }}">
-                      <i class="fas fa-sliders-h me-1"></i> Global
+                    <a class="dropdown-item {% if request.endpoint == 'jobs.jobs_view' %}active{% endif %}" href="{{ url_for('jobs.jobs_view') }}">
+                      <i class="fas fa-tasks me-1"></i> Jobs
                     </a>
                   </li>
                   <li>
