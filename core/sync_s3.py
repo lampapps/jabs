@@ -1,9 +1,11 @@
-#/jobs/sync_s3.py
-from app.utils.event_logger import finalize_event
+"""Sync a backup set directory to AWS S3 using the AWS CLI."""
+
 import os
 import subprocess
-from app.utils.logger import setup_logger
 import socket
+
+from app.utils.event_logger import finalize_event
+from app.utils.logger import setup_logger
 
 def sync_to_s3(backup_set_path, config, event_id=None):
     """

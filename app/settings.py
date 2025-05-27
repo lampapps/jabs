@@ -24,7 +24,7 @@ EVENTS_FILE = os.path.join(DATA_DIR, 'dashboard', 'events.json')
 
 # --- Logging Configuration ---
 LOG_DIR = os.path.join(BASE_DIR, 'logs')
-MAX_LOG_LINES = 1000
+MAX_LOG_LINES = 1001
 
 # --- Restore Configuration ---
 HOME_DIR = os.path.expanduser("~")

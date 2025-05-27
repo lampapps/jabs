@@ -1,19 +1,25 @@
-from flask import Blueprint, jsonify, send_from_directory, request, render_template, flash, redirect, url_for
+"""API routes for JABS: provides endpoints for restore, events, disk/S3 usage, logs, and manifest management."""
+
 import os
+import re
 import glob
 import json
-import yaml
 import shutil
-import boto3
 import time
 import math
-from app.settings import BASE_DIR, CONFIG_DIR, LOG_DIR, EVENTS_FILE, GLOBAL_CONFIG_PATH, HOME_DIR
+
+from flask import Blueprint, jsonify, send_from_directory, request, render_template, flash, url_for
+import yaml
+import boto3
+
+from app.settings import BASE_DIR, LOG_DIR, EVENTS_FILE, GLOBAL_CONFIG_PATH, HOME_DIR, MAX_LOG_LINES
 from core import restore
-from app.utils.restore_status import set_restore_status, check_restore_status
+from app.utils.restore_status import check_restore_status
 
 api_bp = Blueprint('api', __name__)
 
 def is_valid_path(path):
+    """Check if a given path is valid and within HOME_DIR."""
     # Disallow empty, parent traversal, or illegal chars
     if not path or not isinstance(path, str):
         return False
@@ -27,14 +33,16 @@ def is_valid_path(path):
 
 @api_bp.route('/api/restore/status/<job_name>/<backup_set_id>')
 def restore_status(job_name, backup_set_id):
+    """Return the running status of a restore job."""
     running = check_restore_status(job_name, backup_set_id)
     return jsonify({"running": running})
 
 @api_bp.route("/api/events")
 def get_events():
+    """Return all events from the events file."""
     events_file = EVENTS_FILE
     if os.path.exists(events_file):
-        with open(events_file) as f:
+        with open(events_file, encoding="utf-8") as f:
             events = json.load(f)
     else:
         events = {"data": []}
@@ -42,14 +50,16 @@ def get_events():
 
 @api_bp.route('/data/dashboard/events.json')
 def serve_events():
+    """Serve the events.json file from the events directory."""
     events_dir = os.path.dirname(EVENTS_FILE)
     return send_from_directory(events_dir, "events.json")
 
 @api_bp.route('/api/disk_usage')
 def get_disk_usage():
+    """Return disk usage statistics for configured drives."""
     # Use global.yaml instead of drives.yaml
     try:
-        with open(GLOBAL_CONFIG_PATH, "r") as f:
+        with open(GLOBAL_CONFIG_PATH, "r", encoding="utf-8") as f:
             global_config = yaml.safe_load(f)
             drives = global_config.get("drives", [])
             drive_labels = {d['path']: d.get('label', d['path']) for d in global_config.get('drives', [])}
@@ -78,9 +88,10 @@ def get_disk_usage():
 
 @api_bp.route('/api/s3_usage')
 def get_s3_usage():
+    """Return S3 bucket usage statistics for configured buckets."""
     # Use global.yaml instead of drives.yaml 
     try:
-        with open(GLOBAL_CONFIG_PATH, "r") as f:
+        with open(GLOBAL_CONFIG_PATH, "r", encoding="utf-8") as f:
             config = yaml.safe_load(f)
             s3_buckets = config.get("s3_buckets", [])
             bucket_labels = {}
@@ -136,8 +147,9 @@ def get_s3_usage():
 
 @api_bp.route('/api/trim_logs', methods=['POST'])
 def trim_logs():
+    """Trim log files in the log directory to a maximum number of lines."""
     log_dir = LOG_DIR
-    max_lines = 1000
+    max_lines = MAX_LOG_LINES
     if not os.path.exists(log_dir):
         return jsonify({"error": "Log directory does not exist"}), 404
     trimmed_logs = []
@@ -146,10 +158,10 @@ def trim_logs():
         return jsonify({"error": "No log files found in the logs directory"}), 404
     for log_file in log_files:
         try:
-            with open(log_file, "r") as f:
+            with open(log_file, "r", encoding="utf-8") as f:
                 lines = f.readlines()
             if len(lines) > max_lines:
-                with open(log_file, "w") as f:
+                with open(log_file, "w", encoding="utf-8") as f:
                     f.writelines(lines[-max_lines:])
                 trimmed_logs.append({"file": log_file, "status": "trimmed"})
             else:
@@ -160,12 +172,13 @@ def trim_logs():
 
 @api_bp.route('/api/manifest/<string:job_name>/<string:backup_set_id>/json')
 def api_manifest_json(job_name, backup_set_id):
+    """Return the manifest JSON for a specific job and backup set."""
     sanitized_job = "".join(c if c.isalnum() or c in ("-", "_") else "_" for c in job_name)
     json_path = os.path.join(BASE_DIR, "data", "manifests", sanitized_job, f"{backup_set_id}.json")
     if not os.path.exists(json_path):
         return jsonify({"error": "Manifest not found"}), 404
     try:
-        with open(json_path, "r") as f:
+        with open(json_path, "r", encoding="utf-8") as f:
             data = json.load(f)
         return jsonify(data)
     except Exception as e:
@@ -173,6 +186,7 @@ def api_manifest_json(job_name, backup_set_id):
 
 @api_bp.route('/api/scheduler_status')
 def get_scheduler_status():
+    """Return the status and last run time of the scheduler."""
     status_file = os.path.join(LOG_DIR, "scheduler.status")
     stale_threshold_seconds = 3600 + 300
     status = "unknown"
@@ -181,7 +195,7 @@ def get_scheduler_status():
     message = "Scheduler status file not found or unreadable."
     if os.path.exists(status_file):
         try:
-            with open(status_file, 'r') as f:
+            with open(status_file, 'r', encoding="utf-8") as f:
                 last_run_timestamp_str = f.read().strip()
             last_run_timestamp = float(last_run_timestamp_str)
             age_seconds = time.time() - last_run_timestamp
@@ -217,8 +231,7 @@ def get_scheduler_status():
 
 @api_bp.route('/api/purge_log/<log_name>', methods=['POST'])
 def purge_log(log_name):
-    import re
-    from app.settings import LOG_DIR
+    """Purge the contents of a log file, only allowing .log files."""
     # Only allow .log files, no path traversal
     if not re.match(r'^[\w\-.]+\.log$', log_name):
         return jsonify({"success": False, "error": "Invalid log name"}), 400
@@ -226,7 +239,7 @@ def purge_log(log_name):
     if not os.path.exists(log_path):
         return jsonify({"success": False, "error": "Log not found"}), 404
     try:
-        with open(log_path, "w") as f:
+        with open(log_path, "w", encoding="utf-8") as f:
             f.truncate(0)
         return jsonify({"success": True})
     except Exception as e:
@@ -234,6 +247,7 @@ def purge_log(log_name):
 
 @api_bp.route('/api/restore/full', methods=['POST'])
 def restore_full():
+    """Perform a full restore for a given job and backup set."""
     data = request.json
     job_name = data['job_name']
     backup_set_id = data['backup_set_id']
@@ -263,6 +277,7 @@ def restore_full():
 
 @api_bp.route('/api/restore/files', methods=['POST'])
 def restore_files():
+    """Restore selected files for a given job and backup set."""
     data = request.json
     job_name = data['job_name']
     backup_set_id = data['backup_set_id']
@@ -296,6 +311,7 @@ def restore_files():
 
 @api_bp.route('/manifest/<string:job_name>/<string:backup_set_id>')
 def manifest_page(job_name, backup_set_id):
+    """Render the manifest page for a specific job and backup set."""
     return render_template(
         "manifest.html",
         job_name=job_name,
@@ -305,6 +321,7 @@ def manifest_page(job_name, backup_set_id):
 
 @api_bp.route('/api/events/delete', methods=['POST'])
 def delete_events():
+    """Delete events by ID and remove corresponding manifest files if they exist."""
     data = request.get_json()
     ids = data.get('ids', [])
     if not ids:
@@ -312,7 +329,7 @@ def delete_events():
     events_file = EVENTS_FILE
     if not os.path.exists(events_file):
         return jsonify({"message": "No events file found."}), 404
-    with open(events_file, 'r') as f:
+    with open(events_file, 'r', encoding="utf-8") as f:
         events_json = json.load(f)
         events = events_json.get("data", [])
 
@@ -324,7 +341,7 @@ def delete_events():
     events_json["data"] = events
 
     # Save updated events file
-    with open(events_file, 'w') as f:
+    with open(events_file, 'w', encoding="utf-8") as f:
         json.dump(events_json, f, indent=2)
 
     # Remove corresponding manifest files if they exist

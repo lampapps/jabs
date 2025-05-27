@@ -112,11 +112,12 @@
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/global.js') }}"></script>
 <script>
+    const maxLogLines = {{ MAX_LOG_LINES }};
     document.getElementById("trimLogsButton").addEventListener("click", function () {
-        if (confirm("Are you sure you want to trim all logs? This will keep only the last 1000 lines of each log file.")) {
+        if (confirm("Are you sure you want to trim all logs? This will keep only the last " + maxLogLines + " lines of each log file.")) {
             fetch('/api/trim_logs', { method: 'POST' })
             .then(response => response.json())
-            .then(data => {
+            .then (data => {
                 alert("Logs have been trimmed successfully!");
                 location.reload();
             })

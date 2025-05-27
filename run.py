@@ -1,13 +1,16 @@
+"""Entry point for running the JABS web application."""
+
 import os
 import secrets
 import logging
 from dotenv import load_dotenv
 from app.settings import LOG_DIR
-from app.utils.logger import ensure_dir  # Use your existing util
+from app.utils.logger import ensure_dir
+from app import create_app
 
 env_path = os.path.join(os.path.dirname(__file__), ".env")
 if not os.path.exists(env_path):
-    with open(env_path, "w") as f:
+    with open(env_path, "w", encoding="utf-8") as f:
         pass  # Create an empty .env file
 
 # Load .env file (by default, looks in current directory)
@@ -20,21 +23,20 @@ PASSPHRASE = os.getenv("JABS_ENCRYPT_PASSPHRASE")
 if "JABS_SECRET_KEY" not in os.environ:
     os.environ["JABS_SECRET_KEY"] = secrets.token_urlsafe(32)
 
-from app import create_app
-
 app = create_app()
 
 class AccessLogMiddleware:
-    def __init__(self, app):
-        self.app = app
+    """WSGI middleware for logging HTTP access logs in Waitress style."""
+    def __init__(self, wsgi_app):
+        self.app = wsgi_app
         self.logger = logging.getLogger("waitress.access")
+        self.status = "-"
 
     def __call__(self, environ, start_response):
         def custom_start_response(status, headers, exc_info=None):
             self.status = status
             return start_response(status, headers, exc_info)
         result = self.app(environ, custom_start_response)
-        # Log after response is generated
         self.logger.info(
             '%s - - "%s %s" %s',
             environ.get("REMOTE_ADDR", "-"),

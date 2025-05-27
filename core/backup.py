@@ -4,12 +4,14 @@ import os
 import time
 import fnmatch
 import tarfile
-import yaml
 import glob
 import shutil
 import fcntl
 import socket
 from datetime import datetime
+
+import yaml
+
 from app.utils.logger import setup_logger, timestamp, ensure_dir
 from app.utils.manifest import write_manifest_files, extract_tar_info, merge_configs
 from app.utils.event_logger import remove_event_by_backup_set_id, update_event, finalize_event
@@ -380,7 +382,6 @@ def run_backup(config, backup_type, encrypt=False, sync=False, event_id=None, jo
 
         # --- Robust backup type handling ---
         last_full_file = os.path.join(job_dst, "last_full.txt")
-        need_full_backup = False
 
         # If diff requested but no full backup exists, fallback to full
         if backup_type in ["diff", "differential"]:
@@ -401,7 +402,7 @@ def run_backup(config, backup_type, encrypt=False, sync=False, event_id=None, jo
             ensure_dir(backup_set_dir)
 
             # Create tarballs from the source directory
-            tarball_paths, tarball_contents = create_tar_archives(
+            tarball_paths, _ = create_tar_archives(
                 src, backup_set_dir, exclude_patterns, max_tarball_size_mb, logger, backup_type="full", config=config
             )
 
@@ -466,7 +467,7 @@ def run_backup(config, backup_type, encrypt=False, sync=False, event_id=None, jo
                 return None, event_id, None
 
             # Create tarballs from the modified files
-            tarball_paths, tarball_contents = create_tar_archives(
+            tarball_paths, _ = create_tar_archives(
                 modified_files,
                 backup_set_dir,
                 exclude_patterns,
@@ -541,6 +542,4 @@ def run_backup(config, backup_type, encrypt=False, sync=False, event_id=None, jo
     finally:
         # Always release the lock, even if an error occurs
         release_lock(lock_file)
-
-
 

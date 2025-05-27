@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
-# restore_jabs_archives.py
-# Stand alone script that is moved with the JABS archive files for manual restoration.
-
+"""JABS Archive Restore Utility: Stand alone script that decrypts and extracts backup archives."""
+#v0.1.0
 import os
 import glob
 import subprocess
@@ -59,7 +58,10 @@ def get_passphrase():
 def check_command_exists(command_name):
     """Checks if a command exists on the system."""
     if not shutil.which(command_name):
-        print(f"Error: '{command_name}' command not found. Please ensure it is installed and in your PATH.")
+        print(
+            f"Error: '{command_name}' command not found. "
+            "Please ensure it is installed and in your PATH."
+        )
         return False
     return True
 
@@ -98,40 +100,55 @@ def decrypt_and_extract_gpg(gpg_file_path, passphrase, destination_dir="."):
     ]
 
     try:
-        gpg_process = subprocess.Popen(gpg_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        tar_process = subprocess.Popen(tar_command, stdin=gpg_process.stdout, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        with subprocess.Popen(gpg_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE) as gpg_process:
+            with subprocess.Popen(
+                tar_command, stdin=gpg_process.stdout, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+            ) as tar_process:
 
-        # Allow gpg_process to send its output to tar_process
-        if gpg_process.stdout:
-            gpg_process.stdout.close()
+                # Allow gpg_process to send its output to tar_process
+                if gpg_process.stdout:
+                    gpg_process.stdout.close()
 
-        tar_stdout, tar_stderr = tar_process.communicate()
-        # Ensure gpg_process also finishes
-        _, gpg_stderr = gpg_process.communicate()
+                tar_stdout, tar_stderr = tar_process.communicate()
+                # Ensure gpg_process also finishes
+                _, gpg_stderr = gpg_process.communicate()
 
 
-        if gpg_process.returncode != 0:
-            print(f"Error during GPG decryption of '{gpg_file_path}':")
-            print(gpg_stderr.decode(errors='replace').strip())
-            return False
-        
-        if tar_process.returncode != 0:
-            # tar might return non-zero for benign reasons (e.g. future timestamps)
-            # but still print stderr if it exists
-            print(f"Tar extraction from '{gpg_file_path}' completed with code {tar_process.returncode}.")
-            if tar_stderr:
-                 print("Tar errors/warnings:\n", tar_stderr.decode(errors='replace').strip())
-            if tar_process.returncode > 1 : # Codes 0 and 1 are often acceptable for tar
-                print("Tar extraction may have encountered significant issues.")
-                return False
-        
-        print(f"Successfully decrypted and extracted '{gpg_file_path}' to '{destination_dir}'.")
-        if tar_stdout:
-            print("Files extracted (from tar stdout):\n", tar_stdout.decode(errors='replace').strip())
-        return True
+                if gpg_process.returncode != 0:
+                    print(f"Error during GPG decryption of '{gpg_file_path}':")
+                    print(gpg_stderr.decode(errors='replace').strip())
+                    return False
+                
+                if tar_process.returncode != 0:
+                    # tar might return non-zero for benign reasons (e.g. future timestamps)
+                    # but still print stderr if it exists
+                    print(
+                        f"Tar extraction from '{gpg_file_path}' completed with code {tar_process.returncode}."
+                    )
+                    if tar_stderr:
+                        print(
+                            "Tar errors/warnings:\n",
+                            tar_stderr.decode(errors='replace').strip()
+                        )
+                    if tar_process.returncode > 1:
+                        # Codes 0 and 1 are often acceptable for tar
+                        print("Tar extraction may have encountered significant issues.")
+                        return False
+
+            print(
+                f"Successfully decrypted and extracted '{gpg_file_path}' to '{destination_dir}'."
+            )
+            if tar_stdout:
+                print(
+                    "Files extracted (from tar stdout):\n",
+                    tar_stdout.decode(errors='replace').strip()
+                )
+            return True
 
     except Exception as e:
-        print(f"An unexpected error occurred during decrypt/extract of '{gpg_file_path}': {e}")
+        print(
+            f"An unexpected error occurred during decrypt/extract of '{gpg_file_path}': {e}"
+        )
         return False
 
 def extract_tar_gz(tar_file_path, destination_dir="."):
@@ -142,55 +159,65 @@ def extract_tar_gz(tar_file_path, destination_dir="."):
 
     command = ["tar", "-xzvf", tar_file_path, "-C", destination_dir]
     try:
-        result = subprocess.run(command, capture_output=True, text=True, errors='replace')
+        result = subprocess.run(
+            command, capture_output=True, text=True, errors='replace'
+        )
 
         if result.returncode != 0:
             # tar might return non-zero for benign reasons
-            print(f"Tar extraction of '{tar_file_path}' completed with code {result.returncode}.")
+            print(
+                f"Tar extraction of '{tar_file_path}' completed with code {result.returncode}."
+            )
             if result.stderr:
                 print("Tar errors/warnings:\n", result.stderr.strip())
-            if result.returncode > 1: # Codes 0 and 1 are often acceptable for tar
+            if result.returncode > 1:
+                # Codes 0 and 1 are often acceptable for tar
                 print("Tar extraction may have encountered significant issues.")
                 return False
-        
+
         print(f"Successfully extracted '{tar_file_path}' to '{destination_dir}'.")
         if result.stdout:
             print("Files extracted:\n", result.stdout.strip())
         return True
     except Exception as e:
-        print(f"An unexpected error occurred during extraction of '{tar_file_path}': {e}")
+        print(
+            f"An unexpected error occurred during extraction of '{tar_file_path}': {e}"
+        )
         return False
 
-def process_archive(archive_name, current_passphrase_holder):
+def process_archive(archive_name, current_passphrase_holder, prompt_user=True):
     """Processes a single archive (decrypt if needed, then extract)."""
     is_encrypted = archive_name.endswith(".gpg")
     
     if is_encrypted:
         print(f"\nArchive '{archive_name}' is encrypted.")
-        user_choice = input(f"Do you want to decrypt and extract '{archive_name}'? (y/n): ").lower()
-        if user_choice == 'y':
-            if current_passphrase_holder[0] is None: # Check if passphrase needs to be fetched
-                 passphrase = get_passphrase()
-                 if passphrase is None: # User cancelled passphrase input
-                     return
-                 current_passphrase_holder[0] = passphrase # Store for this session
-            
-            decrypt_and_extract_gpg(archive_name, current_passphrase_holder[0])
-        else:
-            print(f"Skipping '{archive_name}'.")
-    else: # Unencrypted .tar.gz
+        if prompt_user:
+            user_choice = input(f"Do you want to decrypt and extract '{archive_name}'? (y/n): ").lower()
+            if user_choice != 'y':
+                print(f"Skipping '{archive_name}'.")
+                return
+        if current_passphrase_holder[0] is None:  # Check if passphrase needs to be fetched
+            passphrase = get_passphrase()
+            if passphrase is None:  # User cancelled passphrase input
+                return
+            current_passphrase_holder[0] = passphrase  # Store for this session
+        decrypt_and_extract_gpg(archive_name, current_passphrase_holder[0])
+    else:  # Unencrypted .tar.gz
         print(f"\nArchive '{archive_name}' is not encrypted.")
-        user_choice = input(f"Do you want to extract '{archive_name}'? (y/n): ").lower()
-        if user_choice == 'y':
-            extract_tar_gz(archive_name)
-        else:
-            print(f"Skipping '{archive_name}'.")
+        if prompt_user:
+            user_choice = input(f"Do you want to extract '{archive_name}'? (y/n): ").lower()
+            if user_choice != 'y':
+                print(f"Skipping '{archive_name}'.")
+                return
+        extract_tar_gz(archive_name)
 
 # --- Main Script ---
 def main():
     print("JABS Archive Restore Utility")
     print("----------------------------")
-    print(f"This script looks for '{UNENCRYPTED_PATTERN}' and '{ENCRYPTED_PATTERN}' files in the current directory.")
+    print(
+        f"This script looks for '{UNENCRYPTED_PATTERN}' and '{ENCRYPTED_PATTERN}' files in the current directory."
+    )
     
     current_passphrase_holder = [None] 
 
@@ -215,7 +242,7 @@ def main():
         if choice == 'q':
             print("Exiting.")
             break
-        elif choice == 'all':
+        if choice == 'all':
             print("\nProcessing all archives (oldest first)...")
             detailed_archives = []
             for name in archives:
@@ -226,21 +253,24 @@ def main():
             # then those without timestamps (alphabetically by name).
             def sort_key(item):
                 if item['timestamp'] is None:
-                    # Put items without a timestamp after all items with timestamps
-                    # Use a far future date for primary sort key, then name for secondary
                     return (datetime.max, item['name']) 
                 return (item['timestamp'], item['name'])
             sorted_archives_to_process = sorted(detailed_archives, key=sort_key)
             if not sorted_archives_to_process:
-                print("No archives to process after sorting.") # Should not happen if archives list was not empty
-            for archive_item in sorted_archives_to_process:
-                archive_name_to_process = archive_item['name']
-                if archive_item['timestamp']:
-                    print(f"---> Processing (Timestamp: {archive_item['timestamp']}): {archive_name_to_process}")
-                else:
-                    print(f"---> Processing (No Timestamp Parsed): {archive_name_to_process}")
-                process_archive(archive_name_to_process, current_passphrase_holder)
-            print("\nFinished processing all archives.")
+                print("No archives to process after sorting.")
+            # Prompt once for all
+            confirm = input("Do you want to process all listed archives? (y/n): ").strip().lower()
+            if confirm != 'y':
+                print("Skipping all archives.")
+            else:
+                for archive_item in sorted_archives_to_process:
+                    archive_name_to_process = archive_item['name']
+                    if archive_item['timestamp']:
+                        print(f"---> Processing (Timestamp: {archive_item['timestamp']}): {archive_name_to_process}")
+                    else:
+                        print(f"---> Processing (No Timestamp Parsed): {archive_name_to_process}")
+                    process_archive(archive_name_to_process, current_passphrase_holder, prompt_user=False)
+                print("\nFinished processing all archives.")
         else:
             try:
                 selected_index = int(choice) - 1
@@ -251,7 +281,7 @@ def main():
                     print("Invalid number. Please try again.")
             except ValueError:
                 print("Invalid input. Please enter a number, 'all', or 'q'.")
-        
+                
         print("-" * 30)
 
 if __name__ == "__main__":

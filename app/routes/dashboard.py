@@ -1,28 +1,32 @@
-from flask import Blueprint, render_template, abort, jsonify, request, current_app
-from markupsafe import Markup
+"""Flask routes for the JABS dashboard web interface, including job status, documentation, and storage tree views."""
 import os
 import json
-import markdown
+import socket
 from datetime import datetime
-from app.settings import BASE_DIR, MANIFEST_BASE, GLOBAL_CONFIG_PATH
+
+import markdown
+import yaml
+from cron_descriptor import get_description
+import boto3
+
+from flask import Blueprint, render_template, abort, current_app
+from markupsafe import Markup
+from app.settings import BASE_DIR, MANIFEST_BASE, GLOBAL_CONFIG_PATH, HOME_DIR
 from app.utils.manifest import get_tarball_summary, get_merged_cleaned_yaml_config
 from app.utils.dashboard_helpers import find_config_path_by_job_name, load_config
-import socket
-import yaml
-from cron_descriptor import get_description, ExpressionDescriptor
-from app.settings import HOME_DIR
-import boto3
 
 dashboard_bp = Blueprint('dashboard', 'dashboard')
 
 def load_storage_config(config_path):
-    with open(config_path, "r") as f:
+    """Load storage configuration from a YAML file."""
+    with open(config_path, "r", encoding="utf-8") as f:
         config = yaml.safe_load(f)
     drives = config.get("drives", [])
     s3_buckets = config.get("s3_buckets", [])
     return drives, s3_buckets
 
 def build_local_tree(path):
+    """Recursively build a tree structure for local directories and files."""
     node = {"name": os.path.basename(path) or path, "type": "directory", "children": []}
     try:
         for entry in os.scandir(path):
@@ -35,6 +39,7 @@ def build_local_tree(path):
     return node
 
 def build_s3_tree(bucket_name, prefix="", s3_client=None):
+    """Recursively build a tree structure for an S3 bucket."""
     if s3_client is None:
         s3_client = boto3.client("s3")
     node = {"name": bucket_name if not prefix else prefix.rstrip('/'), "type": "folder", "children": []}
@@ -49,15 +54,16 @@ def build_s3_tree(bucket_name, prefix="", s3_client=None):
 
 @dashboard_bp.route("/")
 def dashboard():
+    """Render the dashboard with scheduled jobs and their statuses."""
     jobs_dir = os.path.join(BASE_DIR, "config", "jobs")
     job_paths = [os.path.join(jobs_dir, fname) for fname in os.listdir(jobs_dir) if fname.endswith(".yaml")]
 
-    with open('config/global.yaml') as f:
+    with open('config/global.yaml', encoding="utf-8") as f:
         global_config = yaml.safe_load(f)
 
     scheduled_jobs = []
     for job_path in job_paths:
-        with open(job_path) as f:
+        with open(job_path, encoding="utf-8") as f:
             job_config = yaml.safe_load(f)
 
         # Effective AWS sync
@@ -92,27 +98,29 @@ def dashboard():
 
 @dashboard_bp.route("/documentation")
 def documentation():
+    """Render the documentation page from README.md."""
     readme_path = os.path.join(BASE_DIR, "README.md")
     if not os.path.exists(readme_path):
         content = "<p>README.md not found.</p>"
     else:
-        with open(readme_path, "r") as f:
+        with open(readme_path, "r", encoding="utf-8") as f:
             md_content = f.read()
         content = Markup(markdown.markdown(md_content, extensions=["fenced_code", "tables"]))
     return render_template("documentation.html", content=content)
 
 @dashboard_bp.route('/manifest/<string:job_name>/<string:backup_set_id>')
 def view_manifest(job_name, backup_set_id):
+    """Render the manifest view for a specific job and backup set."""
     sanitized_job = "".join(c if c.isalnum() or c in ("-", "_") else "_" for c in job_name)
     abs_json_path = os.path.join(BASE_DIR, MANIFEST_BASE, sanitized_job, f"{backup_set_id}.json")
     if not os.path.exists(abs_json_path):
         abort(404, description="Manifest file not found (os.path.exists failed).")
-    with open(abs_json_path, "r") as f:
+    with open(abs_json_path, "r", encoding="utf-8") as f:
         manifest_data = json.load(f)
     job_config_path = find_config_path_by_job_name(job_name)
     tarball_summary_list = []
     # Load global config for fallback
-    with open(GLOBAL_CONFIG_PATH) as f:
+    with open(GLOBAL_CONFIG_PATH, encoding="utf-8") as f:
         global_config = yaml.safe_load(f)
     global_encryption = global_config.get("encryption", {})
     job_encryption = {}
@@ -153,8 +161,9 @@ def view_manifest(job_name, backup_set_id):
 
 @dashboard_bp.route('/storage-tree')
 def storage_tree_view():
+    """Render the storage tree view for local and S3 storage."""
     config_path = os.path.join(os.path.dirname(current_app.root_path), 'config', 'global.yaml')
-    with open(config_path, "r") as f:
+    with open(config_path, "r", encoding="utf-8") as f:
         config = yaml.safe_load(f)
     # Get the single local destination and AWS bucket
     destination = config.get("destination")
@@ -178,4 +187,3 @@ def storage_tree_view():
         local_tree_json=json.dumps(local_trees),
         s3_tree_json=json.dumps(s3_trees)
     )
-

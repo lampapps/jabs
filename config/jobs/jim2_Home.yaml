@@ -39,11 +39,11 @@ exclude:
 schedules:
   - cron: "0 23 * * 7"    # Runs at 2:00 AM, every Sunday
     type: "full"         # full or diff
-    enabled: true       # true or false
+    enabled: false       # true or false
 
   - cron: "0 23 * * 1-6"  # Runs at 2:00 AM, Monday to Saturday
     type: "diff"          
-    enabled: true 
+    enabled: false 
 
 # #######################################################################################################################
 # The below settings are set globally for all jobs. You may uncomment them to override global defaults for this job only.

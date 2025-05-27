@@ -6,6 +6,7 @@ from app.routes import register_blueprints
 def create_app():
     app = Flask(__name__, template_folder=TEMPLATE_DIR, static_folder=STATIC_DIR)
     app.secret_key = os.environ.get("JABS_SECRET_KEY", "dev-secret-key")
+    app.config['APP_ENV'] = os.getenv('APP_ENV', 'production')
     register_blueprints(app)
 
     @app.errorhandler(404)

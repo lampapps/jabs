@@ -2,7 +2,7 @@ import os
 import re
 from collections import Counter
 from flask import Blueprint, render_template
-from app.settings import LOG_DIR
+from app.settings import LOG_DIR, MAX_LOG_LINES
 
 logs_bp = Blueprint('logs', __name__)
 
@@ -44,4 +44,4 @@ def logs():
                 logs.append((fname, trimmed_content, stats, response_codes, content))
             except Exception:
                 logs.append((fname, "Could not read log.", {'total': 0, 'info': 0, 'warning': 0, 'error': 0, 'other': 0}, None, ""))
-    return render_template("logs.html", logs=logs)
+    return render_template("logs.html", logs=logs, MAX_LOG_LINES=MAX_LOG_LINES)
