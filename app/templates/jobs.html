@@ -81,7 +81,7 @@
                     </button>
                     <!-- Edit Button (direct link, no modal) -->
                     <a class="btn btn-warning btn-sm"
-                       href="{{ url_for('config.edit_config', filename=config.file_name, next=url_for('jobs.jobs')) }}">
+                       href="{{ url_for('config.edit_config', filename=config.file_name, next=url_for('jobs.jobs_view')) }}">
                         <i class="fa fa-edit"></i> Edit
                     </a>
                     <!-- View Button -->
@@ -191,7 +191,7 @@
                 File will be saved as: <span id="fileNamePreview"></span>
             </div>
         </div>
-        <input type="hidden" name="next" value="{{ url_for('jobs.jobs') }}">
+        <input type="hidden" name="next" value="{{ url_for('jobs.jobs_view') }}">
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>

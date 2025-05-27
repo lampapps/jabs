@@ -53,15 +53,15 @@
                 </a>
               </li>
               <li class="nav-item dropdown
-                  {% if request.endpoint in ['jobs.jobs', 'config.config', 'dashboard.storage_tree_view'] %}active{% endif %}">
+                  {% if request.endpoint in ['jobs.jobs_view', 'config.config', 'dashboard.storage_tree_view'] %}active{% endif %}">
                 <a class="nav-link dropdown-toggle
-                  {% if request.endpoint in ['jobs.jobs', 'config.config', 'dashboard.storage_tree_view'] %}active{% endif %}"
+                  {% if request.endpoint in ['jobs.jobs_view', 'config.config', 'dashboard.storage_tree_view'] %}active{% endif %}"
                   href="#" id="configurationDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                   Configuration
                 </a>
                 <ul class="dropdown-menu" aria-labelledby="configurationDropdown">
                   <li>
-                    <a class="dropdown-item {% if request.endpoint == 'jobs.jobs' %}active{% endif %}" href="{{ url_for('jobs.jobs') }}">
+                    <a class="dropdown-item {% if request.endpoint == 'jobs.jobs_view' %}active{% endif %}" href="{{ url_for('jobs.jobs_view') }}">
                       <i class="fas fa-tasks me-1"></i> Jobs
                     </a>
                   </li>
@@ -78,9 +78,9 @@
                 </ul>
               </li>
               <li class="nav-item dropdown
-                  {% if request.endpoint in ['dashboard.help', 'dashboard.documentation', 'logs.logs'] %}active{% endif %}">
+                  {% if request.endpoint in ['dashboard.help', 'dashboard.documentation', 'logs.logs_view'] %}active{% endif %}">
                 <a class="nav-link dropdown-toggle
-                  {% if request.endpoint in ['dashboard.help', 'dashboard.documentation', 'logs.logs'] %}active{% endif %}"
+                  {% if request.endpoint in ['dashboard.help', 'dashboard.documentation', 'logs.logs_view'] %}active{% endif %}"
                   href="#" id="helpDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                   Help
                 </a>
@@ -91,7 +91,7 @@
                     </a>
                   </li>
                   <li>
-                    <a class="dropdown-item {% if request.endpoint == 'logs.logs' %}active{% endif %}" href="{{ url_for('logs.logs') }}">
+                    <a class="dropdown-item {% if request.endpoint == 'logs.logs_view' %}active{% endif %}" href="{{ url_for('logs.logs_view') }}">
                       <i class="fas fa-file-alt me-1"></i> Logs
                     </a>
                   </li>
@@ -132,10 +132,10 @@
             </ul>
             <ul class="navbar-nav d-none d-md-flex ms-auto align-items-center me-3">
                 <!-- Desktop Icons -->
-                {% include 'partials/development_env_banner.html' %}
-                <li class="nav-item me-2" title="Scheduler Status"> <!-- Add me-2 for margin -->
-                    <span title="Scheduler Status"> <!-- Keep span for tooltip -->
-                        <i id="schedulerStatusIconDesktop" class="fas fa-question-circle text-secondary fa-lg"></i> <!-- Renamed ID -->
+                <li>{% include 'partials/development_env_banner.html' %}</li>
+                <li class="nav-item me-2" title="Scheduler Status">
+                    <span title="Scheduler Status">
+                        <i id="schedulerStatusIconDesktop" class="fas fa-question-circle text-secondary fa-lg"></i>
                     </span>
                 </li>
                 <!-- Existing Theme switcher: desktop only -->

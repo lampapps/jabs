@@ -1,46 +1,47 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash
+"""Flask routes for managing backup jobs and job configuration in JABS."""
+
 import os
-import yaml
+import re
 import subprocess
 import sys
-from werkzeug.utils import secure_filename
-import re
-from app.settings import LOCK_DIR, BASE_DIR, JOBS_DIR, GLOBAL_CONFIG_PATH
-from cron_descriptor import get_description
 import tempfile
+import pathlib
+import fcntl
+import yaml
+from flask import Blueprint, render_template, request, redirect, url_for, flash
+from werkzeug.utils import secure_filename
+from cron_descriptor import get_description
+from app.settings import LOCK_DIR, BASE_DIR, JOBS_DIR, GLOBAL_CONFIG_PATH
 
 jobs_bp = Blueprint('jobs', __name__)
 
 def is_job_locked(lock_path):
-    import fcntl
+    """Check if a job lock file is currently locked."""
     try:
-        lock_file = open(lock_path, 'a+')
-        try:
-            fcntl.flock(lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
-            fcntl.flock(lock_file, fcntl.LOCK_UN)
-            lock_file.close()
-            return False
-        except BlockingIOError:
-            lock_file.close()
-            return True
+        with open(lock_path, 'a+', encoding="utf-8") as lock_file:
+            try:
+                fcntl.flock(lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                fcntl.flock(lock_file, fcntl.LOCK_UN)
+                return False
+            except BlockingIOError:
+                return True
     except Exception:
         return True
 
 @jobs_bp.route("/jobs")
-def jobs():
-    # Load global config once
-    with open(GLOBAL_CONFIG_PATH) as f:
+def jobs_view():
+    """Display all jobs and templates."""
+    with open(GLOBAL_CONFIG_PATH, encoding="utf-8") as f:
         global_config = yaml.safe_load(f)
 
     jobs = []
     for fname in os.listdir(JOBS_DIR):
         if fname.endswith(".yaml"):
             fpath = os.path.join(JOBS_DIR, fname)
-            with open(fpath) as f:
+            with open(fpath, encoding="utf-8") as f:
                 raw_data = f.read()
             try:
                 data = yaml.safe_load(raw_data)
-                # Add cron_human to each schedule if present
                 schedules = data.get("schedules", [])
                 for sched in schedules:
                     cron_expr = sched.get("cron", "")
@@ -48,7 +49,6 @@ def jobs():
                         sched["cron_human"] = get_description(cron_expr)
                     except Exception:
                         sched["cron_human"] = cron_expr
-                # Use job value if present, else global
                 job_name = data.get("job_name", fname.replace(".yaml", ""))
                 source = data.get("source", "")
                 destination = data.get("destination") or global_config.get("destination")
@@ -78,7 +78,6 @@ def jobs():
                 "raw_data": raw_data,
             })
 
-    # List templates
     templates_dir = os.path.join(JOBS_DIR, "templates")
     templates = []
     if os.path.isdir(templates_dir):
@@ -86,7 +85,7 @@ def jobs():
             if tname.endswith(".yaml"):
                 templates.append(tname)
 
-    with open(GLOBAL_CONFIG_PATH) as f:
+    with open(GLOBAL_CONFIG_PATH, encoding="utf-8") as f:
         global_config = yaml.safe_load(f)
 
     return render_template(
@@ -98,42 +97,41 @@ def jobs():
 
 @jobs_bp.route("/jobs/run/<filename>", methods=["POST"])
 def run_job(filename):
+    """Run a backup job."""
     if (
         not filename.endswith(".yaml")
         or "/" in filename
         or ".." in filename
     ):
         flash("Invalid job file.", "danger")
-        return redirect(url_for("jobs.jobs"))
+        return redirect(url_for("jobs.jobs_view"))
 
     config_path = os.path.join(JOBS_DIR, filename)
     if not os.path.exists(config_path):
         flash("Config file does not exist.", "danger")
-        return redirect(url_for("jobs.jobs"))
+        return redirect(url_for("jobs.jobs_view"))
 
-    with open(config_path) as f:
+    with open(config_path, encoding="utf-8") as f:
         config = yaml.safe_load(f)
     job_name = config.get("job_name", filename.replace(".yaml", ""))
 
-    # Determine if S3 sync is enabled (job overrides global)
     aws_enabled = None
     if config.get("aws") and "enabled" in config["aws"]:
         aws_enabled = config["aws"]["enabled"]
     else:
-        # Load global config if not already loaded
-        with open(GLOBAL_CONFIG_PATH) as gf:
+        with open(GLOBAL_CONFIG_PATH, encoding="utf-8") as gf:
             global_config = yaml.safe_load(gf)
         aws_enabled = global_config.get("aws", {}).get("enabled", False)
 
     lock_path = os.path.join(LOCK_DIR, f"{job_name}.lock")
     if os.path.exists(lock_path) and is_job_locked(lock_path):
         flash(f"Backup already running for job '{job_name}'.", "warning")
-        return redirect(url_for("jobs.jobs"))
+        return redirect(url_for("jobs.jobs_view"))
 
     backup_type = request.form.get("backup_type", "full").lower()
     if backup_type not in ("full", "diff"):
         flash("Invalid backup type.", "danger")
-        return redirect(url_for("jobs.jobs"))
+        return redirect(url_for("jobs.jobs_view"))
 
     sync = request.form.get("sync", "0")
     cli_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../cli.py'))
@@ -149,7 +147,7 @@ def run_job(filename):
         temp_dir = tempfile.gettempdir()
         stdout_log = os.path.join(temp_dir, "backup_stdout.log")
         stderr_log = os.path.join(temp_dir, "backup_stderr.log")
-        with open(stdout_log, 'w') as out, open(stderr_log, 'w') as err:
+        with open(stdout_log, 'w', encoding="utf-8") as out, open(stderr_log, 'w', encoding="utf-8") as err:
             subprocess.Popen(
                 args,
                 stdout=out,
@@ -161,49 +159,45 @@ def run_job(filename):
     except Exception as e:
         flash(f"Failed to start backup: {e}", "danger")
 
-    return redirect(url_for("jobs.jobs"))
+    return redirect(url_for("jobs.jobs_view"))
 
 @jobs_bp.route("/config/copy", methods=["POST"])
 def copy_config():
+    """Copy a job or template configuration file."""
     source = request.form.get("copy_source")
     new_job_name = request.form.get("new_job_name", "").strip()
-    next_url = request.form.get("next") or url_for("jobs.jobs")
+    next_url = request.form.get("next") or url_for("jobs.jobs_view")
 
-    # Validate job name (only allow letters, numbers, spaces, dashes, underscores)
     if not source or not new_job_name or not all(c.isalnum() or c in " _-" for c in new_job_name):
         flash("Invalid job name.", "danger")
-        return redirect(url_for("jobs.jobs"))
+        return redirect(url_for("jobs.jobs_view"))
 
-    # Generate a safe file name
     base_name = secure_filename(new_job_name.replace(" ", "_"))
     if not base_name:
         flash("Invalid job name.", "danger")
-        return redirect(url_for("jobs.jobs"))
+        return redirect(url_for("jobs.jobs_view"))
     new_filename = f"{base_name}.yaml"
 
-    # Determine source path (template or job)
     src_path = os.path.join(JOBS_DIR, source)
     dest_path = os.path.join(JOBS_DIR, new_filename)
 
     if not os.path.exists(src_path):
         flash("Source file does not exist.", "danger")
-        return redirect(url_for("jobs.jobs"))
+        return redirect(url_for("jobs.jobs_view"))
     if os.path.exists(dest_path):
         flash("A file with that job name already exists.", "danger")
-        return redirect(url_for("jobs.jobs"))
+        return redirect(url_for("jobs.jobs_view"))
 
-    # Read as text, replace job_name, and write out (preserve comments/formatting)
-    with open(src_path, "r") as src:
+    with open(src_path, "r", encoding="utf-8") as src:
         content = src.read()
-    # Replace the first occurrence of job_name: ... (with or without quotes)
     content_new = re.sub(
-        r'^(job_name\s*:\s*)(["\']?.*?["\']?)\s*$', 
-        r'\1"' + new_job_name + r'"', 
-        content, 
-        count=1, 
+        r'^(job_name\s*:\s*)(["\']?.*?["\']?)\s*$',
+        r'\1"' + new_job_name + r'"',
+        content,
+        count=1,
         flags=re.MULTILINE
     )
-    with open(dest_path, "w") as dst:
+    with open(dest_path, "w", encoding="utf-8") as dst:
         dst.write(content_new)
 
     flash(f"Copied {source} to {new_filename}.", "success")
@@ -211,9 +205,8 @@ def copy_config():
 
 @jobs_bp.route("/config/rename/<filename>", methods=["POST"])
 def rename_config(filename):
-    import pathlib
+    """Rename a configuration file."""
 
-    # Only allow .yaml files, no path separators, no parent directory traversal
     if (
         not filename.endswith(".yaml")
         or os.path.sep in filename
@@ -221,7 +214,7 @@ def rename_config(filename):
         or ".." in filename
     ):
         flash("Invalid original filename.", "danger")
-        return redirect(url_for("jobs.jobs"))
+        return redirect(url_for("jobs.jobs_view"))
 
     new_filename = request.form.get("new_filename")
     if (
@@ -232,39 +225,40 @@ def rename_config(filename):
         or not new_filename.endswith(".yaml")
     ):
         flash("Invalid new filename.", "danger")
-        return redirect(url_for("jobs.jobs"))
+        return redirect(url_for("jobs.jobs_view"))
 
-    # Use pathlib for cross-platform path handling
     src_path = os.path.join(JOBS_DIR, filename)
     dest_path = os.path.join(JOBS_DIR, new_filename)
 
-    # Ensure both paths are within JOBS_DIR (prevent directory traversal)
     jobs_dir_path = pathlib.Path(JOBS_DIR).resolve()
-    if not pathlib.Path(src_path).resolve().parent == jobs_dir_path or \
-       not pathlib.Path(dest_path).resolve().parent == jobs_dir_path:
+    if (
+        pathlib.Path(src_path).resolve().parent != jobs_dir_path or
+        pathlib.Path(dest_path).resolve().parent != jobs_dir_path
+    ):
         flash("Invalid file path.", "danger")
-        return redirect(url_for("jobs.jobs"))
+        return redirect(url_for("jobs.jobs_view"))
 
     if not os.path.exists(src_path):
         flash("Original file does not exist.", "danger")
-        return redirect(url_for("jobs.jobs"))
+        return redirect(url_for("jobs.jobs_view"))
     if os.path.exists(dest_path):
         flash("A file with that name already exists.", "danger")
-        return redirect(url_for("jobs.jobs"))
+        return redirect(url_for("jobs.jobs_view"))
 
     os.rename(src_path, dest_path)
     flash(f"Renamed {filename} to {new_filename}.", "success")
-    return redirect(url_for("jobs.jobs"))
+    return redirect(url_for("jobs.jobs_view"))
 
 @jobs_bp.route("/config/delete/<filename>", methods=["POST"])
 def delete_config(filename):
+    """Delete a configuration file."""
     if filename in ("drives.yaml", "example.yaml") or "/" in filename or ".." in filename or not filename.endswith(".yaml"):
         flash("This file cannot be deleted.", "danger")
-        return redirect(url_for("jobs.jobs"))
+        return redirect(url_for("jobs.jobs_view"))
     file_path = os.path.join(JOBS_DIR, filename)
     if not os.path.exists(file_path):
         flash("File does not exist.", "danger")
-        return redirect(url_for("jobs.jobs"))
+        return redirect(url_for("jobs.jobs_view"))
     os.remove(file_path)
     flash(f"Deleted {filename}.", "success")
-    return redirect(url_for("jobs.jobs"))
+    return redirect(url_for("jobs.jobs_view"))

@@ -1,24 +1,22 @@
-from flask import Blueprint, render_template, request, redirect, url_for, abort, flash
+"""Routes for configuration management in JABS."""
+
 import os
 import yaml
-from app.settings import JOBS_DIR, GLOBAL_CONFIG_PATH
+from flask import Blueprint, render_template, request, redirect, url_for, abort, flash
 from dotenv import set_key, load_dotenv
-from werkzeug.utils import secure_filename
-import re
+from app.settings import JOBS_DIR, GLOBAL_CONFIG_PATH
 
 config_bp = Blueprint('config', __name__)
 
-
 @config_bp.route("/config.html", endpoint="config")
 def show_global_config():
-    with open(GLOBAL_CONFIG_PATH) as f:
+    """Display the global configuration."""
+    with open(GLOBAL_CONFIG_PATH, encoding="utf-8") as f:
         global_config = yaml.safe_load(f)
     # Load current passphrase status
-    from dotenv import load_dotenv
     env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), ".env")
     load_dotenv(env_path)
-    import os as _os
-    current_passphrase = bool(_os.environ.get("JABS_ENCRYPT_PASSPHRASE"))
+    current_passphrase = bool(os.environ.get("JABS_ENCRYPT_PASSPHRASE"))
     return render_template(
         "globalconfig.html",  # changed from "config.html"
         global_config=global_config,
@@ -27,12 +25,13 @@ def show_global_config():
 
 @config_bp.route("/config/save_global", methods=["POST"])
 def save_global():
+    """Save the global configuration file."""
     new_content = request.form.get("content", "")
     try:
         yaml.safe_load(new_content)
     except yaml.YAMLError as e:
         return render_template("globalconfig.html", raw_data=new_content, error=str(e))  # changed
-    with open(GLOBAL_CONFIG_PATH, "w") as f:
+    with open(GLOBAL_CONFIG_PATH, "w", encoding="utf-8") as f:
         f.write(new_content)
     flash("Global configuration saved.", "success")
     return redirect(url_for("config.config"))
@@ -40,18 +39,19 @@ def save_global():
 # Example Flask route
 @config_bp.route('/edit/<filename>', methods=['GET', 'POST'])
 def edit_config(filename):
+    """Edit a configuration file."""
     error_message = None
     file_path = GLOBAL_CONFIG_PATH if filename == "global.yaml" else os.path.join(JOBS_DIR, filename)
     if not os.path.exists(file_path):
         loaded_yaml = "# File not found."
     else:
-        with open(file_path, "r") as f:
+        with open(file_path, "r", encoding="utf-8") as f:
             loaded_yaml = f.read()
     # Set cancel_url based on file type
     if filename == "global.yaml":
         cancel_url = url_for("config.config")
     else:
-        cancel_url = url_for("jobs.jobs")
+        cancel_url = url_for("jobs.jobs_view")
     return render_template(
         "edit_config.html",
         file_name=filename,
@@ -62,6 +62,7 @@ def edit_config(filename):
 
 @config_bp.route("/config/save/<filename>", methods=["POST"])
 def save_config(filename):
+    """Save a configuration file."""
     if not filename.endswith(".yaml") or "/" in filename or ".." in filename:
         abort(400, "Invalid filename")
     # Save to the correct path
@@ -81,15 +82,15 @@ def save_config(filename):
             error=str(e),
             cancel_url=next_url
         )
-    with open(file_path, "w") as f:
+    with open(file_path, "w", encoding="utf-8") as f:
         f.write(new_content)
     if filename == "global.yaml":
         return redirect(url_for("config.config"))
-    else:
-        return redirect(url_for("jobs.jobs"))
+    return redirect(url_for("jobs.jobs_view"))
 
 @config_bp.route("/config/set_passphrase", methods=["POST"])
 def set_passphrase():
+    """Set the encryption passphrase in the .env file."""
     passphrase = request.form.get("passphrase", "").strip()
     if not passphrase:
         flash("Passphrase cannot be empty.", "danger")
