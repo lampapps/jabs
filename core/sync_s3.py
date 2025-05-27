@@ -44,8 +44,16 @@ def sync_to_s3(backup_set_path, config, event_id=None):
     cmd = ["aws", "s3api", "head-bucket", "--bucket", bucket, "--profile", profile]
     if region:
         cmd.extend(["--region", region])
-    subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-    logger.info(f"Bucket '{bucket}' exists.")
+    try:
+        subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        logger.info(f"Bucket '{bucket}' exists.")
+    except subprocess.CalledProcessError:
+        logger.warning(f"Bucket '{bucket}' does not exist. Attempting to create it...")
+        create_cmd = ["aws", "s3api", "create-bucket", "--bucket", bucket, "--profile", profile]
+        if region:
+            create_cmd.extend(["--region", region, "--create-bucket-configuration", f"LocationConstraint={region}"])
+        subprocess.run(create_cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        logger.info(f"Bucket '{bucket}' created.")
 
     try:
         # Sync only the backup set directory to the S3 job prefix
