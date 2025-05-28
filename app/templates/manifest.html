@@ -6,7 +6,7 @@
 {% endblock %}
 {% block content %}
 <div class="container-fluid px-4">
-    <h1 class="mt-4">Backup Manifest: {{ job_name }}</h1>
+    <h2 class="mt-4">Backup Manifest: {{ job_name }}</h2>
     <ol class="breadcrumb mb-4">
         <li class="breadcrumb-item active">
             Backup Set ID: {{ backup_set_id }} | Updated: {{ manifest_timestamp }}
@@ -95,21 +95,35 @@
                         </button>
                     </h2>
                     <div id="collapseTwo" class="accordion-collapse collapse" aria-labelledby="headingTwo" data-bs-parent="#backupArchivesAccordion">
-                        <div class="accordion-body">
-                            <ul class="list-group list-group-flush">
+                        <div class="accordion-body px-2 py-3">
+                            <ul class="list-group list-group-flush shadow-sm rounded-3">
                                 {% block tarball_size %}
+                                <!-- Total Size Row: strong contrast for both themes -->
+                                <li class="list-group-item d-flex align-items-center justify-content-between bg-light-subtle border small">
+                                    <span class="d-flex align-items-center">
+                                        <i class="bi bi-archive-fill me-2"></i>
+                                        <strong>Total Size:</strong>
+                                    </span>
+                                    <span class="badge bg-primary text-white rounded-pill ms-2" style="font-size: 1em;">
+                                        {{ total_size_human if total_size_human else 'N/A' }}
+                                    </span>
+                                </li>
+                                <!-- Tarball rows: consistent background for all -->
                                 {% for tarball in tarball_summary %}
-                                    <li class="list-group-item d-flex align-items-center">
-                                        <span>
-                                            {{ tarball.name }}
-                                                <span class="badge bg-secondary rounded-pill" style="font-size: 0.75em;">{{ tarball.size }}</span>
+                                    <li class="list-group-item d-flex align-items-center justify-content-between border bg-light-subtle small">
+                                        <span class="d-flex align-items-center">
+                                            <i class="bi bi-file-earmark-zip-fill me-2 text-secondary"></i>
+                                            <span class="text-break">{{ tarball.name }}</span>
+                                        </span>
+                                        <span class="badge bg-secondary bg-gradient rounded-pill ms-2" style="font-size: 0.95em;">
+                                            {{ tarball.size }}
                                         </span>
                                     </li>
                                 {% endfor %}
                                 {% endblock %}
                             </ul>
                             {% if tarball_summary|length == 0 %}
-                                <p class="text-center">No backup archives found or summary not available.</p>
+                                <p class="text-center text-muted mt-3">No backup archives found or summary not available.</p>
                             {% endif %}
                         </div>
                     </div>

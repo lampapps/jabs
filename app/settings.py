@@ -1,3 +1,5 @@
+"""Application-wide settings and configuration constants."""
+
 import os
 import sys
 

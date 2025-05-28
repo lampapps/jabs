@@ -10,13 +10,13 @@ import markdown
 import yaml
 from cron_descriptor import get_description
 import boto3
-
 from flask import Blueprint, render_template, abort, current_app
 from markupsafe import Markup
-from datetime import datetime
+
 from app.settings import BASE_DIR, MANIFEST_BASE, GLOBAL_CONFIG_PATH, HOME_DIR
 from app.utils.manifest import get_tarball_summary, get_merged_cleaned_yaml_config
 from app.utils.dashboard_helpers import find_config_path_by_job_name, load_config
+from app.utils.logger import sizeof_fmt
 
 dashboard_bp = Blueprint('dashboard', 'dashboard')
 
@@ -172,6 +172,10 @@ def view_manifest(job_name, backup_set_id):
         except Exception:
             pass
     used_config = manifest_data.get("config", {})
+    # After you have tarball_summary
+    total_size_bytes = sum(tb.get("size_bytes", 0) for tb in tarball_summary_list)
+    total_size_human = sizeof_fmt(total_size_bytes)
+    # Pass both to render_template
     return render_template(
         'manifest.html',
         job_name=manifest_data.get("job_name", job_name),
@@ -180,6 +184,8 @@ def view_manifest(job_name, backup_set_id):
         config_content=cleaned_config,
         all_files=manifest_data.get("files", []),
         tarball_summary=tarball_summary_list,
+        total_size_bytes=total_size_bytes,
+        total_size_human=total_size_human,
         used_config=used_config,
         HOME_DIR=HOME_DIR,
     )

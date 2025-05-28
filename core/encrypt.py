@@ -1,3 +1,5 @@
+"""GPG-based encryption utilities for files and tarballs."""
+
 import subprocess
 import os
 
@@ -26,7 +28,7 @@ def encrypt_file_gpg(input_path, output_path, passphrase_env):
         input_path                 # Input file
     ]
     # Execute the GPG command
-    result = subprocess.run(cmd, capture_output=True)
+    result = subprocess.run(cmd, capture_output=True, check=False)
     if result.returncode != 0:
         # Raise an error if encryption failed, including stderr output
         raise RuntimeError(f"GPG encryption failed: {result.stderr.decode()}")
@@ -57,8 +59,8 @@ def encrypt_tarballs(tarball_paths, config, logger):
             os.remove(tarball_path)
             logger.info(f"Encrypted and removed: {tarball_path}")
             encrypted_paths.append(encrypted_path)
-        except Exception as e:
+        except (RuntimeError, OSError) as exc:
             # Log any errors encountered during encryption
-            logger.error(f"Failed to encrypt {tarball_path}: {e}", exc_info=True)
+            logger.error(f"Failed to encrypt {tarball_path}: {exc}", exc_info=True)
             # Optionally: raise or continue to next file
     return encrypted_paths

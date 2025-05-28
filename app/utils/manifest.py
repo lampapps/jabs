@@ -60,16 +60,17 @@ def build_tarball_summary_from_manifest(files_list):
     :param files_list: List of file info dicts (from manifest).
     :return: List of dicts summarizing each tarball.
     """
+
     tarballs = defaultdict(lambda: {"size_bytes": 0, "timestamp_str": "00000000_000000"})
     timestamp_pattern = re.compile(r'_(\d{8}_\d{6})\.tar\.gz')
     for f in files_list:
-        tarball_name = f.get("tarball")
+        tarball_name = f.get("tarball") or f.get("name")
         if not tarball_name:
             continue
         match = timestamp_pattern.search(tarball_name)
         if match:
             tarballs[tarball_name]["timestamp_str"] = match.group(1)
-        # Always sum size_bytes (fallback to parse if missing)
+        # Sum up size_bytes for all files in this tarball
         if "size_bytes" in f:
             tarballs[tarball_name]["size_bytes"] += f["size_bytes"]
         elif "size" in f:
@@ -79,6 +80,7 @@ def build_tarball_summary_from_manifest(files_list):
         summary.append({
             "name": name,
             "size": sizeof_fmt(info["size_bytes"]),
+            "size_bytes": info["size_bytes"],
             "timestamp_str": info["timestamp_str"],
         })
     return sorted(summary, key=lambda item: item['timestamp_str'], reverse=True)
@@ -344,11 +346,12 @@ def get_tarball_summary(backup_set_path, *, show_full_name=True):
         if match:
             timestamp_str = match.group(1)
         try:
-            # Get the file size in human-readable format
+            # Get the file size in human-readable format and bytes
             size_bytes = os.path.getsize(tar_path)
             summary.append({
                 "name": tarball_name,
                 "size": sizeof_fmt(size_bytes),
+                "size_bytes": size_bytes,  # <-- Add this line
                 "timestamp_str": timestamp_str,
             })
         except Exception:
@@ -356,6 +359,7 @@ def get_tarball_summary(backup_set_path, *, show_full_name=True):
             summary.append({
                 "name": tarball_name,
                 "size": "Error",
+                "size_bytes": 0,  # <-- Add this line
                 "timestamp_str": timestamp_str,
             })
     # Sort tarballs by timestamp (newest first)
