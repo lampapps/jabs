@@ -36,7 +36,10 @@
                             <ul>
                                 <li>
                                     Enabled:
-                                    {% if config.data and config.data.get('encryption', {}).get('enabled') %}
+                                    {% set enc_enabled = (config.data and config.data.get('encryption', {}).get('enabled')) 
+                                        if config.data and 'encryption' in config.data 
+                                        else global_config.get('encryption', {}).get('enabled', False) %}
+                                    {% if enc_enabled %}
                                         <span class="badge bg-success">True</span>
                                     {% else %}
                                         <span class="badge bg-secondary">False</span>

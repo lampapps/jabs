@@ -18,7 +18,7 @@ max_tarball_size: 2048  # Maximum size of each tarball in MB (e.g., 1024 MB = 1 
 # - Cannot be formatted as an IP address (e.g., 192.168.5.4).
 
 aws:
-  enabled: false  # Default, false can be overridden in job config or by CLI
+  enabled: true  # Default, false can be overridden in job config or by CLI
   profile: "default"  # AWS CLI profile to use (default if not specified)
   region: "us-east-1"  # AWS region (overrides profile region if specified)
   bucket: "lampapps-jabs-dev"  # S3 bucket name (required for cloud backups)
@@ -26,7 +26,7 @@ aws:
 
 # Encryption settings for backups unless overridden in job config
 encryption:
-  enabled: false  # true | false
+  enabled: true  # true | false
   method: gpg  # Only 'gpg' supported for now
   passphrase_env: JABS_ENCRYPT_PASSPHRASE  # Name of env var holding passphrase
 
