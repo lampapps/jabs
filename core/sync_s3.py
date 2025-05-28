@@ -50,8 +50,10 @@ def sync_to_s3(backup_set_path, config, event_id=None):
     except subprocess.CalledProcessError:
         logger.warning(f"Bucket '{bucket}' does not exist. Attempting to create it...")
         create_cmd = ["aws", "s3api", "create-bucket", "--bucket", bucket, "--profile", profile]
-        if region:
+        if region and region != "us-east-1":
             create_cmd.extend(["--region", region, "--create-bucket-configuration", f"LocationConstraint={region}"])
+        elif region:
+            create_cmd.extend(["--region", region])
         subprocess.run(create_cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         logger.info(f"Bucket '{bucket}' created.")
 
