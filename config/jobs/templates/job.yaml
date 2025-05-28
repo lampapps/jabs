@@ -82,9 +82,11 @@ schedules:
 #  profile: "default"   # AWS CLI profile to use (default if not specified)
 #  region: "us-east-1"  # AWS region (overrides profile region if specified)
 #  bucket: "my-bucket"  # S3 bucket name (required for cloud backups)
-#  enabled: false       # true or false, can be overridden by CLI
+#  storage_class: "STANDARD"  # S3 storage class (e.g., STANDARD, INTELLIGENT_TIERING, STANDARD_IA, ONEZONE_IA, GLACIER, DEEP_ARCHIVE)
+#                             # If omitted, defaults to STANDARD. Use to control S3 cost and retrieval speed.
+#  enabled: false       # true or false, false can be overridden by CLI
 
 # encryption: 
 #  method: gpg                              # Only 'gpg' supported for now
 #  passphrase_env: JABS_ENCRYPT_PASSPHRASE  # Name of env var holding passphrase
-#  enabled: false                           # true or false, can be overridden by CLI
+#  enabled: false                           # true or false, false can be overridden by CLI

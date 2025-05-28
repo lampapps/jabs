@@ -53,8 +53,8 @@
                     </li>
                     <li><b>Encryption:</b>
                         <ul>
-                            <li>Enabled: <code>{{ job_encryption.enabled or '— (uses global)' }}</code></li>
-                            <li>Passphrase Env: <code>{{ job_encryption.passphrase_env or '— (uses global)' }}</code></li>
+                            <li>Enabled: <code>{{ job_config.get('encryption', {}).get('enabled', '— (uses global)') }}</code></li>
+                            <li>Passphrase Env: <code>{{ job_config.get('encryption', {}).get('passphrase_env', '— (uses global)') }}</code></li>
                         </ul>
                     </li>
                 </ul>
