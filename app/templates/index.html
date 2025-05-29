@@ -27,24 +27,24 @@
         <!-- End Modified Column -->
     </div>
     <div class="row pb-3">
-        <!-- Scheduled Jobs Card (Redesigned) -->
+        <!-- Scheduled Jobs Card -->
         <div class="col-md-4 mb-3 mb-md-0 d-flex">
             <div class="card flex-fill d-flex flex-column">
-                <div class="card-header" id="headingJobs">
-                    <i class="fa fa-calendar-alt"></i> Scheduled Jobs
+                <div class="card-header" id="headingJobs" aria-label="Scheduled Jobs">
+                    <i class="fa fa-calendar-alt me-1"></i> Scheduled Jobs
                 </div>
-                <div class="card-body p-2" style="max-height: 300px; overflow-y: auto;">
+                <div class="card-body p-2 rounded" style="max-height: 300px; overflow-y: auto;">
                     {% if scheduled_jobs %}
                         <ul class="list-group list-group-flush">
                         {% for job in scheduled_jobs %}
-                            <li class="list-group-item py-0 px-2" style="line-height: 2.1;">
+                            <li class="list-group-item py-0 px-2 small" style="line-height: 2.1;">
                                 <div class="d-flex align-items-center justify-content-between flex-wrap">
-                                    <span class="small text-truncate" title="{{ job.job_name }}">{{ job.job_name }}</span>
+                                    <span class="text-truncate" title="{{ job.job_name }}">{{ job.job_name }}</span>
                                     <span class="ms-2 flex-grow-1 d-flex flex-wrap align-items-center" style="min-width:0;">
                                         {% if job.schedules %}
                                             {% for sched in job.schedules %}
                                                 {% if sched.enabled %}
-                                                    <span class="badge bg-primary my-0 me-2" style="font-size: 0.72em; white-space:nowrap;"
+                                                    <span class="badge bg-primary my-0 me-2 text-nowrap" style="font-size: 0.72em;"
                                                           title="{{ sched.cron_human }}">
                                                         {{ sched.type|capitalize if sched.type else '' }}: {{ sched.cron }}
                                                     </span>
@@ -108,7 +108,7 @@
     <div class="card mb-4">
         <div class="card-header d-flex align-items-center justify-content-between">
             <span>
-                <i class="fa-regular fa-clock"></i> Event Log
+                <i class="fa-regular fa-clock me-1"></i> Event Log
             </span>
             <button class="btn btn-danger btn-sm" id="delete-selected-btn" title="Delete selected events from the event log">
                 Delete Selected

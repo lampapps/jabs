@@ -14,7 +14,7 @@ import portalocker
 
 from app.utils.logger import setup_logger, timestamp, ensure_dir
 from app.utils.manifest import write_manifest_files, extract_tar_info, merge_configs
-from app.utils.event_logger import remove_event_by_backup_set_id, update_event, finalize_event
+from app.utils.event_logger import remove_event_by_backup_set_id, update_event, finalize_event, event_exists
 from app.settings import LOCK_DIR, RESTORE_SCRIPT_SRC, GLOBAL_CONFIG_PATH
 from core.encrypt import encrypt_tarballs
 
@@ -279,18 +279,24 @@ def run_backup(config, backup_type, encrypt=False, sync=False, event_id=None, jo
     logger.info(f"Starting backup job '{job_name}' with provided config.")
     logger.info(f"Backup type: {backup_type}, Encrypt: {encrypt}, Sync: {sync}")
 
+    # --- CHECK EVENT EXISTS BEFORE PROCEEDING ---
+    if event_id and not event_exists(event_id):
+        logger.error(f"Event with ID {event_id} not found at backup start. Aborting backup.")
+        return None, event_id, None
+
     # --- CHECK SOURCE EXISTS ---
     src = config.get("source")
     if not src or not os.path.exists(src):
         error_msg = f"Source path does not exist: {src}"
         logger.error(error_msg)
-        finalize_event(
-            event_id=event_id,
-            status="error",
-            event=error_msg,
-            backup_set_id=None,
-            runtime="00:00:00"
-        )
+        if event_id and event_exists(event_id):
+            finalize_event(
+                event_id=event_id,
+                status="error",
+                event=error_msg,
+                backup_set_id=None,
+                runtime="00:00:00"
+            )
         return None, event_id, None
 
     # --- ENCRYPTION PASSPHRASE CHECK ---
@@ -303,13 +309,14 @@ def run_backup(config, backup_type, encrypt=False, sync=False, event_id=None, jo
                 f"'{passphrase_env}' is not set. Backup aborted."
             )
             logger.error(error_msg)
-            finalize_event(
-                event_id=event_id,
-                status="error",
-                event=error_msg,
-                backup_set_id=None,
-                runtime="00:00:00"
-            )
+            if event_id and event_exists(event_id):
+                finalize_event(
+                    event_id=event_id,
+                    status="error",
+                    event=error_msg,
+                    backup_set_id=None,
+                    runtime="00:00:00"
+                )
             return None, event_id, None
 
     # --- ACQUIRE LOCK ---
@@ -318,12 +325,13 @@ def run_backup(config, backup_type, encrypt=False, sync=False, event_id=None, jo
     lock_file = acquire_lock(lock_path)
     if not lock_file:
         logger.error(f"Backup already running for job '{job_name}'. Exiting.")
-        finalize_event(
-            event_id=event_id,
-            status="skipped",
-            event=f"Backup already running for job '{job_name}'.",
-            backup_set_id=None
-        )
+        if event_id and event_exists(event_id):
+            finalize_event(
+                event_id=event_id,
+                status="skipped",
+                event=f"Backup already running for job '{job_name}'.",
+                backup_set_id=None
+            )
         return None, event_id, None
 
     backup_set_id_string = None
@@ -532,12 +540,13 @@ def run_backup(config, backup_type, encrypt=False, sync=False, event_id=None, jo
 
     except Exception as e:
         logger.error(f"An error occurred during the backup process: {e}", exc_info=True)
-        finalize_event(
-            event_id=event_id,
-            status="error",
-            event=f"Backup failed: {e}",
-            backup_set_id=None
-        )
+        if event_id and event_exists(event_id):
+            finalize_event(
+                event_id=event_id,
+                status="error",
+                event=f"Backup failed: {e}",
+                backup_set_id=None
+            )
         raise
     finally:
         # Always release the lock, even if an error occurs

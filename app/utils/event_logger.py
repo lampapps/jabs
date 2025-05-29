@@ -7,23 +7,26 @@ from datetime import datetime
 from app.settings import BASE_DIR, EVENTS_FILE
 import portalocker
 
-def load_events():
-    """Load the events from the JSON file."""
+def load_events_locked():
+    """Load events.json with a shared lock (cross-platform)."""
     if os.path.exists(EVENTS_FILE):
         try:
             with open(EVENTS_FILE, "r") as f:
                 portalocker.lock(f, portalocker.LOCK_SH)
-                events = json.load(f)
+                try:
+                    events = json.load(f)
+                except json.JSONDecodeError:
+                    print("Warning: events.json is empty or corrupted.")
+                    events = {"data": []}
                 portalocker.unlock(f)
                 return events
-        except json.JSONDecodeError:
-            print("Warning: events.json is empty or corrupted.")
+        except Exception as e:
+            print(f"Warning: Failed to load events.json: {e}")
             return {"data": []}
-    print("Warning: events.json does not exist.")
     return {"data": []}
 
-def save_events(events):
-    """Save the events to the JSON file."""
+def save_events_locked(events):
+    """Save events.json with an exclusive lock (cross-platform)."""
     os.makedirs(os.path.dirname(EVENTS_FILE), exist_ok=True)
     with open(EVENTS_FILE, "w") as f:
         portalocker.lock(f, portalocker.LOCK_EX)
@@ -36,7 +39,7 @@ def generate_event_id(hostname, job_name, starttimestamp):
 
 def initialize_event(job_name, event, backup_type, encrypt=False, sync=False):
     """Initialize a new event in the events.json file."""
-    events = load_events()
+    events = load_events_locked()
 
     starttimestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     event_id = generate_event_id(socket.gethostname(), job_name, starttimestamp)
@@ -57,7 +60,7 @@ def initialize_event(job_name, event, backup_type, encrypt=False, sync=False):
     }
 
     events["data"].append(event_data)
-    save_events(events)
+    save_events_locked(events)
 
     return event_id
 
@@ -65,7 +68,7 @@ def update_event(event_id, backup_type=None, event=None, status=None, url=None):
     """
     Update an existing event in the events.json file.
     """
-    events = load_events()
+    events = load_events_locked()
 
     # Locate the event by its ID and update it
     for e in events["data"]:
@@ -82,7 +85,7 @@ def update_event(event_id, backup_type=None, event=None, status=None, url=None):
     else:
         raise ValueError(f"Event with ID {event_id} not found")
 
-    save_events(events)
+    save_events_locked(events)
 
 def finalize_event(event_id, status, event, runtime=None, url=None, backup_set_id=None):
     """
@@ -95,7 +98,7 @@ def finalize_event(event_id, status, event, runtime=None, url=None, backup_set_i
     :param url: Optional URL (consider removing if backup_set_id is used for links).
     :param backup_set_id: Optional backup set ID string associated with the event.
     """
-    events = load_events()
+    events = load_events_locked()
     found = False
 
     for item in events["data"]:
@@ -132,7 +135,7 @@ def finalize_event(event_id, status, event, runtime=None, url=None, backup_set_i
             break
 
     if found:
-        save_events(events)
+        save_events_locked(events)
     # else: Consider logging a warning if event_id wasn't found
 
 def remove_event_by_backup_set_id(backup_set_id, logger):
@@ -141,7 +144,7 @@ def remove_event_by_backup_set_id(backup_set_id, logger):
     :param backup_set_id: The ID of the backup set to remove.
     :param logger: Logger instance for logging messages.
     """
-    events = load_events()
+    events = load_events_locked()
     updated_events = {"data": []}
     event_removed = False
 
@@ -159,7 +162,7 @@ def remove_event_by_backup_set_id(backup_set_id, logger):
             updated_events["data"].append(event)
 
     # Save the updated events back to events.json
-    save_events(updated_events)
+    save_events_locked(updated_events)
 
     if not event_removed:
         logger.warning(f"No event found with backup_set_id: {backup_set_id}")
@@ -180,4 +183,11 @@ def get_event_status(event_id):
         if isinstance(event, dict) and event.get("id") == event_id:
             return event.get("status")
     return None
+
+def event_exists(event_id):
+    """
+    Returns True if an event with the given event_id exists, else False.
+    """
+    events = load_events_locked()
+    return any(e.get("id") == event_id for e in events["data"])
 

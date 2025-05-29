@@ -3,7 +3,7 @@
 import os
 import sys
 
-VERSION = "v0.1.0"
+VERSION = "v0.2.0"
 
 # --- Application Configuration ---
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))

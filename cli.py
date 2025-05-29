@@ -4,7 +4,7 @@ import argparse
 import logging
 import yaml
 import os
-from app.utils.event_logger import initialize_event, update_event, finalize_event, get_event_status
+from app.utils.event_logger import initialize_event, update_event, finalize_event, get_event_status, event_exists
 from dotenv import load_dotenv
 
 # Set the working directory to the project root
@@ -112,6 +112,11 @@ try:
                 job_config_path=config_path
             )
 
+            # --- PATCH: Check event still exists before finalizing ---
+            if not event_exists(returned_event_id):
+                logger.error(f"Event with ID {returned_event_id} not found after backup. Skipping finalize.")
+                return
+
             if not latest_backup_set and backup_set_id_str is None:
                 status = get_event_status(returned_event_id)
                 if status != "error":
@@ -145,12 +150,14 @@ try:
 
         except Exception as e:
             logger.error(f"Backup failed: {e}", exc_info=True)
-            finalize_event(
-                event_id=event_id,
-                status="error",
-                event=f"Backup failed: {e}",
-                backup_set_id=None
-            )
+            # Only finalize if event still exists
+            if event_exists(event_id):
+                finalize_event(
+                    event_id=event_id,
+                    status="error",
+                    event=f"Backup failed: {e}",
+                    backup_set_id=None
+                )
             raise
 
     if __name__ == "__main__":

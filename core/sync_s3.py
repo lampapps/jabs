@@ -4,7 +4,7 @@ import os
 import subprocess
 import socket
 
-from app.utils.event_logger import finalize_event
+from app.utils.event_logger import finalize_event, event_exists
 from app.utils.logger import setup_logger
 
 def sync_to_s3(backup_set_path, config, event_id=None):
@@ -75,7 +75,7 @@ def sync_to_s3(backup_set_path, config, event_id=None):
 
     except Exception as e:
         logger.error(f"An error occurred during the sync process: {e}")
-        if event_id:
+        if event_id and event_exists(event_id):
             finalize_event(
                 event_id=event_id,
                 status="error",

@@ -2,8 +2,10 @@ import os
 import tarfile
 import json
 import subprocess
+import time
 from app.utils.logger import setup_logger
 from app.utils.restore_status import set_restore_status
+from app.utils.event_logger import initialize_event, update_event, finalize_event, event_exists
 
 def get_passphrase():
     """
@@ -99,7 +101,7 @@ def extract_file_from_tarball(tarball_path, member_path, target_path, logger):
         logger.error(f"Error extracting '{member_path}' from '{tarball_path}': {e}")
         return False, str(e)
 
-def restore_files(job_name, backup_set_id, files, dest=None, base_dir=None):
+def restore_files(job_name, backup_set_id, files, dest=None, base_dir=None, event_id=None, restore_option="selected"):
     """
     Restore a list of files from a backup set.
     :param job_name: Name of the backup job.
@@ -107,6 +109,8 @@ def restore_files(job_name, backup_set_id, files, dest=None, base_dir=None):
     :param files: List of file paths (relative to source) to restore.
     :param dest: Optional destination directory for restore.
     :param base_dir: Base directory of the project.
+    :param event_id: Optional event ID for logging.
+    :param restore_option: "full" or "selected"
     :return: Dict with lists of restored files and errors.
     """
     logger = setup_logger(job_name, log_file="logs/restore.log")
@@ -116,47 +120,81 @@ def restore_files(job_name, backup_set_id, files, dest=None, base_dir=None):
     manifest = get_manifest(job_name, backup_set_id, base_dir)
     restored = []
     errors = []
-    for f in manifest.get("files", []):
-        if f["path"] in files:
-            tarball_path = f["tarball_path"]
-            member_path = f["path"]
-            # Determine restore target location
-            if dest:
-                target = os.path.join(dest, member_path)
-            else:
-                source_base = manifest["config"]["source"]
-                target = os.path.join(source_base, member_path)
-            # Attempt extraction
-            ok, err = extract_file_from_tarball(tarball_path, member_path, target, logger)
-            if ok:
-                restored.append(target)
-            else:
-                errors.append({"file": member_path, "error": err})
-                logger.error(f"Restore failed for '{member_path}': {err}")
-                # Exit early on first error
-                break
-    logger.info(f"Restore complete. Restored: {len(restored)}, Errors: {len(errors)}")
-    if errors:
-        logger.error(f"Restore errors: {errors}")
-    set_restore_status(job_name, backup_set_id, running=False)
+    start_time = time.time()
+
+    restore_path = dest if dest else manifest["config"]["source"]
+    event_type = "restore"
+    event_desc = f"Restoring to: {restore_path}"
+    option_str = "full" if restore_option == "full" else "selected files"
+
+    # Initialize event if not provided
+    if not event_id:
+        event_id = initialize_event(
+            job_name=job_name,
+            event=event_desc,
+            backup_type=event_type,
+            encrypt=False,
+            sync=False
+        )
+        # Optionally update with restore option
+        update_event(event_id, event=f"{event_desc} (option: {option_str})", status="running")
+
+    try:
+        for f in manifest.get("files", []):
+            if f["path"] in files:
+                tarball_path = f["tarball_path"]
+                member_path = f["path"]
+                # Determine restore target location
+                if dest:
+                    target = os.path.join(dest, member_path)
+                else:
+                    source_base = manifest["config"]["source"]
+                    target = os.path.join(source_base, member_path)
+                # Attempt extraction
+                ok, err = extract_file_from_tarball(tarball_path, member_path, target, logger)
+                if ok:
+                    restored.append(target)
+                else:
+                    errors.append({"file": member_path, "error": err})
+                    logger.error(f"Restore failed for '{member_path}': {err}")
+                    # Exit early on first error
+                    break
+        logger.info(f"Restore complete. Restored: {len(restored)}, Errors: {len(errors)}")
+        if errors:
+            logger.error(f"Restore errors: {errors}")
+            status = "error"
+            event_msg = f"Restore failed: {errors[0]['error'] if errors else 'Unknown error'}"
+        else:
+            status = "success"
+            event_msg = f"Restore complete to {restore_path} ({option_str})"
+        runtime = int(time.time() - start_time)
+        runtime_str = f"{runtime//3600:02}:{(runtime%3600)//60:02}:{runtime%60:02}"
+        if event_exists(event_id):
+            finalize_event(
+                event_id=event_id,
+                status=status,
+                event=event_msg,
+                runtime=runtime_str
+            )
+    finally:
+        set_restore_status(job_name, backup_set_id, running=False)
     return {"restored": restored, "errors": errors}
 
-def restore_full(job_name, backup_set_id, dest=None, base_dir=None):
+def restore_full(job_name, backup_set_id, dest=None, base_dir=None, event_id=None):
     """
     Restore all files from a backup set.
     :param job_name: Name of the backup job.
     :param backup_set_id: Timestamp string identifying the backup set.
     :param dest: Optional destination directory for restore.
     :param base_dir: Base directory of the project.
+    :param event_id: Optional event ID for logging.
     :return: Dict with lists of restored files and errors.
     """
     logger = setup_logger(job_name, log_file="logs/restore.log")
     logger.info(f"Starting full restore for job '{job_name}', backup_set_id '{backup_set_id}'")
-    # Before starting restore
     set_restore_status(job_name, backup_set_id, running=True)
     manifest = get_manifest(job_name, backup_set_id, base_dir)
     files = [f["path"] for f in manifest.get("files", [])]
-    result = restore_files(job_name, backup_set_id, files, dest=dest, base_dir=base_dir)
-    # After restore completes (success or fail)
+    result = restore_files(job_name, backup_set_id, files, dest=dest, base_dir=base_dir, event_id=event_id, restore_option="full")
     set_restore_status(job_name, backup_set_id, running=False)
     return result

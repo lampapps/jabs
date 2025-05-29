@@ -15,6 +15,7 @@ import boto3
 from app.settings import BASE_DIR, LOG_DIR, EVENTS_FILE, GLOBAL_CONFIG_PATH, HOME_DIR, MAX_LOG_LINES
 from core import restore
 from app.utils.restore_status import check_restore_status
+from app.utils.event_logger import load_events_locked, save_events_locked
 
 api_bp = Blueprint('api', __name__)
 
@@ -40,12 +41,7 @@ def restore_status(job_name, backup_set_id):
 @api_bp.route("/api/events")
 def get_events():
     """Return all events from the events file."""
-    events_file = EVENTS_FILE
-    if os.path.exists(events_file):
-        with open(events_file, encoding="utf-8") as f:
-            events = json.load(f)
-    else:
-        events = {"data": []}
+    events = load_events_locked()
     return jsonify(events)
 
 @api_bp.route('/data/dashboard/events.json')
@@ -322,16 +318,14 @@ def manifest_page(job_name, backup_set_id):
 @api_bp.route('/api/events/delete', methods=['POST'])
 def delete_events():
     """Delete events by ID and remove corresponding manifest files if they exist."""
+
     data = request.get_json()
     ids = data.get('ids', [])
     if not ids:
         return jsonify({"message": "No IDs provided."}), 400
-    events_file = EVENTS_FILE
-    if not os.path.exists(events_file):
-        return jsonify({"message": "No events file found."}), 404
-    with open(events_file, 'r', encoding="utf-8") as f:
-        events_json = json.load(f)
-        events = events_json.get("data", [])
+
+    events_json = load_events_locked()
+    events = events_json.get("data", [])
 
     # Find events to delete (so we can remove their manifests if they exist)
     events_to_delete = [e for e in events if str(e.get('id') or e.get('starttimestamp')) in ids]
@@ -340,9 +334,8 @@ def delete_events():
     events = [e for e in events if str(e.get('id') or e.get('starttimestamp')) not in ids]
     events_json["data"] = events
 
-    # Save updated events file
-    with open(events_file, 'w', encoding="utf-8") as f:
-        json.dump(events_json, f, indent=2)
+    # Save updated events file atomically
+    save_events_locked(events_json)
 
     # Remove corresponding manifest files if they exist
     for event in events_to_delete:
