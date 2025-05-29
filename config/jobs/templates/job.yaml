@@ -18,7 +18,7 @@ exclude:
   - "*.lock"             # Exclude lock files (e.g., file.lock) 
   - "*.log"              # Exclude log files
   - "*.iso"              # Exclude ISO disk images
-  - "*.tar.gz"           # Exclude tarball archives
+  - "*.tar.*"           # Exclude tarball archives
   - "*.tar"              # Exclude uncompressed tarball archives
   
   # Directory-specific exclusions
@@ -36,9 +36,7 @@ exclude:
   - "docs/"              # Exclude a specific directory
   
   # Advanced patterns
-  - "__pycache__/"       # Exclude all `__pycache__` directories at any level
-  - "**/__pycache__/"    # Exclude all `__pycache__` directories recursively
-  - "**/__pycache__/**"  # Exclude all files and subdirectories within any `__pycache__` directory
+  - "**/__pycache__/**"  # Exclude all files and subdirectories within any `__pycache__` directory at any level
   - "**/*.class"         # Exclude Java compiled class files recursively
 
 # More advanced examples for `exclude`:
@@ -48,7 +46,6 @@ exclude:
 #   - "**/backup_*/": Excludes all directories starting with `backup_` at any level.
 #   - "**/202*/": Excludes all directories with names starting with `202` (e.g., year-based directories).
 #   - "**/*.{jpg,png,gif}": Excludes all image files with `.jpg`, `.png`, or `.gif` extensions.
-#   - "**/!(important).txt": Excludes all `.txt` files except those named `important.txt` (requires extended globbing).
 #   - "**/logs/**/debug.log": Excludes `debug.log` files in any `logs` subdirectory.
 #   - "**/!(keep_this_dir)/": Excludes all directories except `keep_this_dir` (requires extended globbing).
 
@@ -83,7 +80,6 @@ schedules:
 #  region: "us-east-1"  # AWS region (overrides profile region if specified)
 #  bucket: "my-bucket"  # S3 bucket name (required for cloud backups)
 #  storage_class: "STANDARD"  # S3 storage class (e.g., STANDARD, INTELLIGENT_TIERING, STANDARD_IA, ONEZONE_IA, GLACIER, DEEP_ARCHIVE)
-#                             # If omitted, defaults to STANDARD. Use to control S3 cost and retrieval speed.
 #  enabled: false       # true or false, false can be overridden by CLI
 
 # encryption: 

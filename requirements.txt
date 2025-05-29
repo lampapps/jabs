@@ -6,3 +6,5 @@ markdown
 cron-descriptor
 waitress
 python-dotenv
+portalocker
+

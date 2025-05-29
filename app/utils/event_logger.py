@@ -5,13 +5,16 @@ import socket
 import time
 from datetime import datetime
 from app.settings import BASE_DIR, EVENTS_FILE
+import portalocker
 
 def load_events():
     """Load the events from the JSON file."""
     if os.path.exists(EVENTS_FILE):
         try:
             with open(EVENTS_FILE, "r") as f:
+                portalocker.lock(f, portalocker.LOCK_SH)
                 events = json.load(f)
+                portalocker.unlock(f)
                 return events
         except json.JSONDecodeError:
             print("Warning: events.json is empty or corrupted.")
@@ -23,7 +26,9 @@ def save_events(events):
     """Save the events to the JSON file."""
     os.makedirs(os.path.dirname(EVENTS_FILE), exist_ok=True)
     with open(EVENTS_FILE, "w") as f:
+        portalocker.lock(f, portalocker.LOCK_EX)
         json.dump(events, f, indent=4)
+        portalocker.unlock(f)
 
 def generate_event_id(hostname, job_name, starttimestamp):
     """Generate a unique ID for the event."""

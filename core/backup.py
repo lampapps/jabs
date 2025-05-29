@@ -6,11 +6,11 @@ import fnmatch
 import tarfile
 import glob
 import shutil
-import fcntl
 import socket
 from datetime import datetime
 
 import yaml
+import portalocker
 
 from app.utils.logger import setup_logger, timestamp, ensure_dir
 from app.utils.manifest import write_manifest_files, extract_tar_info, merge_configs
@@ -72,9 +72,9 @@ def acquire_lock(lock_path):
     """
     lock_file = open(lock_path, 'w')
     try:
-        fcntl.flock(lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        portalocker.lock(lock_file, portalocker.LOCK_EX | portalocker.LOCK_NB)
         return lock_file
-    except BlockingIOError:
+    except portalocker.exceptions.LockException:
         lock_file.close()
         return None
 
@@ -83,7 +83,7 @@ def release_lock(lock_file):
     Release a previously acquired file lock.
     """
     try:
-        fcntl.flock(lock_file, fcntl.LOCK_UN)
+        portalocker.unlock(lock_file)
         lock_file.close()
     except Exception:
         pass
