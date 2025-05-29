@@ -124,8 +124,11 @@ def restore_files(job_name, backup_set_id, files, dest=None, base_dir=None, even
 
     restore_path = dest if dest else manifest["config"]["source"]
     event_type = "restore"
-    event_desc = f"Restoring to: {restore_path}"
-    option_str = "full" if restore_option == "full" else "selected files"
+    # PATCH: Use descriptive event for full or selected restore
+    if restore_option == "full":
+        event_desc = f"Restoring all files to: {restore_path}"
+    else:
+        event_desc = f"Restoring selected files to: {restore_path}"
 
     # Initialize event if not provided
     if not event_id:
@@ -136,8 +139,8 @@ def restore_files(job_name, backup_set_id, files, dest=None, base_dir=None, even
             encrypt=False,
             sync=False
         )
-        # Optionally update with restore option
-        update_event(event_id, event=f"{event_desc} (option: {option_str})", status="running")
+        # PATCH: Show option in event
+        update_event(event_id, event=f"{event_desc}", status="running")
 
     try:
         for f in manifest.get("files", []):
@@ -163,10 +166,16 @@ def restore_files(job_name, backup_set_id, files, dest=None, base_dir=None, even
         if errors:
             logger.error(f"Restore errors: {errors}")
             status = "error"
-            event_msg = f"Restore failed: {errors[0]['error'] if errors else 'Unknown error'}"
+            if restore_option == "full":
+                event_msg = f"Full restore failed to {restore_path}: {errors[0]['error'] if errors else 'Unknown error'}"
+            else:
+                event_msg = f"Partial restore failed to {restore_path} with selected files: {errors[0]['error'] if errors else 'Unknown error'}"
         else:
             status = "success"
-            event_msg = f"Restore complete to {restore_path} ({option_str})"
+            if restore_option == "full":
+                event_msg = f"Full restore complete to {restore_path}"
+            else:
+                event_msg = f"Partial restore complete to {restore_path} with selected files"
         runtime = int(time.time() - start_time)
         runtime_str = f"{runtime//3600:02}:{(runtime%3600)//60:02}:{runtime%60:02}"
         if event_exists(event_id):

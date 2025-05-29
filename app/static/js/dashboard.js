@@ -161,25 +161,60 @@ $(document).ready(function () {
         })
         .then(resp => resp.json())
         .then(data => {
-            alert(data.message || 'Deleted.');
+            alert(data.message);
             selectedIds.clear();
             eventsTable.ajax.reload(null, false);
         });
     });
 
-    // Refresh the table data periodically
-    setInterval(function () {
-        eventsTable.ajax.reload(null, false);
-    }, 10000); // every 10 seconds (adjust as needed)
+    // --- Persistent Drag-and-Drop for Dashboard Cards ---
+    const dashboardRow = document.getElementById('dashboard-cards-row');
+    const CARD_ORDER_KEY = "dashboardCardOrder";
 
-}); // End document ready
+    // Restore card order from localStorage
+    function restoreCardOrder() {
+        const order = JSON.parse(localStorage.getItem(CARD_ORDER_KEY) || "[]");
+        if (order.length && dashboardRow) {
+            // Get current cards as an array
+            const cards = Array.from(dashboardRow.children);
+            // Sort cards according to saved order
+            order.forEach(cardId => {
+                const card = cards.find(c => c.id === cardId);
+                if (card) dashboardRow.appendChild(card);
+            });
+        }
+    }
 
-// Use a single DOMContentLoaded listener for chart initializations
-document.addEventListener("DOMContentLoaded", function () {
-    let diskUsageChart = null;
-    let s3UsageChart = null;
+    // Save card order to localStorage
+    function saveCardOrder() {
+        if (!dashboardRow) return;
+        const order = Array.from(dashboardRow.children).map(card => card.id);
+        localStorage.setItem(CARD_ORDER_KEY, JSON.stringify(order));
+    }
+
+    // Assign unique IDs to each dashboard card if not already set
+    if (dashboardRow) {
+        Array.from(dashboardRow.children).forEach((card, idx) => {
+            if (!card.id) card.id = `dashboard-card-${idx + 1}`;
+        });
+        restoreCardOrder();
+    }
+
+    // Make the dashboard cards row sortable
+    if (window.Sortable && dashboardRow) {
+        new Sortable(dashboardRow, {
+            animation: 150,
+            handle: '.card-header',
+            draggable: '.dashboard-card',
+            ghostClass: 'sortable-ghost',
+            onEnd: saveCardOrder // Save order after drag-and-drop
+        });
+    } else {
+        console.warn("SortableJS is not loaded. Drag-and-drop for dashboard cards will not work.");
+    }
 
     // --- Disk Usage Chart ---
+    let diskUsageChart = null;
     function initializeDiskUsageChart() {
         fetch('/api/disk_usage')
             .then(response => response.json())
@@ -293,6 +328,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     // --- S3 Usage Chart ---
+    let s3UsageChart = null;
     function initializeS3UsageChart() {
         fetch('/api/s3_usage')
             .then(response => response.json())
@@ -457,11 +493,9 @@ document.addEventListener("DOMContentLoaded", function () {
     // setInterval(initializeDiskUsageChart, 60000); // Refresh disk usage every minute
     // setInterval(initializeS3UsageChart, 300000); // Refresh S3 usage every 5 minutes
 
-    // Handle window resize to update charts (Chart.js 3+ handles this mostly automatically with responsive: true)
-    // You might only need custom resize logic for complex scenarios.
-    // window.addEventListener('resize', function () {
-    //     if (diskUsageChart) diskUsageChart.resize();
-    //     if (s3UsageChart) s3UsageChart.resize();
-    // });
-    
-});
+    // Refresh the table data periodically
+    setInterval(function () {
+        eventsTable.ajax.reload(null, false);
+    }, 10000); // every 10 seconds (adjust as needed)
+
+}); // End document ready
