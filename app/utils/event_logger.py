@@ -5,7 +5,9 @@ import socket
 import time
 from datetime import datetime
 from app.settings import BASE_DIR, EVENTS_FILE
+from app.utils.emailer import email_event
 import portalocker
+
 
 def load_events_locked():
     """Load events.json with a shared lock (cross-platform)."""
@@ -91,15 +93,10 @@ def finalize_event(event_id, status, event, runtime=None, url=None, backup_set_i
     """
     Finalize an event in the events.json file by updating its status, event description,
     runtime, URL, and backup_set_id.
-    :param event_id: The unique ID of the event to finalize.
-    :param status: The final status ('success', 'error', 'warning').
-    :param event: The final event description string.
-    :param runtime: Optional final runtime string.
-    :param url: Optional URL (consider removing if backup_set_id is used for links).
-    :param backup_set_id: Optional backup set ID string associated with the event.
     """
     events = load_events_locked()
     found = False
+    event_data = None
 
     for item in events["data"]:
         if item["id"] == event_id:
@@ -109,34 +106,60 @@ def finalize_event(event_id, status, event, runtime=None, url=None, backup_set_i
             if runtime is None and "start_time_float" in item:
                 end_time = time.time()
                 duration_seconds = end_time - item["start_time_float"]
-                # Format duration as HH:MM:SS
                 hours, remainder = divmod(duration_seconds, 3600)
                 minutes, seconds = divmod(remainder, 60)
                 item["runtime"] = f"{int(hours):02}:{int(minutes):02}:{int(seconds):02}"
             elif runtime:
                 item["runtime"] = runtime
 
-            # Remove the old URL field if it exists
             if "url" in item:
                 del item["url"]
 
-            # Add the backup_set_id if provided
             if backup_set_id:
                 item["backup_set_id"] = backup_set_id
             else:
-                # Ensure the key exists but is null if no ID provided for this finalization
                 item["backup_set_id"] = None
 
-            # Remove temporary start time float
             if "start_time_float" in item:
                 del item["start_time_float"]
 
             found = True
+            event_data = item  # Save for email
             break
 
     if found:
         save_events_locked(events)
-    # else: Consider logging a warning if event_id wasn't found
+        # --- Email notification logic based on notify_on settings ---
+        from app.settings import EMAIL_CONFIG
+
+        # Map status and backup_type to event_type for email notifications
+        event_type = None
+        if status == "error":
+            event_type = "error"
+        elif status == "success":
+            backup_type = event_data.get("backup_type", "").lower()
+            if backup_type == "restore":
+                event_type = "restore_complete"
+            elif backup_type == "sync":
+                event_type = "sync_complete"
+            else:
+                event_type = "job_complete"
+
+        if event_type:
+            subject = f"JABS Notification: {event_type.replace('_', ' ').title()}"
+            # Build detailed email body
+            body = (
+                f"Event: {event}\n"
+                f"Status: {status}\n"
+                f"Start Time: {event_data.get('starttimestamp', 'N/A')}\n"
+                f"Machine: {event_data.get('hostname', 'N/A')}\n"
+                f"Job Name: {event_data.get('job_name', 'N/A')}\n"
+                f"Type: {event_data.get('backup_type', 'N/A')}\n"
+                f"Backup Set: {event_data.get('backup_set_id', 'N/A')}\n"
+                f"Runtime: {event_data.get('runtime', 'N/A')}\n"
+            )
+            from app.utils.emailer import email_event  # Import here to avoid circular import
+            email_event(event_type, subject, body)
 
 def remove_event_by_backup_set_id(backup_set_id, logger):
     """

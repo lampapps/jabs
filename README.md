@@ -261,6 +261,7 @@ This project uses the following open source libraries:
 - [DataTables.js](https://datatables.net/) - MIT License
 - [Bootstrap](https://getbootstrap.com/) - MIT License
 - [Font Awesome](https://fontawesome.com/) - CC BY 4.0 License
+- [SortableJS](https://sortablejs.github.io/Sortable/) - MIT License
 
 See each library's website for full license details.
 

@@ -2,8 +2,9 @@
 
 import os
 import sys
+import yaml
 
-VERSION = "v0.3.0"
+VERSION = "v0.4.0"
 
 # --- Application Configuration ---
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
@@ -31,3 +32,10 @@ MAX_LOG_LINES = 1001
 # --- Restore Configuration ---
 HOME_DIR = os.path.expanduser("~")
 RESTORE_SCRIPT_SRC = os.path.join(BASE_DIR, 'restore.py')
+
+# --- Load GLOBAL_CONFIG ---
+with open(GLOBAL_CONFIG_PATH, "r") as f:
+    GLOBAL_CONFIG = yaml.safe_load(f)
+
+# --- SMTP Configuration ---
+EMAIL_CONFIG = GLOBAL_CONFIG.get("email", {})

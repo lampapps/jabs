@@ -49,3 +49,22 @@ s3_buckets:
     label: "Backup"
   - bucket: "lampapps-jabs-dev"
     label: "JABS-Dev"
+
+email:
+  smtp_server: "smtp.zoho.com"         # Gmail SMTP server (change if using another provider)
+  smtp_port: 587                       # 587 for TLS (Gmail and most providers)
+  username: "jferry@lampapps.com"      # Your Gmail address (or other SMTP username)
+  from_addr: "jferry@lampapps.com"     # Sender address
+  to_addrs:                             # List of recipient email addresses
+    - "jamesoferry@gmail.com"
+  #  - "jamesoferry@gmail.com"
+  use_tls: true                         # Use TLS for SMTP connection (recommended for Gmail)
+  # password: Set in .env as JABS_EMAIL_PASSWORD
+
+  # Configure which events trigger email notifications
+  notify_on:
+    error: true             # Send email on errors
+    job_complete: true      # Send email when a job completes successfully
+    restore_complete: true  # Send email when a restore completes
+    sync_complete: true    # Send email when a sync completes
+    # Add more event types as needed
