@@ -16,12 +16,11 @@ from app.settings import CONFIG_DIR, LOCK_DIR, LOG_DIR, CLI_SCRIPT, PYTHON_EXECU
 
 # --- Constants ---
 SCHEDULE_TOLERANCE = timedelta(seconds=15)
-SCHEDULER_LOG_FILE = os.path.join(LOG_DIR, "scheduler.log")
 SCHEDULER_STATUS_FILE = os.path.join(LOG_DIR, "scheduler.status")
 
 # --- Logging Setup ---
 os.makedirs(LOG_DIR, exist_ok=True)
-logger = setup_logger("scheduler", log_file=SCHEDULER_LOG_FILE)
+logger = setup_logger("scheduler", log_file="scheduler.log")
 
 # --- Lock File Handling ---
 _lock_files = {}

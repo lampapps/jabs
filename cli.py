@@ -6,6 +6,7 @@ import yaml
 import os
 from app.utils.event_logger import initialize_event, update_event, finalize_event, get_event_status, event_exists
 from dotenv import load_dotenv
+from app.utils.logger import setup_logger
 
 # Set the working directory to the project root
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
@@ -18,30 +19,6 @@ PASSPHRASE = os.getenv("JABS_ENCRYPT_PASSPHRASE")
 
 try:
     from core.backup import run_backup
-
-    def setup_logger(job_name):
-        """Set up a logger with the job name included in every message."""
-        log_file = "logs/backup.log"  # Default log file
-        logger = logging.getLogger("cli")
-        # Prevent duplicate handlers if called multiple times
-        if not logger.handlers:
-            logger.setLevel(logging.INFO)
-
-            # Create handlers
-            file_handler = logging.FileHandler(log_file)
-            stream_handler = logging.StreamHandler()
-
-            # Create formatter and add it to the handlers
-            formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
-            file_handler.setFormatter(formatter)
-            stream_handler.setFormatter(formatter)
-
-            # Add handlers to the logger
-            logger.addHandler(file_handler)
-            logger.addHandler(stream_handler) 
-
-        # Use a LoggerAdapter to inject the job name
-        return logging.LoggerAdapter(logger, {"job_name": job_name})
 
     def merge_dicts(global_dict, job_dict):
         """Merge two dicts, with job_dict taking precedence."""

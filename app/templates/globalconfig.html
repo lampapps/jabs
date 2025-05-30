@@ -78,6 +78,40 @@
                                 </ul>
                             </li>
                         </ul>
+                        <strong>Email (SMTP) Configuration:</strong>
+                        <ul class="mb-0 small">
+                            <li>SMTP Server: <code>{{ global_config.email.smtp_server or 'Not set' }}</code></li>
+                            <li>SMTP Port: <code>{{ global_config.email.smtp_port or 'Not set' }}</code></li>
+                            <li>Username: <code>{{ global_config.email.username or 'Not set' }}</code></li>
+                            <li>From Address: <code>{{ global_config.email.from_addr or 'Not set' }}</code></li>
+                            <li>To Addresses:
+                                <ul>
+                                    {% for addr in global_config.email.to_addrs or [] %}
+                                        <li><code>{{ addr }}</code></li>
+                                    {% endfor %}
+                                </ul>
+                            </li>
+                            <li>Use TLS:
+                                {% if global_config.email.use_tls %}
+                                    <span class="badge bg-success">True</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">False</span>
+                                {% endif %}
+                            </li>
+                            <li>Notify On:
+                                <ul>
+                                    {% for key, value in global_config.email.notify_on.items() %}
+                                        <li>{{ key|replace('_', ' ')|capitalize }}:
+                                            {% if value %}
+                                                <span class="badge bg-success">Enabled</span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">Disabled</span>
+                                            {% endif %}
+                                        </li>
+                                    {% endfor %}
+                                </ul>
+                            </li>
+                        </ul>
                     {% endif %}
                 </div>
                 <div class="card-footer text-end">

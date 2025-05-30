@@ -14,15 +14,15 @@ def get_passphrase():
     """
     return os.getenv("JABS_ENCRYPT_PASSPHRASE")
 
-def get_manifest(job_name, backup_set_id, base_dir):
+def get_manifest(job_name, backup_set_id, base_dir, logger):
     """
     Load the manifest JSON for a given job and backup set.
     :param job_name: Name of the backup job.
     :param backup_set_id: Timestamp string identifying the backup set.
     :param base_dir: Base directory of the project.
+    :param logger: Logger instance for logging.
     :return: Manifest dictionary.
     """
-    logger = setup_logger(job_name, log_file="logs/restore.log")
     # Sanitize job name for filesystem safety
     sanitized_job = "".join(c if c.isalnum() or c in ("-", "_") else "_" for c in job_name)
     manifest_path = os.path.join(base_dir, "data", "manifests", sanitized_job, f"{backup_set_id}.json")
@@ -101,7 +101,7 @@ def extract_file_from_tarball(tarball_path, member_path, target_path, logger):
         logger.error(f"Error extracting '{member_path}' from '{tarball_path}': {e}")
         return False, str(e)
 
-def restore_files(job_name, backup_set_id, files, dest=None, base_dir=None, event_id=None, restore_option="selected"):
+def restore_files(job_name, backup_set_id, files, dest=None, base_dir=None, event_id=None, restore_option="selected", logger=None):
     """
     Restore a list of files from a backup set.
     :param job_name: Name of the backup job.
@@ -111,13 +111,15 @@ def restore_files(job_name, backup_set_id, files, dest=None, base_dir=None, even
     :param base_dir: Base directory of the project.
     :param event_id: Optional event ID for logging.
     :param restore_option: "full" or "selected"
+    :param logger: Logger instance for logging.
     :return: Dict with lists of restored files and errors.
     """
-    logger = setup_logger(job_name, log_file="logs/restore.log")
+    if logger is None:
+        logger = setup_logger(job_name, log_file="restore.log")
     logger.info(f"PASSPHRASE loaded: {'YES' if get_passphrase() else 'NO'}")
     logger.info(f"Starting restore_files for job '{job_name}', backup_set_id '{backup_set_id}'")
     set_restore_status(job_name, backup_set_id, running=True)
-    manifest = get_manifest(job_name, backup_set_id, base_dir)
+    manifest = get_manifest(job_name, backup_set_id, base_dir, logger)
     restored = []
     errors = []
     start_time = time.time()
@@ -199,11 +201,11 @@ def restore_full(job_name, backup_set_id, dest=None, base_dir=None, event_id=Non
     :param event_id: Optional event ID for logging.
     :return: Dict with lists of restored files and errors.
     """
-    logger = setup_logger(job_name, log_file="logs/restore.log")
+    logger = setup_logger(job_name, log_file="restore.log")
     logger.info(f"Starting full restore for job '{job_name}', backup_set_id '{backup_set_id}'")
     set_restore_status(job_name, backup_set_id, running=True)
-    manifest = get_manifest(job_name, backup_set_id, base_dir)
+    manifest = get_manifest(job_name, backup_set_id, base_dir, logger)
     files = [f["path"] for f in manifest.get("files", [])]
-    result = restore_files(job_name, backup_set_id, files, dest=dest, base_dir=base_dir, event_id=event_id, restore_option="full")
+    result = restore_files(job_name, backup_set_id, files, dest=dest, base_dir=base_dir, event_id=event_id, restore_option="full", logger=logger)
     set_restore_status(job_name, backup_set_id, running=False)
     return result

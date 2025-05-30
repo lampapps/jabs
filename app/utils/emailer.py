@@ -6,7 +6,7 @@ from app.settings import EMAIL_CONFIG
 from app.utils.logger import setup_logger
 
 # Set up a dedicated logger for email notifications
-email_logger = setup_logger("email", log_file="logs/email.log")
+email_logger = setup_logger("email", log_file="email.log")
 
 load_dotenv()
 
