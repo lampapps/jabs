@@ -1,19 +1,19 @@
-#/utils/event_logger.py
+"""Event logging utilities for JABS."""
+
 import json
 import os
 import socket
 import time
 from datetime import datetime
-from app.settings import BASE_DIR, EVENTS_FILE
-from app.utils.emailer import email_event
 import portalocker
 
+from app.settings import EVENTS_FILE
 
 def load_events_locked():
     """Load events.json with a shared lock (cross-platform)."""
     if os.path.exists(EVENTS_FILE):
         try:
-            with open(EVENTS_FILE, "r") as f:
+            with open(EVENTS_FILE, "r", encoding="utf-8") as f:  # Specify encoding
                 portalocker.lock(f, portalocker.LOCK_SH)
                 try:
                     events = json.load(f)
@@ -22,7 +22,7 @@ def load_events_locked():
                     events = {"data": []}
                 portalocker.unlock(f)
                 return events
-        except Exception as e:
+        except OSError as e:  # More specific exception
             print(f"Warning: Failed to load events.json: {e}")
             return {"data": []}
     return {"data": []}
@@ -30,7 +30,7 @@ def load_events_locked():
 def save_events_locked(events):
     """Save events.json with an exclusive lock (cross-platform)."""
     os.makedirs(os.path.dirname(EVENTS_FILE), exist_ok=True)
-    with open(EVENTS_FILE, "w") as f:
+    with open(EVENTS_FILE, "w", encoding="utf-8") as f:  # Specify encoding
         portalocker.lock(f, portalocker.LOCK_EX)
         json.dump(events, f, indent=4)
         portalocker.unlock(f)
@@ -89,7 +89,7 @@ def update_event(event_id, backup_type=None, event=None, status=None, url=None):
 
     save_events_locked(events)
 
-def finalize_event(event_id, status, event, runtime=None, url=None, backup_set_id=None):
+def finalize_event(event_id, status, event, runtime=None, backup_set_id=None):
     """
     Finalize an event in the events.json file by updating its status, event description,
     runtime, URL, and backup_set_id.
@@ -130,7 +130,8 @@ def finalize_event(event_id, status, event, runtime=None, url=None, backup_set_i
     if found:
         save_events_locked(events)
         # --- Email notification logic based on notify_on settings ---
-        from app.settings import EMAIL_CONFIG
+        # Import inside function to avoid circular import
+        from app.utils.emailer import email_event
 
         # Map status and backup_type to event_type for email notifications
         event_type = None
@@ -149,16 +150,14 @@ def finalize_event(event_id, status, event, runtime=None, url=None, backup_set_i
             subject = f"JABS Notification: {event_type.replace('_', ' ').title()}"
             # Build detailed email body
             body = (
-                f"Event: {event}\n"
-                f"Status: {status}\n"
-                f"Start Time: {event_data.get('starttimestamp', 'N/A')}\n"
                 f"Machine: {event_data.get('hostname', 'N/A')}\n"
                 f"Job Name: {event_data.get('job_name', 'N/A')}\n"
                 f"Type: {event_data.get('backup_type', 'N/A')}\n"
-                f"Backup Set: {event_data.get('backup_set_id', 'N/A')}\n"
+                f"Event: {event}\n"
+                f"Status: {status}\n"
+                f"Start Time: {event_data.get('starttimestamp', 'N/A')}\n"
                 f"Runtime: {event_data.get('runtime', 'N/A')}\n"
             )
-            from app.utils.emailer import email_event  # Import here to avoid circular import
             email_event(event_type, subject, body)
 
 def remove_event_by_backup_set_id(backup_set_id, logger):
@@ -196,10 +195,10 @@ def get_event_status(event_id):
     """
     if not os.path.exists(EVENTS_FILE):
         return None
-    with open(EVENTS_FILE, "r") as f:
+    with open(EVENTS_FILE, "r", encoding="utf-8") as f:  # Specify encoding
         try:
             events_json = json.load(f)
-        except Exception:
+        except json.JSONDecodeError:
             return None
     events = events_json.get("data", [])
     for event in events:

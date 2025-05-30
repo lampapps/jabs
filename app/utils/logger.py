@@ -1,4 +1,5 @@
-# /utils/logger.py
+"""Logging utilities for JABS."""
+
 import logging
 import os
 import glob
@@ -47,9 +48,11 @@ def setup_logger(job_name, log_file="backup.log"):
     return logging.LoggerAdapter(logger, {"job_name": job_name})
 
 def timestamp():
+    """Return the current timestamp as a string."""
     return datetime.now().strftime('%Y%m%d_%H%M%S')
 
 def ensure_dir(path):
+    """Ensure the given directory exists."""
     os.makedirs(path, exist_ok=True)
 
 def sizeof_fmt(num, suffix="B"):
@@ -61,18 +64,20 @@ def sizeof_fmt(num, suffix="B"):
     return f"{num:.1f}Yi{suffix}"
 
 def trim_log_file(log_path, max_lines):
+    """Trim the log file to the last max_lines lines."""
     try:
         if not os.path.exists(log_path):
             return
-        with open(log_path, 'r') as f:
+        with open(log_path, 'r', encoding='utf-8') as f:
             lines = f.readlines()
         if len(lines) > max_lines:
             lines_to_keep = lines[-max_lines:]
-            with open(log_path, 'w') as f:
+            with open(log_path, 'w', encoding='utf-8') as f:
                 f.writelines(lines_to_keep)
-    except Exception as e:
+    except OSError as e:
         print(f"Error trimming log file {log_path}: {e}")
 
 def trim_all_logs():
+    """Trim all log files in the log directory to MAX_LOG_LINES."""
     for log_file in glob.glob(os.path.join(LOG_DIR, "*.log")):
         trim_log_file(log_file, MAX_LOG_LINES)

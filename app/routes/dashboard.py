@@ -10,6 +10,7 @@ import markdown
 import yaml
 from cron_descriptor import get_description
 import boto3
+import botocore
 from flask import Blueprint, render_template, abort, current_app
 from markupsafe import Markup
 
@@ -37,16 +38,19 @@ def build_local_tree(path):
                 node["children"].append(build_local_tree(entry.path))
             else:
                 node["children"].append({"name": entry.name, "type": "file"})
-    except Exception:
+    except (OSError, PermissionError):
         pass  # Permission errors, etc.
     return node
 
 def build_s3_tree(bucket_name, prefix="", s3_client=None):
     """Recursively build a tree structure for an S3 bucket."""
-    import botocore
     if s3_client is None:
         s3_client = boto3.client("s3")
-    node = {"name": bucket_name if not prefix else prefix.rstrip('/'), "type": "folder", "children": []}
+    node = {
+        "name": bucket_name if not prefix else prefix.rstrip('/'),
+        "type": "folder",
+        "children": []
+    }
     paginator = s3_client.get_paginator('list_objects_v2')
     try:
         for page in paginator.paginate(Bucket=bucket_name, Prefix=prefix, Delimiter='/'):
@@ -54,7 +58,10 @@ def build_s3_tree(bucket_name, prefix="", s3_client=None):
                 node["children"].append(build_s3_tree(bucket_name, cp['Prefix'], s3_client))
             for obj in page.get('Contents', []):
                 if obj['Key'] != prefix:
-                    node["children"].append({"name": os.path.basename(obj['Key']), "type": "file"})
+                    node["children"].append({
+                        "name": os.path.basename(obj['Key']),
+                        "type": "file"
+                    })
     except botocore.exceptions.ClientError as e:
         error_code = e.response['Error']['Code']
         if error_code == 'NoSuchBucket':
@@ -63,13 +70,12 @@ def build_s3_tree(bucket_name, prefix="", s3_client=None):
                 "type": "error",
                 "children": []
             }
-        else:
-            return {
-                "name": f"S3 error: {str(e)}",
-                "type": "error",
-                "children": []
-            }
-    except Exception as e:
+        return {
+            "name": f"S3 error: {str(e)}",
+            "type": "error",
+            "children": []
+        }
+    except botocore.exceptions.BotoCoreError as e:
         return {
             "name": f"S3 error: {str(e)}",
             "type": "error",
@@ -81,7 +87,11 @@ def build_s3_tree(bucket_name, prefix="", s3_client=None):
 def dashboard():
     """Render the dashboard with scheduled jobs and their statuses."""
     jobs_dir = os.path.join(BASE_DIR, "config", "jobs")
-    job_paths = [os.path.join(jobs_dir, fname) for fname in os.listdir(jobs_dir) if fname.endswith(".yaml")]
+    job_paths = [
+        os.path.join(jobs_dir, fname)
+        for fname in os.listdir(jobs_dir)
+        if fname.endswith(".yaml")
+    ]
 
     with open('config/global.yaml', encoding="utf-8") as f:
         global_config = yaml.safe_load(f)
@@ -91,12 +101,10 @@ def dashboard():
         with open(job_path, encoding="utf-8") as f:
             job_config = yaml.safe_load(f)
 
-        # Effective AWS sync
         aws_enabled = job_config.get("aws", {}).get("enabled")
         if aws_enabled is None:
             aws_enabled = global_config.get("aws", {}).get("enabled", False)
 
-        # Effective encryption
         encrypt_enabled = job_config.get("encryption", {}).get("enabled")
         if encrypt_enabled is None:
             encrypt_enabled = global_config.get("encryption", {}).get("enabled", False)
@@ -107,7 +115,7 @@ def dashboard():
                 cron_expr = s.get("cron", "")
                 try:
                     s["cron_human"] = get_description(cron_expr)
-                except Exception:
+                except (ValueError, TypeError):
                     s["cron_human"] = cron_expr
                 enabled_schedules.append(s)
 
@@ -119,7 +127,11 @@ def dashboard():
                 "encrypt": encrypt_enabled,
             })
 
-    return render_template("index.html", scheduled_jobs=scheduled_jobs, hostname=socket.gethostname())
+    return render_template(
+        "index.html",
+        scheduled_jobs=scheduled_jobs,
+        hostname=socket.gethostname()
+    )
 
 @dashboard_bp.route("/documentation")
 def documentation():
@@ -130,31 +142,46 @@ def documentation():
     else:
         with open(readme_path, "r", encoding="utf-8") as f:
             md_content = f.read()
-        content = Markup(markdown.markdown(md_content, extensions=["fenced_code", "tables"]))
+        content = Markup(
+            markdown.markdown(md_content, extensions=["fenced_code", "tables"])
+        )
     return render_template("documentation.html", content=content)
+
+@dashboard_bp.route("/change_log")
+def change_log():
+    """Render the documentation page from CHANGELOG.md."""
+    changelog_path = os.path.join(BASE_DIR, "CHANGELOG.md")
+    if not os.path.exists(changelog_path):
+        content = "<CHANGELOG.md not found.</p>"
+    else:
+        with open(changelog_path, "r", encoding="utf-8") as f:
+            md_content = f.read()
+        content = Markup(
+            markdown.markdown(md_content, extensions=["fenced_code", "tables"])
+        )
+    return render_template("change_log.html", content=content)
 
 @dashboard_bp.route('/manifest/<string:job_name>/<string:backup_set_id>')
 def view_manifest(job_name, backup_set_id):
     """Render the manifest view for a specific job and backup set."""
-    sanitized_job = "".join(c if c.isalnum() or c in ("-", "_") else "_" for c in job_name)
-    abs_json_path = os.path.join(BASE_DIR, MANIFEST_BASE, sanitized_job, f"{backup_set_id}.json")
+    sanitized_job = "".join(
+        c if c.isalnum() or c in ("-", "_") else "_" for c in job_name
+    )
+    abs_json_path = os.path.join(
+        BASE_DIR, MANIFEST_BASE, sanitized_job, f"{backup_set_id}.json"
+    )
     if not os.path.exists(abs_json_path):
         abort(404, description="Manifest file not found (os.path.exists failed).")
     with open(abs_json_path, "r", encoding="utf-8") as f:
         manifest_data = json.load(f)
     job_config_path = find_config_path_by_job_name(job_name)
     tarball_summary_list = []
-    # Load global config for fallback
     with open(GLOBAL_CONFIG_PATH, encoding="utf-8") as f:
         global_config = yaml.safe_load(f)
-    global_encryption = global_config.get("encryption", {})
-    job_encryption = {}
     destination = None
     if job_config_path:
         job_config = load_config(job_config_path)
-        # Use job destination if present, else global
         destination = job_config.get('destination') or global_config.get('destination')
-        job_encryption = job_config.get("encryption", {})
         if destination:
             backup_set_path_on_dst = os.path.join(
                 destination,
@@ -163,19 +190,20 @@ def view_manifest(job_name, backup_set_id):
                 f"backup_set_{backup_set_id}"
             )
             tarball_summary_list = get_tarball_summary(backup_set_path_on_dst)
-    cleaned_config = get_merged_cleaned_yaml_config(job_config_path) if job_config_path else "Config file not found."
+    cleaned_config = (
+        get_merged_cleaned_yaml_config(job_config_path)
+        if job_config_path else "Config file not found."
+    )
     manifest_timestamp = manifest_data.get("timestamp", "N/A")
     if manifest_timestamp != "N/A":
         try:
             dt_object = datetime.fromisoformat(manifest_timestamp)
             manifest_timestamp = dt_object.strftime("%A, %B %d, %Y at %I:%M %p")
-        except Exception:
+        except ValueError:
             pass
     used_config = manifest_data.get("config", {})
-    # After you have tarball_summary
     total_size_bytes = sum(tb.get("size_bytes", 0) for tb in tarball_summary_list)
     total_size_human = sizeof_fmt(total_size_bytes)
-    # Pass both to render_template
     return render_template(
         'manifest.html',
         job_name=manifest_data.get("job_name", job_name),
@@ -193,12 +221,11 @@ def view_manifest(job_name, backup_set_id):
 @dashboard_bp.route('/storage-tree')
 def storage_tree_view():
     """Render the storage tree view for local and S3 storage."""
-    import botocore
-
-    config_path = os.path.join(os.path.dirname(current_app.root_path), 'config', 'global.yaml')
+    config_path = os.path.join(
+        os.path.dirname(current_app.root_path), 'config', 'global.yaml'
+    )
     with open(config_path, "r", encoding="utf-8") as f:
         config = yaml.safe_load(f)
-    # Get the single local destination and AWS bucket
     destination = config.get("destination")
     aws_cfg = config.get("aws", {})
     bucket = aws_cfg.get("bucket")
@@ -236,7 +263,7 @@ def storage_tree_view():
                         "children": []
                     }
                 })
-        except Exception as e:
+        except botocore.exceptions.BotoCoreError as e:
             s3_trees.append({
                 "label": bucket,
                 "tree": {
@@ -253,8 +280,12 @@ def storage_tree_view():
 
 @dashboard_bp.route("/scheduler_heartbeat")
 def scheduler_heartbeat():
+    """Render the scheduler heartbeat page."""
     log_path = "logs/scheduler.log"
-    check_pattern = re.compile(r"(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}),\d+ - (INFO|ERROR) - scheduler - Triggered (\d+) job\(s\) during this check\.")
+    check_pattern = re.compile(
+        r"(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}),\d+ - (INFO|ERROR) - scheduler - "
+        r"Triggered (\d+) job\(s\) during this check\."
+    )
     match_pattern = re.compile(r"job '([^']+)'")
     times = []
     triggers = []
@@ -269,7 +300,6 @@ def scheduler_heartbeat():
             times.append(m.group(1))
             triggers.append(int(m.group(3)))
             errors.append(m.group(2) == "ERROR")
-            # Look back for job names since last "Check Started"
             jobs = []
             j = i - 1
             while j >= 0 and "Scheduler Check Started" not in lines[j]:
@@ -280,7 +310,6 @@ def scheduler_heartbeat():
             jobnames.append(", ".join(reversed(jobs)) if jobs else "")
         i += 1
 
-    # Build absolute paths for user reference
     base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../'))
     venv_python = os.path.join(base_dir, 'venv', 'bin', 'python3')
     scheduler_py = os.path.join(base_dir, 'scheduler.py')

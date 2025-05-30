@@ -4,7 +4,7 @@ import os
 import sys
 import yaml
 
-VERSION = "v0.4.1"
+VERSION = "v0.4.2"
 
 # --- Application Configuration ---
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
@@ -34,7 +34,7 @@ HOME_DIR = os.path.expanduser("~")
 RESTORE_SCRIPT_SRC = os.path.join(BASE_DIR, 'restore.py')
 
 # --- Load GLOBAL_CONFIG ---
-with open(GLOBAL_CONFIG_PATH, "r") as f:
+with open(GLOBAL_CONFIG_PATH, "r", encoding="utf-8") as f:
     GLOBAL_CONFIG = yaml.safe_load(f)
 
 # --- SMTP Configuration ---

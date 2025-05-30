@@ -98,6 +98,11 @@
                     </a>
                   </li>
                   <li>
+                    <a class="dropdown-item {% if request.endpoint == 'dashboard.change_log' %}active{% endif %}" href="{{ url_for('dashboard.change_log') }}">
+                      <i class="fas fa-book me-1"></i> Change Log
+                    </a>
+                  </li>
+                  <li>
                     <a class="dropdown-item {% if request.endpoint == 'logs.logs_view' %}active{% endif %}" href="{{ url_for('logs.logs_view') }}">
                       <i class="fas fa-file-alt me-1"></i> Logs
                     </a>

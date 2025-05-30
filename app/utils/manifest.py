@@ -10,7 +10,7 @@ from datetime import datetime
 from collections import defaultdict
 
 import yaml
-from jinja2 import Environment, FileSystemLoader
+from jinja2 import Environment, FileSystemLoader, TemplateError
 
 from app.utils.logger import ensure_dir, sizeof_fmt
 from app.settings import MANIFEST_BASE, GLOBAL_CONFIG_PATH
@@ -49,7 +49,7 @@ def extract_tar_info(tar_path, encryption_enabled=False):
                         "size_bytes": member.size,
                         "modified": datetime.fromtimestamp(member.mtime).strftime('%Y-%m-%d %H:%M:%S')
                     })
-    except Exception as e:
+    except (tarfile.TarError, OSError) as e:
         print(f"Error reading tar file {tar_path}: {e}")
     return files_info
 
@@ -60,7 +60,6 @@ def build_tarball_summary_from_manifest(files_list):
     :param files_list: List of file info dicts (from manifest).
     :return: List of dicts summarizing each tarball.
     """
-
     tarballs = defaultdict(lambda: {"size_bytes": 0, "timestamp_str": "00000000_000000"})
     timestamp_pattern = re.compile(r'_(\d{8}_\d{6})\.tar\.gz')
     for f in files_list:
@@ -92,18 +91,22 @@ def parse_size_to_bytes(size_str):
     :return: Size in bytes (int).
     """
     size_str = size_str.strip()
-    units = {"B": 1, "KB": 1024, "KIB": 1024, "MB": 1024**2, "MIB": 1024**2,
-             "GB": 1024**3, "GIB": 1024**3, "TB": 1024**4, "TIB": 1024**4}
+    units = {
+        "B": 1, "KB": 1024, "KIB": 1024, "MB": 1024**2, "MIB": 1024**2,
+        "GB": 1024**3, "GIB": 1024**3, "TB": 1024**4, "TIB": 1024**4
+    }
     match = re.match(r"([\d.]+)\s*([KMGT]?i?B)", size_str, re.I)
     if not match:
         try:
             return int(size_str)
-        except Exception:
+        except ValueError:
             return 0
     value, unit = match.groups()
     return int(float(value) * units[unit.upper()])
 
-def write_manifest_files(job_config_path, job_name, backup_set_id, backup_set_path, new_tar_info, mode="full"):
+def write_manifest_files(
+    job_config_path, job_name, backup_set_id, backup_set_path, new_tar_info, mode="full"
+):
     """
     Write manifest files (JSON and HTML) for a backup set.
     Updates or creates the manifest JSON and generates an HTML summary.
@@ -121,10 +124,12 @@ def write_manifest_files(job_config_path, job_name, backup_set_id, backup_set_pa
         with open(GLOBAL_CONFIG_PATH, 'r', encoding='utf-8') as f:
             global_config = yaml.safe_load(f)
         merged_config = merge_configs(global_config, job_config_dict)
-    except Exception as e:
+    except (OSError, yaml.YAMLError) as e:
         merged_config = {"error": f"Could not load config: {e}"}
 
-    sanitized_job = "".join(c if c.isalnum() or c in ("-", "_") else "_" for c in job_name)
+    sanitized_job = "".join(
+        c if c.isalnum() or c in ("-", "_") else "_" for c in job_name
+    )
     json_dir = os.path.join(MANIFEST_BASE, sanitized_job)
     ensure_dir(json_dir)
     json_path = os.path.join(json_dir, f"{backup_set_id}.json")
@@ -133,7 +138,7 @@ def write_manifest_files(job_config_path, job_name, backup_set_id, backup_set_pa
         try:
             with open(json_path, "r", encoding='utf-8') as f:
                 manifest_data = json.load(f)
-        except Exception:
+        except (OSError, json.JSONDecodeError):
             manifest_data = {
                 "job_name": job_name,
                 "backup_set_id": backup_set_id,
@@ -173,7 +178,7 @@ def write_manifest_files(job_config_path, job_name, backup_set_id, backup_set_pa
                 datetime.strptime(f["modified"], "%Y-%m-%d %H:%M:%S")
                 for f in manifest_data["files"] if "modified" in f
             ).strftime("%Y-%m-%d %H:%M:%S")
-        except Exception:
+        except (ValueError, KeyError):
             last_file_modified = None
 
     html_path = os.path.join(backup_set_path, f"manifest_{backup_set_id}.html")
@@ -221,7 +226,7 @@ def render_html_manifest(
                 job_config = yaml.safe_load(f) or {}
             with open(GLOBAL_CONFIG_PATH, 'r', encoding='utf-8') as f:
                 global_config = yaml.safe_load(f) or {}
-        except Exception:
+        except (OSError, yaml.YAMLError):
             job_config = {}
             global_config = {}
 
@@ -229,17 +234,19 @@ def render_html_manifest(
     job_encryption = job_config.get("encryption", {}) if job_config else {}
 
     if not job_config_path or not os.path.exists(job_config_path):
-        config_yaml_no_comments = f"# Error: Config file path invalid or not found: {job_config_path}"
+        config_yaml_no_comments = (
+            f"# Error: Config file path invalid or not found: {job_config_path}"
+        )
     else:
         try:
             config_yaml_no_comments = get_merged_cleaned_yaml_config(job_config_path)
-        except Exception as e:
+        except (OSError, yaml.YAMLError) as e:
             config_yaml_no_comments = f"# Error reading config file: {e}"
 
     try:
         dt_object = datetime.fromisoformat(timestamp)
         formatted_timestamp = dt_object.strftime("%A, %B %d, %Y at %I:%M %p")
-    except Exception:
+    except (TypeError, ValueError):
         formatted_timestamp = timestamp
 
     try:
@@ -259,7 +266,7 @@ def render_html_manifest(
             job_encryption=job_encryption,
             used_config=used_config
         )
-    except Exception as e:
+    except TemplateError as e:
         return f"<html><body>Error rendering manifest: {e}</body></html>"
 
 def _remove_yaml_comments(yaml_string):
@@ -315,7 +322,7 @@ def get_merged_cleaned_yaml_config(job_config_path):
             indent=2
         )
         return merged_yaml
-    except Exception as e:
+    except (OSError, yaml.YAMLError) as e:
         return f"# Error reading config file {job_config_path}: {e}"
 
 def get_tarball_summary(backup_set_path, *, show_full_name=True):
@@ -351,15 +358,15 @@ def get_tarball_summary(backup_set_path, *, show_full_name=True):
             summary.append({
                 "name": tarball_name,
                 "size": sizeof_fmt(size_bytes),
-                "size_bytes": size_bytes,  # <-- Add this line
+                "size_bytes": size_bytes,
                 "timestamp_str": timestamp_str,
             })
-        except Exception:
+        except OSError:
             # If file size can't be determined, mark as error
             summary.append({
                 "name": tarball_name,
                 "size": "Error",
-                "size_bytes": 0,  # <-- Add this line
+                "size_bytes": 0,
                 "timestamp_str": timestamp_str,
             })
     # Sort tarballs by timestamp (newest first)

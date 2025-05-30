@@ -25,7 +25,7 @@ def is_job_locked(lock_path):
                 return False
             except BlockingIOError:
                 return True
-    except Exception:
+    except OSError:
         return True
 
 @jobs_bp.route("/jobs")
@@ -47,7 +47,7 @@ def jobs_view():
                     cron_expr = sched.get("cron", "")
                     try:
                         sched["cron_human"] = get_description(cron_expr)
-                    except Exception:
+                    except (ValueError, TypeError):
                         sched["cron_human"] = cron_expr
                 job_name = data.get("job_name", fname.replace(".yaml", ""))
                 source = data.get("source", "")
@@ -60,7 +60,7 @@ def jobs_view():
                     aws_enabled = global_config["aws"]["enabled"]
                 else:
                     aws_enabled = False
-            except Exception:
+            except yaml.YAMLError:
                 job_name = fname.replace(".yaml", "")
                 source = ""
                 destination = global_config.get("destination")
@@ -156,7 +156,7 @@ def run_job(filename):
                 cwd=BASE_DIR
             )
         flash(f"{backup_type.capitalize()} backup for {job_name} has been started.", "success")
-    except Exception as e:
+    except (OSError, subprocess.SubprocessError) as e:
         flash(f"Failed to start backup: {e}", "danger")
 
     return redirect(url_for("jobs.jobs_view"))

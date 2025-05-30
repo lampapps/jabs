@@ -5,6 +5,7 @@ import yaml
 from flask import Blueprint, render_template, request, redirect, url_for, abort, flash
 from dotenv import set_key, load_dotenv
 from app.settings import JOBS_DIR, GLOBAL_CONFIG_PATH
+from cron_descriptor import get_description
 
 config_bp = Blueprint('config', __name__)
 
@@ -17,10 +18,21 @@ def show_global_config():
     env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), ".env")
     load_dotenv(env_path)
     current_passphrase = bool(os.environ.get("JABS_ENCRYPT_PASSPHRASE"))
+
+    # Convert cron expression to human-readable format
+    digest_cron = global_config.get("email", {}).get("digest_email_schedule")
+    digest_cron_human = ""
+    if digest_cron:
+        try:
+            digest_cron_human = get_description(digest_cron)
+        except Exception:
+            digest_cron_human = "Invalid cron expression"
+
     return render_template(
         "globalconfig.html",  # changed from "config.html"
         global_config=global_config,
-        current_passphrase=current_passphrase
+        current_passphrase=current_passphrase,
+        digest_cron_human=digest_cron_human,
     )
 
 @config_bp.route("/config/save_global", methods=["POST"])

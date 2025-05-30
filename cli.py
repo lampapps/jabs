@@ -1,12 +1,18 @@
 #!/venv/bin/python3
 # /cli.py
+"""JABS CLI: Run backup jobs from the command line with options for encryption and cloud sync."""
+
 import argparse
 import logging
-import yaml
 import os
-from app.utils.event_logger import initialize_event, update_event, finalize_event, get_event_status, event_exists
+import yaml
 from dotenv import load_dotenv
+from app.utils.event_logger import (
+    initialize_event, update_event, finalize_event, get_event_status, event_exists
+)
 from app.utils.logger import setup_logger
+from app.settings import GLOBAL_CONFIG_PATH
+from core.sync_s3 import sync_to_s3
 
 # Set the working directory to the project root
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
@@ -35,12 +41,11 @@ try:
         :param sync: Whether to sync the backup to the cloud.
         """
         # Load the YAML configuration
-        with open(config_path) as f:
+        with open(config_path, encoding="utf-8") as f:
             config = yaml.safe_load(f)
 
         # --- Merge global config defaults ---
-        from app.settings import GLOBAL_CONFIG_PATH
-        with open(GLOBAL_CONFIG_PATH) as f:
+        with open(GLOBAL_CONFIG_PATH, encoding="utf-8") as f:
             global_config = yaml.safe_load(f)
 
         # Merge nested dicts for aws and encryption
@@ -52,16 +57,8 @@ try:
             config["destination"] = global_config.get("destination")
 
         # Determine effective encrypt value: CLI overrides config
-        if encrypt:
-            encrypt_effective = True
-        else:
-            encrypt_effective = config.get("encryption", {}).get("enabled", False)
-
-        # Determine effective sync value: CLI overrides config
-        if sync:
-            sync_effective = True
-        else:
-            sync_effective = config.get("aws", {}).get("enabled", False)
+        encrypt_effective = encrypt or config.get("encryption", {}).get("enabled", False)
+        sync_effective = sync or config.get("aws", {}).get("enabled", False)
 
         # Get the job name from the config
         job_name = config.get("job_name", "unknown")
@@ -79,7 +76,7 @@ try:
         )
 
         try:
-            logger.info(f"Starting {backup_type.upper()} backup")
+            logger.info("Starting %s backup", backup_type.upper())
             latest_backup_set, returned_event_id, backup_set_id_str = run_backup(
                 config,
                 backup_type,
@@ -91,7 +88,7 @@ try:
 
             # --- PATCH: Check event still exists before finalizing ---
             if not event_exists(returned_event_id):
-                logger.error(f"Event with ID {returned_event_id} not found after backup. Skipping finalize.")
+                logger.error("Event with ID %s not found after backup. Skipping finalize.", returned_event_id)
                 return
 
             if not latest_backup_set and backup_set_id_str is None:
@@ -113,7 +110,6 @@ try:
                     event="Sync to S3 started",
                     status="running"
                 )
-                from core.sync_s3 import sync_to_s3
                 sync_to_s3(latest_backup_set, config, returned_event_id)
 
             logger.info("Completed backup successfully")
@@ -125,8 +121,8 @@ try:
                 backup_set_id=backup_set_id_str
             )
 
-        except Exception as e:
-            logger.error(f"Backup failed: {e}", exc_info=True)
+        except (OSError, yaml.YAMLError, ValueError) as e:
+            logger.error("Backup failed: %s", e, exc_info=True)
             # Only finalize if event still exists
             if event_exists(event_id):
                 finalize_event(
@@ -149,15 +145,28 @@ try:
 
             backup_type = "full" if args.full else "diff"
             run_job(args.config, backup_type, encrypt=args.encrypt, sync=args.sync)
-        except Exception as e:
-            logging.basicConfig(level=logging.ERROR, format="%(asctime)s - %(levelname)s - %(message)s", filename="logs/cli_error.log")
-            logging.error(f"Fatal error during initialization or execution: {e}", exc_info=True)
-            print(f"Fatal error during initialization or execution: {e}. Check logs/backup.log or logs/cli_error.log for details.")
+        except (OSError, yaml.YAMLError, ValueError) as e:
+            logging.basicConfig(
+                level=logging.ERROR,
+                format="%(asctime)s - %(levelname)s - %(message)s",
+                filename="logs/cli_error.log"
+            )
+            logging.error("Fatal error during initialization or execution: %s", e, exc_info=True)
+            print(
+                f"Fatal error during initialization or execution: {e}. "
+                "Check logs/backup.log or logs/cli_error.log for details."
+            )
 
-except Exception as e:
+except (OSError, yaml.YAMLError, ValueError) as e:
     # Log errors that occur during imports or initialization
-    # Ensure basic logging is configured even if setup_logger fails
-    logging.basicConfig(level=logging.ERROR, format="%(asctime)s - %(levelname)s - %(message)s", filename="logs/cli_error.log")
-    logging.error(f"Fatal error during initialization or execution: {e}", exc_info=True)
-    print(f"Fatal error during initialization or execution: {e}. Check logs/backup.log or logs/cli_error.log for details.")
+    logging.basicConfig(
+        level=logging.ERROR,
+        format="%(asctime)s - %(levelname)s - %(message)s",
+        filename="logs/cli_error.log"
+    )
+    logging.error("Fatal error during initialization or execution: %s", e, exc_info=True)
+    print(
+        f"Fatal error during initialization or execution: {e}. "
+        "Check logs/backup.log or logs/cli_error.log for details."
+    )
 

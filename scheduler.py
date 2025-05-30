@@ -12,6 +12,7 @@ import yaml
 from croniter import croniter
 
 from app.utils.logger import setup_logger, trim_all_logs
+from app.utils.emailer import send_email_digest
 from app.settings import CONFIG_DIR, LOCK_DIR, LOG_DIR, CLI_SCRIPT, PYTHON_EXECUTABLE
 
 # --- Constants ---
@@ -193,6 +194,20 @@ def update_status_file():
     except Exception as e:
         logger.error(f"Failed to update status file {SCHEDULER_STATUS_FILE}: {e}")
 
+def send_digest_email(global_config, now):
+    """Return True if it's time to send the digest email based on cron syntax in config."""
+    email_cfg = global_config.get("email", {})
+    cron_expr = email_cfg.get("digest_email_schedule")
+    if not cron_expr:
+        return False
+    try:
+        cron = croniter(cron_expr, now)
+        prev_run_time = cron.get_prev(datetime)
+        return (now - prev_run_time) < SCHEDULE_TOLERANCE
+    except Exception as e:
+        logger.error(f"Invalid digest_email_schedule cron '{cron_expr}': {e}")
+        return False
+
 def main():
     """Checks configurations, schedules, and triggers jobs if needed."""
     logger.info("--- Scheduler Check Started ---")
@@ -213,6 +228,11 @@ def main():
     try:
         for config_path in config_files:
             triggered_jobs_count += process_job_config(config_path, global_config, now)
+
+        # --- Digest email schedule check ---
+        if send_digest_email(global_config, now):
+            logger.info("Digest email schedule matched. Sending digest email.")
+            send_email_digest()
 
         logger.info(f"Triggered {triggered_jobs_count} job(s) during this check.")
         logger.info("--- Scheduler Check Finished ---")

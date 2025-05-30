@@ -91,21 +91,30 @@
                                     {% endfor %}
                                 </ul>
                             </li>
-                            <li>Use TLS:
-                                {% if global_config.email.use_tls %}
-                                    <span class="badge bg-success">True</span>
+                            <li>Digest Email Schedule:
+                                {% if global_config.email.digest_email_schedule %}
+                                    {# Use cron_descriptor to get human readable string in your Flask view and pass as digest_cron_human #}
+                                    <span class="badge bg-primary my-0 me-2 text-nowrap"
+                                          style="font-size: 0.85em;"
+                                          title="{{ digest_cron_human }}">
+                                        {{ global_config.email.digest_email_schedule }}
+                                    </span>
                                 {% else %}
-                                    <span class="badge bg-secondary">False</span>
+                                    <code>Not set</code>
                                 {% endif %}
                             </li>
                             <li>Notify On:
                                 <ul>
                                     {% for key, value in global_config.email.notify_on.items() %}
-                                        <li>{{ key|replace('_', ' ')|capitalize }}:
-                                            {% if value %}
+                                        <li>
+                                            {{ key|replace('_', ' ')|capitalize }}:
+                                            {% if value.enabled %}
                                                 <span class="badge bg-success">Enabled</span>
                                             {% else %}
                                                 <span class="badge bg-secondary">Disabled</span>
+                                            {% endif %}
+                                            {% if value.mode %}
+                                                <span class="badge bg-info text-dark ms-2">{{ value.mode|capitalize }}</span>
                                             {% endif %}
                                         </li>
                                     {% endfor %}

@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Documentation{% endblock %}
+{% block title %}Change Log{% endblock %}
 {% block top_scripts %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.8.1/github-markdown-light.min.css" id="md-light">
@@ -11,9 +11,9 @@
 <div class="container-fluid px-4">
     <div class="row pb-0">
         <div class="col-md-12">
-            <h2 class="mt-4">Documentation</h2>
+            <h2 class="mt-4">Change Log <span class="text-muted" style="font-size:0.7em;">( {{ VERSION }} )</span></h2>
             <div class="mb-2">
-                <span class="fs-6">README.md</span>
+                <span class="fs-6">CHANGELOG.md</span>
             </div>
         </div>
     </div>

@@ -1,3 +1,5 @@
+"""Restore logic for JABS: handles file and full restores from backup sets."""
+
 import os
 import tarfile
 import json
@@ -23,11 +25,10 @@ def get_manifest(job_name, backup_set_id, base_dir, logger):
     :param logger: Logger instance for logging.
     :return: Manifest dictionary.
     """
-    # Sanitize job name for filesystem safety
     sanitized_job = "".join(c if c.isalnum() or c in ("-", "_") else "_" for c in job_name)
     manifest_path = os.path.join(base_dir, "data", "manifests", sanitized_job, f"{backup_set_id}.json")
     logger.info(f"Loading manifest: {manifest_path}")
-    with open(manifest_path, "r") as f:
+    with open(manifest_path, "r", encoding="utf-8") as f:
         manifest = json.load(f)
     logger.info(f"Loaded manifest with {len(manifest.get('files', []))} files.")
     return manifest
@@ -44,34 +45,27 @@ def extract_file_from_tarball(tarball_path, member_path, target_path, logger):
     logger.info(f"Extracting '{member_path}' from '{tarball_path}' to '{target_path}'")
     try:
         if tarball_path.endswith('.gpg'):
-            # Handle GPG-encrypted tarballs
             passphrase = get_passphrase()
             if not passphrase:
                 logger.error("GPG passphrase not set in environment or .env file.")
                 return False, "GPG passphrase not set. Cannot decrypt archive."
-            # Build GPG command to decrypt to stdout
             gpg_cmd = [
                 "gpg", "--batch", "--yes", "--passphrase", passphrase,
                 "-d", tarball_path
             ]
-            # Start GPG process, pipe output to tarfile
             proc = subprocess.Popen(gpg_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             try:
-                # Open the decrypted tar stream
                 with tarfile.open(fileobj=proc.stdout, mode='r|*') as tar:
                     for member in tar:
                         if member.name == member_path:
-                            # Ensure target directory exists
                             os.makedirs(os.path.dirname(target_path), exist_ok=True)
-                            # Extract the file
                             with open(target_path, "wb") as out_f, tar.extractfile(member) as in_f:
                                 out_f.write(in_f.read())
                             logger.info(f"Successfully restored '{member_path}' to '{target_path}'")
                             return True, None
                     logger.error(f"{member_path} not found in {tarball_path}")
                     return False, f"{member_path} not found in {tarball_path}"
-            except tarfile.ReadError as e:
-                # If tar extraction fails, read GPG stderr for error details
+            except tarfile.ReadError:
                 gpg_err = proc.stderr.read().decode()
                 logger.error(f"GPG decryption or tar extraction failed: {gpg_err}")
                 user_msg = (
@@ -81,12 +75,10 @@ def extract_file_from_tarball(tarball_path, member_path, target_path, logger):
                 )
                 return False, user_msg
             finally:
-                # Clean up process pipes
                 proc.stdout.close()
                 proc.stderr.close()
                 proc.wait()
         else:
-            # Handle unencrypted tarballs
             with tarfile.open(tarball_path, 'r:*') as tar:
                 member = tar.getmember(member_path)
                 os.makedirs(os.path.dirname(target_path), exist_ok=True)
@@ -97,11 +89,14 @@ def extract_file_from_tarball(tarball_path, member_path, target_path, logger):
     except KeyError:
         logger.error(f"{member_path} not found in {tarball_path}")
         return False, f"{member_path} not found in {tarball_path}"
-    except Exception as e:
+    except (OSError, tarfile.TarError, subprocess.SubprocessError) as e:
         logger.error(f"Error extracting '{member_path}' from '{tarball_path}': {e}")
         return False, str(e)
 
-def restore_files(job_name, backup_set_id, files, dest=None, base_dir=None, event_id=None, restore_option="selected", logger=None):
+def restore_files(
+    job_name, backup_set_id, files, dest=None, base_dir=None,
+    event_id=None, restore_option="selected", logger=None
+):
     """
     Restore a list of files from a backup set.
     :param job_name: Name of the backup job.
@@ -114,6 +109,7 @@ def restore_files(job_name, backup_set_id, files, dest=None, base_dir=None, even
     :param logger: Logger instance for logging.
     :return: Dict with lists of restored files and errors.
     """
+    # pylint: disable=too-many-arguments, too-many-locals, too-many-branches, too-many-statements, too-many-return-statements
     if logger is None:
         logger = setup_logger(job_name, log_file="restore.log")
     logger.info(f"PASSPHRASE loaded: {'YES' if get_passphrase() else 'NO'}")
@@ -126,13 +122,11 @@ def restore_files(job_name, backup_set_id, files, dest=None, base_dir=None, even
 
     restore_path = dest if dest else manifest["config"]["source"]
     event_type = "restore"
-    # PATCH: Use descriptive event for full or selected restore
     if restore_option == "full":
         event_desc = f"Restoring all files to: {restore_path}"
     else:
         event_desc = f"Restoring selected files to: {restore_path}"
 
-    # Initialize event if not provided
     if not event_id:
         event_id = initialize_event(
             job_name=job_name,
@@ -141,7 +135,6 @@ def restore_files(job_name, backup_set_id, files, dest=None, base_dir=None, even
             encrypt=False,
             sync=False
         )
-        # PATCH: Show option in event
         update_event(event_id, event=f"{event_desc}", status="running")
 
     try:
@@ -149,29 +142,32 @@ def restore_files(job_name, backup_set_id, files, dest=None, base_dir=None, even
             if f["path"] in files:
                 tarball_path = f["tarball_path"]
                 member_path = f["path"]
-                # Determine restore target location
                 if dest:
                     target = os.path.join(dest, member_path)
                 else:
                     source_base = manifest["config"]["source"]
                     target = os.path.join(source_base, member_path)
-                # Attempt extraction
                 ok, err = extract_file_from_tarball(tarball_path, member_path, target, logger)
                 if ok:
                     restored.append(target)
                 else:
                     errors.append({"file": member_path, "error": err})
                     logger.error(f"Restore failed for '{member_path}': {err}")
-                    # Exit early on first error
                     break
         logger.info(f"Restore complete. Restored: {len(restored)}, Errors: {len(errors)}")
         if errors:
             logger.error(f"Restore errors: {errors}")
             status = "error"
             if restore_option == "full":
-                event_msg = f"Full restore failed to {restore_path}: {errors[0]['error'] if errors else 'Unknown error'}"
+                event_msg = (
+                    f"Full restore failed to {restore_path}: "
+                    f"{errors[0]['error'] if errors else 'Unknown error'}"
+                )
             else:
-                event_msg = f"Partial restore failed to {restore_path} with selected files: {errors[0]['error'] if errors else 'Unknown error'}"
+                event_msg = (
+                    f"Partial restore failed to {restore_path} with selected files: "
+                    f"{errors[0]['error'] if errors else 'Unknown error'}"
+                )
         else:
             status = "success"
             if restore_option == "full":
@@ -206,6 +202,9 @@ def restore_full(job_name, backup_set_id, dest=None, base_dir=None, event_id=Non
     set_restore_status(job_name, backup_set_id, running=True)
     manifest = get_manifest(job_name, backup_set_id, base_dir, logger)
     files = [f["path"] for f in manifest.get("files", [])]
-    result = restore_files(job_name, backup_set_id, files, dest=dest, base_dir=base_dir, event_id=event_id, restore_option="full", logger=logger)
+    result = restore_files(
+        job_name, backup_set_id, files, dest=dest, base_dir=base_dir,
+        event_id=event_id, restore_option="full", logger=logger
+    )
     set_restore_status(job_name, backup_set_id, running=False)
     return result
