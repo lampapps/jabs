@@ -17,6 +17,15 @@
                     <li><b>Destination:</b> <code>{{ global_config.destination or 'Not set' }}</code></li>
                     <li><b>Keep Sets:</b> <code>{{ global_config.keep_sets or 'Not set' }}</code></li>
                     <li><b>Max Tarball Size (MB):</b> <code>{{ global_config.max_tarball_size or 'Not set' }}</code></li>
+                    <li><b>Use Common Exclude:</b>
+                        <code>
+                            {% if global_config.use_common_exclude is defined and global_config.use_common_exclude is not none %}
+                                {{ 'True' if global_config.use_common_exclude else 'False' }}
+                            {% else %}
+                                True (default)
+                            {% endif %}
+                        </code>
+                    </li>
                     <li><b>AWS:</b>
                         <ul>
                             <li>Enabled: <code>{{ global_config.get('aws', {}).get('enabled', 'Not set') }}</code></li>
@@ -42,6 +51,15 @@
                     <li><b>Destination:</b> <code>{{ job_config.destination or '— (uses global)' }}</code></li>
                     <li><b>Keep Sets:</b> <code>{{ job_config.keep_sets or '— (uses global)' }}</code></li>
                     <li><b>Max Tarball Size (MB):</b> <code>{{ job_config.max_tarball_size or '— (uses global)' }}</code></li>
+                    <li><b>Use Common Exclude:</b>
+                        <code>
+                            {% if job_config.use_common_exclude is defined and job_config.use_common_exclude is not none %}
+                                {{ 'True' if job_config.use_common_exclude else 'False' }}
+                            {% else %}
+                                — (uses global)
+                            {% endif %}
+                        </code>
+                    </li>
                     <li><b>AWS:</b>
                         <ul>
                             <li>Enabled: <code>{{ job_config.get('aws', {}).get('enabled', '— (uses global)') }}</code></li>

@@ -7,6 +7,8 @@ destination: "/media/jim2/backupdrive/jabs_dev"
 keep_sets: 2  # Number of backup sets to retain (older sets will be deleted automatically)
 max_tarball_size: 2048  # Maximum size of each tarball in MB (e.g., 1024 MB = 1 GB)
 
+use_common_exclude: true   # true |  false to exclude patterns from config/common_exlude.yaml
+
 # AWS S3 settings for cloud backups unless overridden in job config
 # The `aws` section is required only if you plan to sync backups to AWS S3.
 # Bucket name rules:

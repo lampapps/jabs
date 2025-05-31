@@ -28,11 +28,23 @@ def show_global_config():
         except Exception:
             digest_cron_human = "Invalid cron expression"
 
+    # --- Add this block for common_exclude.yaml ---
+    COMMON_EXCLUDE_PATH = os.path.join(os.path.dirname(GLOBAL_CONFIG_PATH), "common_exclude.yaml")
+    try:
+        with open(COMMON_EXCLUDE_PATH, encoding="utf-8") as f:
+            common_exclude_raw = f.read()
+        common_exclude_error = None
+    except Exception as e:
+        common_exclude_raw = ""
+        common_exclude_error = str(e)
+
     return render_template(
-        "globalconfig.html",  # changed from "config.html"
+        "globalconfig.html",
         global_config=global_config,
         current_passphrase=current_passphrase,
         digest_cron_human=digest_cron_human,
+        common_exclude_raw=common_exclude_raw,
+        common_exclude_error=common_exclude_error,
     )
 
 @config_bp.route("/config/save_global", methods=["POST"])
@@ -53,17 +65,21 @@ def save_global():
 def edit_config(filename):
     """Edit a configuration file."""
     error_message = None
-    file_path = GLOBAL_CONFIG_PATH if filename == "global.yaml" else os.path.join(JOBS_DIR, filename)
+    # Add support for common_exclude.yaml
+    if filename == "global.yaml":
+        file_path = GLOBAL_CONFIG_PATH
+        cancel_url = url_for("config.config")
+    elif filename == "common_exclude.yaml":
+        file_path = os.path.join(os.path.dirname(GLOBAL_CONFIG_PATH), "common_exclude.yaml")
+        cancel_url = url_for("config.config")
+    else:
+        file_path = os.path.join(JOBS_DIR, filename)
+        cancel_url = url_for("jobs.jobs_view")
     if not os.path.exists(file_path):
         loaded_yaml = "# File not found."
     else:
         with open(file_path, "r", encoding="utf-8") as f:
             loaded_yaml = f.read()
-    # Set cancel_url based on file type
-    if filename == "global.yaml":
-        cancel_url = url_for("config.config")
-    else:
-        cancel_url = url_for("jobs.jobs_view")
     return render_template(
         "edit_config.html",
         file_name=filename,
@@ -77,9 +93,10 @@ def save_config(filename):
     """Save a configuration file."""
     if not filename.endswith(".yaml") or "/" in filename or ".." in filename:
         abort(400, "Invalid filename")
-    # Save to the correct path
     if filename == "global.yaml":
         file_path = GLOBAL_CONFIG_PATH
+    elif filename == "common_exclude.yaml":
+        file_path = os.path.join(os.path.dirname(GLOBAL_CONFIG_PATH), "common_exclude.yaml")
     else:
         file_path = os.path.join(JOBS_DIR, filename)
     new_content = request.form.get("content", "")
@@ -96,9 +113,7 @@ def save_config(filename):
         )
     with open(file_path, "w", encoding="utf-8") as f:
         f.write(new_content)
-    if filename == "global.yaml":
-        return redirect(url_for("config.config"))
-    return redirect(url_for("jobs.jobs_view"))
+    return redirect(url_for("config.config"))
 
 @config_bp.route("/config/set_passphrase", methods=["POST"])
 def set_passphrase():

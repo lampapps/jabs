@@ -4,7 +4,7 @@ import os
 import sys
 import yaml
 
-VERSION = "v0.4.2"
+VERSION = "v0.5.0"
 
 # --- Application Configuration ---
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))

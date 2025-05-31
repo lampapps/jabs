@@ -27,21 +27,62 @@ def load_job_config(path):
     """Load a YAML job configuration file from the given path."""
     with open(path, encoding="utf-8") as f:
         return yaml.safe_load(f)
+    
+def load_exclude_patterns(job_config_path, global_config_path, common_exclude_path):
+    """Load and merge exclude patterns for a backup job."""
+    with open(job_config_path, encoding="utf-8") as f:
+        job_config = yaml.safe_load(f)
+    with open(global_config_path, encoding="utf-8") as f:
+        global_config = yaml.safe_load(f)
+    # Load common excludes from a separate file
+    if os.path.exists(common_exclude_path):
+        with open(common_exclude_path, encoding="utf-8") as f:
+            data = yaml.safe_load(f)
+            if isinstance(data, dict):
+                common_exclude = data.get("exclude", [])
+            elif isinstance(data, list):
+                common_exclude = data
+            else:
+                common_exclude = []
+    else:
+        common_exclude = []
+
+    # --- NEW LOGIC: allow per-job override, fallback to global, default True ---
+    if "use_common_exclude" in job_config:
+        use_common = job_config["use_common_exclude"]
+    elif "use_common_exclude" in global_config:
+        use_common = global_config["use_common_exclude"]
+    else:
+        use_common = True
+
+    job_exclude = job_config.get("exclude", [])
+    # Ensure job_exclude is always a list
+    if job_exclude is None:
+        job_exclude = []
+    if use_common:
+        exclude_patterns = common_exclude + job_exclude
+    else:
+        exclude_patterns = job_exclude
+    return exclude_patterns
 
 def is_excluded(path, exclude_patterns, src_base):
-    """
-    Check if a given path should be excluded based on the exclusion patterns.
-    """
     rel_path = os.path.relpath(path, src_base)
     rel_path = rel_path.replace(os.sep, "/")
+    is_dir = os.path.isdir(path)
     if rel_path in [".", ".."]:
         return False
     for pattern in exclude_patterns:
         normalized_pattern = pattern.replace(os.sep, "/").rstrip("/")
-        if fnmatch.fnmatch(rel_path, normalized_pattern):
-            return True
-        if normalized_pattern.endswith("/"):
-            if rel_path.startswith(normalized_pattern):
+        # If pattern ends with '/', only match directories
+        if pattern.endswith("/"):
+            if is_dir and fnmatch.fnmatch(rel_path, normalized_pattern):
+                return True
+            if is_dir and fnmatch.fnmatch(rel_path + "/", normalized_pattern + "/"):
+                return True
+        else:
+            if fnmatch.fnmatch(rel_path, normalized_pattern):
+                return True
+            if fnmatch.fnmatch(rel_path + "/", normalized_pattern + "/"):
                 return True
         if "**" in normalized_pattern:
             if fnmatch.fnmatch(rel_path, normalized_pattern):
@@ -109,7 +150,17 @@ def create_tar_archives(src, dest_tar_dir, exclude_patterns, max_tarball_size_mb
 
     for full_path in files:
         arcname = os.path.relpath(full_path, source_base)
-        file_size = os.path.getsize(full_path)
+        try:
+            # Skip broken symlinks
+            if os.path.islink(full_path):
+                target = os.readlink(full_path)
+                if not os.path.exists(os.path.join(os.path.dirname(full_path), target)):
+                    logger.warning(f"Skipping broken symlink: {full_path} -> {target}")
+                    continue
+            file_size = os.path.getsize(full_path)
+        except (FileNotFoundError, OSError) as e:
+            logger.warning(f"Skipping file (not found or inaccessible): {full_path} ({e})")
+            continue
         if current_tar_size + file_size > max_tarball_size:
             tar.close()
             logger.info(f"Tarball created: {current_tar_path} (size: {current_tar_size} bytes)")
@@ -280,7 +331,10 @@ def run_backup(config, backup_type, encrypt=False, sync=False, event_id=None, jo
             job_config = yaml.safe_load(f)
         config = merge_configs(global_config, job_config)
 
-        exclude_patterns = config.get("exclude", [])
+        # --- PATCH: Use common_exclude.yaml if present ---
+        common_exclude_path = os.path.join(os.path.dirname(GLOBAL_CONFIG_PATH), "common_exclude.yaml")
+        exclude_patterns = load_exclude_patterns(job_config_path, GLOBAL_CONFIG_PATH, common_exclude_path)
+
         max_tarball_size_mb = config.get("max_tarball_size", 1024)
         src = config["source"]
         raw_dst = config["destination"]
@@ -451,4 +505,3 @@ def run_backup(config, backup_type, encrypt=False, sync=False, event_id=None, jo
         raise
     finally:
         release_lock(lock_file)
-        
