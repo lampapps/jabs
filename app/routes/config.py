@@ -100,10 +100,10 @@ def save_config(filename):
     else:
         file_path = os.path.join(JOBS_DIR, filename)
     new_content = request.form.get("content", "")
+    next_url = request.form.get("next") or url_for("config.config")
     try:
         yaml.safe_load(new_content)
     except yaml.YAMLError as e:
-        next_url = request.form.get("next") or url_for("config.config")
         return render_template(
             "edit_config.html",
             file_name=filename,
@@ -113,7 +113,8 @@ def save_config(filename):
         )
     with open(file_path, "w", encoding="utf-8") as f:
         f.write(new_content)
-    return redirect(url_for("config.config"))
+    flash("Configuration saved.", "success")
+    return redirect(next_url)
 
 @config_bp.route("/config/set_passphrase", methods=["POST"])
 def set_passphrase():

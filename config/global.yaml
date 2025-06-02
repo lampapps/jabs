@@ -7,7 +7,7 @@ destination: "/media/jim2/backupdrive/jabs_dev"
 keep_sets: 2  # Number of backup sets to retain (older sets will be deleted automatically)
 max_tarball_size: 2048  # Maximum size of each tarball in MB (e.g., 1024 MB = 1 GB)
 
-use_common_exclude: true   # true |  false to exclude patterns from config/common_exlude.yaml
+use_common_exclude: true   # true | false to exclude patterns from config/common_exlude.yaml
 
 # AWS S3 settings for cloud backups unless overridden in job config
 # The `aws` section is required only if you plan to sync backups to AWS S3.
@@ -34,15 +34,14 @@ encryption:
 
 
 # Dashboard Configuration:
-
 # Configure the drives and buckets that appear in the dashboard 
 drives:
   - path: "/"
     label: "Root"
   - path: "/media/jim2/backupdrive"
     label: "Backup Drive"
-#  - path: "/media/jim2/pishare/backups"
-#    label: "Pi Share"
+  - path: "media/jim2/pishare/"
+    label: "Pi Share"
 
 s3_buckets:
   - bucket: "lampapps-jabs1"
@@ -53,15 +52,15 @@ s3_buckets:
     label: "JABS-Dev"
 
 email:
-  smtp_server: "smtp.zoho.com"         # Gmail SMTP server (change if using another provider)
+  smtp_server: "smtp.zoho.com"         # SMTP server (change if using another provider)
   smtp_port: 587                       # 587 for TLS (Gmail and most providers)
-  username: "jferry@lampapps.com"      # Your Gmail address (or other SMTP username)
+  username: "jferry@lampapps.com"      # Your email address (or other SMTP username)
   from_addr: "jferry@lampapps.com"     # Sender address
   to_addrs:                            # List of recipient email addresses
     - "jamesoferry@gmail.com"
   #  - "jamesoferry@gmail.com"
   use_tls: true                        # Use TLS for SMTP connection (recommended for Gmail)
-  digest_email_schedule: "0 8 * * *"   # Every day at 8:00 AM (example)
+  digest_email_schedule: "05 18 * * *"   # Every day at 8:00 AM (example)
 
   # Configure which events trigger email notifications
   notify_on:

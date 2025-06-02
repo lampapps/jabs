@@ -37,6 +37,12 @@
 - ".nv/"
 - ".nv"
 - "**/.nv/"
+# RubyGems compact index cache
+- ".bundle/cache/compact_index/rubygems.org.*"
+- ".bundle/cache/compact_index/rubygems.org.*/*"
+- "**/.bundle/cache/compact_index/rubygems.org.*"
+- "**/.bundle/cache/compact_index/rubygems.org.*/*"
+
 
 # Python & virtualenv
 - "__pycache__/"

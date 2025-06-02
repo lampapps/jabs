@@ -3,19 +3,6 @@
 job_name: "Example Name"  # The name of the backup job (used for logging and organization)
 source: "/path/to/source" # The source directory to back up
 
-exclude:
-  - ".*"                 # Exclude all hidden files and directories (e.g., .git, .env)
-  - "*.tmp"              # Exclude temporary files
-  - "*.bak"              # Exclude backup files (e.g., file.bak)
-  - "*.swp"              # Exclude swap files (e.g., Vim swap files)
-  - "*.lock"             # Exclude lock files (e.g., file.lock)
-  - "*.log"              # Exclude log files
-  - "*.iso"              # Exclude ISO disk images
-  - "*.tar.gz"           # Exclude compressed tarball archives
-  - "*.tar"              # Exclude uncompressed tarball archives
-  - ".DS_Store"          # Exclude macOS-specific metadata files
-  - "cache/"             # Exclude cache directories
-
 schedules:
   - cron: "0 2 * * 7"    # Runs at 2:00 AM, every Sunday
     type: "full"         # full or diff
@@ -25,10 +12,8 @@ schedules:
     type: "diff"          
     enabled: false 
 
-# Uncomment below to override Global Configuration if desired
-
+# Uncomment below to override Global Configuration if desired. See job.yaml for more
 #encryption: 
   #enabled: false          # true or false, false can be overridden by CLI
-
 #aws:
   #enabled: false          # true or false, false can be overridden by CLI

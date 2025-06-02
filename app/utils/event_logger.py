@@ -151,11 +151,11 @@ def finalize_event(event_id, status, event, runtime=None, backup_set_id=None):
             # Build detailed email body
             body = (
                 f"Machine: {event_data.get('hostname', 'N/A')}\n"
+                f"Start Time: {event_data.get('starttimestamp', 'N/A')}\n"
                 f"Job Name: {event_data.get('job_name', 'N/A')}\n"
                 f"Type: {event_data.get('backup_type', 'N/A')}\n"
                 f"Event: {event}\n"
                 f"Status: {status}\n"
-                f"Start Time: {event_data.get('starttimestamp', 'N/A')}\n"
                 f"Runtime: {event_data.get('runtime', 'N/A')}\n"
             )
             email_event(event_type, subject, body)

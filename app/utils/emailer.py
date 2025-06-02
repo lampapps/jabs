@@ -81,8 +81,29 @@ def send_email_digest():
             queue = json.load(f)
         if not queue:
             return False
+
+        # --- Build summary of event types ---
+        from collections import Counter
+        event_types = [item.get("event_type", "unknown") for item in queue]
+        counts = Counter(event_types)
+        summary_lines = ["Digest Summary:"]
+        for event_type, count in counts.items():
+            summary_lines.append(f"  {event_type}: {count}")
+
+        # --- Calculate time frame ---
+        from dateutil.parser import parse as parse_dt
+        timestamps = [parse_dt(item["timestamp"]) for item in queue if "timestamp" in item]
+        if timestamps:
+            start_time = min(timestamps)
+            end_time = max(timestamps)
+            time_frame = f"Digest covers: {start_time.strftime('%Y-%m-%d %H:%M:%S')} to {end_time.strftime('%Y-%m-%d %H:%M:%S')}\n"
+        else:
+            time_frame = "Digest covers: (time frame unavailable)\n"
+
+        summary = "\n".join(summary_lines) + "\n" + time_frame + "\n"
+
         digest_subject = f"JABS Daily Digest ({datetime.now().strftime('%Y-%m-%d')})"
-        digest_body = ""
+        digest_body = summary
         for item in queue:
             digest_body += (
                 f"\n---\nTime: {item['timestamp']}\n"

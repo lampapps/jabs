@@ -8,6 +8,7 @@ import time
 from app.utils.logger import setup_logger
 from app.utils.restore_status import set_restore_status
 from app.utils.event_logger import initialize_event, update_event, finalize_event, event_exists
+from app.utils.emailer import email_event
 
 def get_passphrase():
     """

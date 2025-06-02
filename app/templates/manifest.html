@@ -150,6 +150,7 @@
                                         <li><b>Destination:</b> <code>{{ used_config.get('destination', 'Not set') }}</code></li>
                                         <li><b>Keep Sets:</b> <code>{{ used_config.get('keep_sets', 'Not set') }}</code></li>
                                         <li><b>Max Tarball Size (MB):</b> <code>{{ used_config.get('max_tarball_size', 'Not set') }}</code></li>
+                                        <li><b>Use Common Exclude: <code>{{ used_config.get('use_common_exclude', 'Not set') }}</code></b></li>
                                         <li><b>AWS:</b>
                                             <ul>
                                                 <li>Enabled: <code>{{ used_config.get('aws', {}).get('enabled', 'Not set') }}</code></li>
@@ -167,14 +168,14 @@
                                         </li>
                                         <li><b>Exclude Patterns:</b>
                                             {% if used_config.get('exclude') %}
-                                                <ul>
-                                                    {% for pattern in used_config.get('exclude') %}
-                                                        <li><code>{{ pattern }}</code></li>
-                                                    {% endfor %}
-                                                </ul>
-                                            {% else %}
-                                                <code>Not set</code>
-                                            {% endif %}
+                                        <ul>
+                                            {% for pattern in used_config.get('exclude') %}
+                                                <li><code>{{ pattern }}</code></li>
+                                            {% endfor %}
+                                        </ul>
+                                        {% else %}
+                                            <code>— (not set)</code>
+                                        {% endif %}
                                         </li>
                                     </ul>
                                 </div>

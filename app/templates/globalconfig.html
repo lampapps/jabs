@@ -7,184 +7,180 @@
 
 {% block content %}
 <div class="container my-4">
-    <div class="row pb-0">
-        <div class="col-12 col-md-8 mx-auto">
-            <div>
-                <h2 class="mb-0">Global Configuration</h2>
-                <div class="mb-4">
-                    <span class="fs-6">Configure default backup job and other global settings</span>
+    <div class="mb-4">
+        <h2 class="mb-0">Global Configuration</h2>
+        <div class="mb-2">
+            <span class="fs-6">Configure default settings for all jobs</span>
+        </div>
+    </div>
+    <div class="row align-items-stretch">
+        <!-- Global YAML Card (left) -->
+        <div class="col-12 col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span><i class="fa fa-file-code me-2"></i> Global Configuration</span>
+                    <span class="badge bg-secondary">global.yaml</span>
                 </div>
-            </div>
-            <div class="row align-items-stretch">
-                <!-- Global YAML Card (left) -->
-                <div class="col-md-6 mb-4">
-                    <div class="card h-100">
-                        <div class="card-header d-flex justify-content-between align-items-center">
-                            <span><i class="fa fa-file-code me-2"></i> Global Configuration</span>
-                            <span class="badge bg-secondary">global.yaml</span>
-                        </div>
-                        <div class="card-body">
-                            {% if error %}
-                                <div class="alert alert-danger">{{ error }}</div>
-                                <pre class="bg-light p-2 rounded">{{ raw_data }}</pre>
-                            {% else %}
-                                <strong>Default Backup Job Configuration:</strong>
-                                <ul class="mb-0 small">
-                                    <li><b>Destination:</b> <code>{{ global_config.destination or 'Not set' }}</code></li>
-                                    <li><b>Keep Sets:</b> <code>{{ global_config.keep_sets or 'Not set' }}</code></li>
-                                    <li><b>Max Tarball Size (MB):</b> <code>{{ global_config.max_tarball_size or 'Not set' }}</code></li>
-                                    <li><b>Use Common Exclude:</b>
-                                        <code>
-                                            {% if global_config.use_common_exclude is defined and global_config.use_common_exclude is not none %}
-                                                {{ 'True' if global_config.use_common_exclude else 'False' }}
-                                            {% else %}
-                                                True (default)
-                                            {% endif %}
-                                        </code>
-                                    </li>
-                                    <li><b>AWS:</b>
-                                        <ul>
-                                            <li>
-                                                Enabled:
-                                                {% if global_config.aws and global_config.aws.enabled %}
-                                                    <span class="badge bg-success">True</span>
-                                                {% else %}
-                                                    <span class="badge bg-secondary">False</span>
-                                                {% endif %}
-                                            </li>
-                                            <li>Profile: <code>{{ global_config.aws.profile or 'Not set' }}</code></li>
-                                            <li>Region: <code>{{ global_config.aws.region or 'Not set' }}</code></li>
-                                            <li>Bucket: <code>{{ global_config.aws.bucket or 'Not set' }}</code></li>
-                                            <li>Storage Class: <code>{{ global_config.aws.storage_class or 'Not set' }}</code></li>
-                                        </ul>
-                                    </li>
-                                    <li><b>Encryption:</b>
-                                        <ul>
-                                            <li>
-                                                Enabled:
-                                                {% if global_config.encryption and global_config.encryption.enabled %}
-                                                    <span class="badge bg-success">True</span>
-                                                {% else %}
-                                                    <span class="badge bg-secondary">False</span>
-                                                {% endif %}
-                                            </li>
-                                            <li>Method: <code>{{ global_config.encryption.method or 'Not set' }}</code></li>
-                                            <li>Passphrase Env: <code>{{ global_config.encryption.passphrase_env or 'Not set' }}</code></li>
-                                        </ul>
-                                    </li>
-                                </ul>
-                                <strong>Dashboard Configuration:</strong>
-                                <ul class="mb-0 small">
-                                    <li><b>Drives:</b>
-                                        <ul>
-                                            {% for drive in global_config.drives or [] %}
-                                                <li>{{ drive.label }}: <code>{{ drive.path }}</code></li>
-                                            {% endfor %}
-                                        </ul>
-                                    </li>
-                                    <li><b>S3 Buckets:</b>
-                                        <ul>
-                                            {% for bucket in global_config.s3_buckets or [] %}
-                                                <li>{{ bucket.label }}: <code>{{ bucket.bucket }}</code></li>
-                                            {% endfor %}
-                                        </ul>
-                                    </li>
-                                </ul>
-                                <strong>Email (SMTP) Configuration:</strong>
-                                <ul class="mb-0 small">
-                                    <li>SMTP Server: <code>{{ global_config.email.smtp_server or 'Not set' }}</code></li>
-                                    <li>SMTP Port: <code>{{ global_config.email.smtp_port or 'Not set' }}</code></li>
-                                    <li>Username: <code>{{ global_config.email.username or 'Not set' }}</code></li>
-                                    <li>From Address: <code>{{ global_config.email.from_addr or 'Not set' }}</code></li>
-                                    <li>To Addresses:
-                                        <ul>
-                                            {% for addr in global_config.email.to_addrs or [] %}
-                                                <li><code>{{ addr }}</code></li>
-                                            {% endfor %}
-                                        </ul>
-                                    </li>
-                                    <li>Digest Email Schedule:
-                                        {% if global_config.email.digest_email_schedule %}
-                                            {# Use cron_descriptor to get human readable string in your Flask view and pass as digest_cron_human #}
-                                            <span class="badge bg-primary my-0 me-2 text-nowrap"
-                                                  style="font-size: 0.85em;"
-                                                  title="{{ digest_cron_human }}">
-                                                {{ global_config.email.digest_email_schedule }}
-                                            </span>
+                <div class="card-body">
+                    {% if error %}
+                        <div class="alert alert-danger">{{ error }}</div>
+                        <pre class="bg-light p-2 rounded">{{ raw_data }}</pre>
+                    {% else %}
+                        <strong>Default Backup Job Configuration:</strong>
+                        <ul class="mb-0 small">
+                            <li><b>Destination:</b> <code>{{ global_config.destination or 'Not set' }}</code></li>
+                            <li><b>Keep Sets:</b> <code>{{ global_config.keep_sets or 'Not set' }}</code></li>
+                            <li><b>Max Tarball Size (MB):</b> <code>{{ global_config.max_tarball_size or 'Not set' }}</code></li>
+                            <li><b>Use Common Exclude:</b>
+                                <code>
+                                    {% if global_config.use_common_exclude is defined and global_config.use_common_exclude is not none %}
+                                        {{ 'True' if global_config.use_common_exclude else 'False' }}
+                                    {% else %}
+                                        True (default)
+                                    {% endif %}
+                                </code>
+                            </li>
+                            <li><b>AWS:</b>
+                                <ul>
+                                    <li>
+                                        Enabled:
+                                        {% if global_config.aws and global_config.aws.enabled %}
+                                            <span class="badge bg-success">True</span>
                                         {% else %}
-                                            <code>Not set</code>
+                                            <span class="badge bg-secondary">False</span>
                                         {% endif %}
                                     </li>
-                                    <li>Notify On:
-                                        <ul>
-                                            {% for key, value in global_config.email.notify_on.items() %}
-                                                <li>
-                                                    {{ key|replace('_', ' ')|capitalize }}:
-                                                    <code>
-                                                        {% if value.enabled %}
-                                                            Enabled
-                                                        {% else %}
-                                                            Disabled
-                                                        {% endif %}
-                                                        {% if value.mode %}
-                                                            ({{ value.mode|capitalize }})
-                                                        {% endif %}
-                                                    </code>
-                                                </li>
-                                            {% endfor %}
-                                        </ul>
-                                    </li>
+                                    <li>Profile: <code>{{ global_config.aws.profile or 'Not set' }}</code></li>
+                                    <li>Region: <code>{{ global_config.aws.region or 'Not set' }}</code></li>
+                                    <li>Bucket: <code>{{ global_config.aws.bucket or 'Not set' }}</code></li>
+                                    <li>Storage Class: <code>{{ global_config.aws.storage_class or 'Not set' }}</code></li>
                                 </ul>
-                            {% endif %}
-                        </div>
-                        <div class="card-footer text-end">
-                            <a class="btn btn-warning btn-sm" href="{{ url_for('config.edit_config', filename='global.yaml') }}">
-                                <i class="fa fa-edit"></i> Edit
-                            </a>
-                        </div>
-                    </div>
-                </div>
-                <!-- Common Exclude YAML Card (right) -->
-                <div class="col-md-6 mb-4">
-                    <div class="card">
-                        <div class="card-header d-flex justify-content-between align-items-center">
-                            <span><i class="fa fa-file-code me-2"></i> Common Exclude Patterns</span>
-                            <span class="badge bg-secondary">common_exclude.yaml</span>
-                        </div>
-                        <div class="card-body">
-                            {% if common_exclude_error %}
-                                <div class="alert alert-danger">{{ common_exclude_error }}</div>
-                                <pre class="bg-light p-2 rounded" style="max-height: 350px; overflow:auto;">{{ common_exclude_raw }}</pre>
-                            {% else %}
-                                <strong>Current Patterns:</strong>
-                                <pre class="p-2 rounded" style="max-height: 750px; overflow:auto;">{{ common_exclude_raw }}</pre>
-                            {% endif %}
-                        </div>
-                        <div class="card-footer text-end">
-                            <a class="btn btn-warning btn-sm" href="{{ url_for('config.edit_config', filename='common_exclude.yaml') }}">
-                                <i class="fa fa-edit"></i> Edit
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="mt-4">
-                <form method="post" action="{{ url_for('config.set_passphrase') }}">
-                    <div class="input-group">
-                        <input type="password" class="form-control" name="passphrase" id="passphraseInput" placeholder="Set encryption passphrase" required>
-                        <button class="btn btn-outline-secondary" type="button" id="togglePassphrase">
-                            <span id="toggleIcon" class="fa fa-eye"></span>
-                        </button>
-                        <button class="btn btn-primary" type="submit">Save Passphrase</button>
-                    </div>
-                    {% if current_passphrase %}
-                        <small class="form-text text-muted">Current passphrase is set.</small>
-                    {% else %}
-                        <small class="form-text text-danger">No passphrase set.</small>
+                            </li>
+                            <li><b>Encryption:</b>
+                                <ul>
+                                    <li>
+                                        Enabled:
+                                        {% if global_config.encryption and global_config.encryption.enabled %}
+                                            <span class="badge bg-success">True</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">False</span>
+                                        {% endif %}
+                                    </li>
+                                    <li>Method: <code>{{ global_config.encryption.method or 'Not set' }}</code></li>
+                                    <li>Passphrase Env: <code>{{ global_config.encryption.passphrase_env or 'Not set' }}</code></li>
+                                </ul>
+                            </li>
+                        </ul>
+                        <strong>Dashboard Configuration:</strong>
+                        <ul class="mb-0 small">
+                            <li><b>Drives:</b>
+                                <ul>
+                                    {% for drive in global_config.drives or [] %}
+                                        <li>{{ drive.label }}: <code>{{ drive.path }}</code></li>
+                                    {% endfor %}
+                                </ul>
+                            </li>
+                            <li><b>S3 Buckets:</b>
+                                <ul>
+                                    {% for bucket in global_config.s3_buckets or [] %}
+                                        <li>{{ bucket.label }}: <code>{{ bucket.bucket }}</code></li>
+                                    {% endfor %}
+                                </ul>
+                            </li>
+                        </ul>
+                        <strong>Email (SMTP) Configuration:</strong>
+                        <ul class="mb-0 small">
+                            <li>SMTP Server: <code>{{ global_config.email.smtp_server or 'Not set' }}</code></li>
+                            <li>SMTP Port: <code>{{ global_config.email.smtp_port or 'Not set' }}</code></li>
+                            <li>Username: <code>{{ global_config.email.username or 'Not set' }}</code></li>
+                            <li>From Address: <code>{{ global_config.email.from_addr or 'Not set' }}</code></li>
+                            <li>To Addresses:
+                                <ul>
+                                    {% for addr in global_config.email.to_addrs or [] %}
+                                        <li><code>{{ addr }}</code></li>
+                                    {% endfor %}
+                                </ul>
+                            </li>
+                            <li>Digest Email Schedule:
+                                {% if global_config.email.digest_email_schedule %}
+                                    {# Use cron_descriptor to get human readable string in your Flask view and pass as digest_cron_human #}
+                                    <span class="badge bg-primary my-0 me-2 text-nowrap"
+                                          style="font-size: 0.85em;"
+                                          title="{{ digest_cron_human }}">
+                                        {{ global_config.email.digest_email_schedule }}
+                                    </span>
+                                {% else %}
+                                    <code>Not set</code>
+                                {% endif %}
+                            </li>
+                            <li>Notify On:
+                                <ul>
+                                    {% for key, value in global_config.email.notify_on.items() %}
+                                        <li>
+                                            {{ key|replace('_', ' ')|capitalize }}:
+                                            <code>
+                                                {% if value.enabled %}
+                                                    Enabled
+                                                {% else %}
+                                                    Disabled
+                                                {% endif %}
+                                                {% if value.mode %}
+                                                    ({{ value.mode|capitalize }})
+                                                {% endif %}
+                                            </code>
+                                        </li>
+                                    {% endfor %}
+                                </ul>
+                            </li>
+                        </ul>
                     {% endif %}
-                </form>
+                </div>
+                <div class="card-footer text-end">
+                    <a class="btn btn-warning btn-sm" href="{{ url_for('config.edit_config', filename='global.yaml') }}">
+                        <i class="fa fa-edit"></i> Edit
+                </a>
+                </div>
             </div>
         </div>
+        <!-- Common Exclude YAML Card (right) -->
+        <div class="col-12 col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span><i class="fa fa-file-code me-2"></i> Common Exclude Patterns</span>
+                    <span class="badge bg-secondary">common_exclude.yaml</span>
+                </div>
+                <div class="card-body">
+                    {% if common_exclude_error %}
+                        <div class="alert alert-danger">{{ common_exclude_error }}</div>
+                        <pre class="bg-light p-2 rounded" style="max-height: 350px; overflow:auto;">{{ common_exclude_raw }}</pre>
+                    {% else %}
+                        <strong>Current Patterns:</strong>
+                        <pre class="p-2 rounded" style="max-height: 750px; overflow:auto;">{{ common_exclude_raw }}</pre>
+                    {% endif %}
+                </div>
+                <div class="card-footer text-end">
+                    <a class="btn btn-warning btn-sm" href="{{ url_for('config.edit_config', filename='common_exclude.yaml') }}">
+                        <i class="fa fa-edit"></i> Edit
+                </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="mt-4">
+        <form method="post" action="{{ url_for('config.set_passphrase') }}">
+            <div class="input-group">
+                <input type="password" class="form-control" name="passphrase" id="passphraseInput" placeholder="Set encryption passphrase" required>
+                <button class="btn btn-outline-secondary" type="button" id="togglePassphrase">
+                    <span id="toggleIcon" class="fa fa-eye"></span>
+                </button>
+                <button class="btn btn-primary" type="submit">Save Passphrase</button>
+            </div>
+            {% if current_passphrase %}
+                <small class="form-text text-muted">Current passphrase is set.</small>
+            {% else %}
+                <small class="form-text text-danger">No passphrase set.</small>
+            {% endif %}
+        </form>
     </div>
 </div>
 {% endblock %}

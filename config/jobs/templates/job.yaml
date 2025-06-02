@@ -9,45 +9,9 @@ job_name: "My Documents"  # The name of the backup job (used for logging and org
 # Ensure the `source` directory exists and contains the files you want to back up.
 source: "/home/user/Documents"  # The source directory to back up
 
-# Use the `exclude` list to specify files or directories to skip during the backup process.
+# Include additional exclude patterns specific to this job
 exclude:
-  # General patterns
-  - "*.tmp"              # Exclude temporary files
-  - "*.bak"              # Exclude backup files (e.g., file.bak)
-  - "*.swp"              # Exclude swap files (e.g., Vim swap files)
-  - "*.lock"             # Exclude lock files (e.g., file.lock) 
-  - "*.log"              # Exclude log files
-  - "*.iso"              # Exclude ISO disk images
-  - "*.tar.*"           # Exclude tarball archives
-  - "*.tar"              # Exclude uncompressed tarball archives
-  
-  # Directory-specific exclusions
-  - "cache/"             # Exclude cache directories
-  - "node_modules/"      # Exclude Node.js dependencies
-  - "**/venv/"              # Exclude Python virtual environments
-  - "build/"             # Exclude build directories (e.g., for compiled code)
-  
-  # Hidden files and directories
-  - ".*"                 # Exclude all hidden files and directories (e.g., .git, .env)
-  - ".DS_Store"          # Exclude macOS-specific metadata files
-    
-  # Specific files or directories
-  - "README.md"          # Exclude a specific file
-  - "docs/"              # Exclude a specific directory
-  
-  # Advanced patterns
-  - "**/__pycache__/**"  # Exclude all files and subdirectories within any `__pycache__` directory at any level
-  - "**/*.class"         # Exclude Java compiled class files recursively
-
-# More advanced examples for `exclude`:
-#   - "**/temp/**": Excludes all directories named `temp` at any level of the directory tree.
-#   - "**/*.log": Excludes all `.log` files recursively in all subdirectories.
-#   - "**/*.tmp": Excludes all `.tmp` files recursively in all subdirectories.
-#   - "**/backup_*/": Excludes all directories starting with `backup_` at any level.
-#   - "**/202*/": Excludes all directories with names starting with `202` (e.g., year-based directories).
-#   - "**/*.{jpg,png,gif}": Excludes all image files with `.jpg`, `.png`, or `.gif` extensions.
-#   - "**/logs/**/debug.log": Excludes `debug.log` files in any `logs` subdirectory.
-#   - "**/!(keep_this_dir)/": Excludes all directories except `keep_this_dir` (requires extended globbing).
+#  - PrivateFolder/
 
 # Scheduling - Define when and how backups should run automatically. You can set more than 2 schedules.
 # Cron Syntax:
@@ -75,12 +39,15 @@ schedules:
 # keep_sets: 2  # Number of backup sets to retain (older sets will be deleted automatically)
 # max_tarball_size: 2048  # Maximum size of each tarball in MB (e.g., 1024 MB = 1 GB)
 
+# Exclude all files and directories that match the patterns listed in config/common_exclude.yaml
+# use_common_exclude: true   # true | false
+
 # aws:
-#  profile: "default"   # AWS CLI profile to use (default if not specified)
-#  region: "us-east-1"  # AWS region (overrides profile region if specified)
-#  bucket: "my-bucket"  # S3 bucket name (required for cloud backups)
-#  storage_class: "STANDARD"  # S3 storage class (e.g., STANDARD, INTELLIGENT_TIERING, STANDARD_IA, ONEZONE_IA, GLACIER, DEEP_ARCHIVE)
-#  enabled: false       # true or false, false can be overridden by CLI
+#  profile: "default"          # AWS CLI profile to use (default if not specified)
+#  region: "us-east-1"         # AWS region (overrides profile region if specified)
+#  bucket: "my-bucket"         # S3 bucket name (required for cloud backups)
+#  storage_class: "STANDARD"   # S3 storage class (e.g., STANDARD, INTELLIGENT_TIERING, STANDARD_IA, ONEZONE_IA, GLACIER, DEEP_ARCHIVE)
+#  enabled: false              # true or false, false can be overridden by CLI
 
 # encryption: 
 #  method: gpg                              # Only 'gpg' supported for now
