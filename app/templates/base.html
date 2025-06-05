@@ -31,6 +31,7 @@
     {% endblock %}
 </head>
 <body class="body-padding-fix">
+    {% block spinner %}{% endblock %}
     {% block navbar %}
     <div class="container-fluid p-0">
         <nav class="sb-topnav navbar navbar-expand-md navbar-dark bg-black fixed-top">
@@ -38,7 +39,7 @@
           <!-- Mobile Icons (Visible on xs, sm screens) -->
           <span class="nav-item d-md-none ms-auto me-2" title="Scheduler Status">
               {% include 'partials/development_env_banner.html' %}
-              <a href="{{ url_for('dashboard.scheduler_heartbeat') }}" title="View Scheduler Heartbeat">
+              <a href="{{ url_for('dashboard.scheduler') }}" title="Scheduler">
                   <i id="schedulerStatusIconMobile" class="fas fa-question-circle text-secondary fa-lg"></i>
               </a>
           </span>
@@ -55,9 +56,9 @@
                 </a>
               </li>
               <li class="nav-item dropdown
-                  {% if request.endpoint in ['jobs.jobs_view', 'config.config', 'dashboard.storage_tree_view'] %}active{% endif %}">
+                  {% if request.endpoint in ['jobs.jobs_view', 'config.config', 'dashboard.storage_tree_view', 'dashboard.scheduler', 'security.security' ] %}active{% endif %}">
                 <a class="nav-link dropdown-toggle
-                  {% if request.endpoint in ['jobs.jobs_view', 'config.config', 'dashboard.storage_tree_view'] %}active{% endif %}"
+                  {% if request.endpoint in ['jobs.jobs_view', 'config.config', 'dashboard.storage_tree_view', 'dashboard.scheduler', 'security.security' ] %}active{% endif %}"
                   href="#" id="configurationDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                   Configuration
                 </a>
@@ -73,8 +74,13 @@
                     </a>
                   </li>
                   <li>
-                    <a class="dropdown-item {% if request.endpoint == 'dashboard.scheduler_heartbeat' %}active{% endif %}" href="{{ url_for('dashboard.scheduler_heartbeat') }}">
+                    <a class="dropdown-item {% if request.endpoint == 'dashboard.scheduler' %}active{% endif %}" href="{{ url_for('dashboard.scheduler') }}">
                       <i class="fas fa-clock me-1"></i> Scheduler
+                    </a>
+                  </li>
+                  <li>
+                    <a class="dropdown-item {% if request.endpoint == 'security.security' %}active{% endif %}" href="{{ url_for('security.security') }}">
+                      <i class="fas fa-lock me-1"></i> Security
                     </a>
                   </li>
                   <li>
@@ -146,7 +152,7 @@
                 <!-- Desktop Icons -->
                 <li>{% include 'partials/development_env_banner.html' %}</li>
                 <li class="nav-item me-2" title="Scheduler Status">
-                    <a href="{{ url_for('dashboard.scheduler_heartbeat') }}" title="View Scheduler Heartbeat">
+                    <a href="{{ url_for('dashboard.scheduler') }}" title="Scheduler">
                         <span title="Scheduler Status">
                             <i id="schedulerStatusIconDesktop" class="fas fa-question-circle text-secondary fa-lg"></i>
                         </span>

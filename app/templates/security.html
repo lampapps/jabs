@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+
+{% block title %}Security Settings{% endblock %}
+{% block top_scripts %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="container my-4">
+    <div class="mb-4">
+        <h2 class="mb-0">Security Settings</h2>
+        <div class="mb-2">
+            <span class="fs-6">Manage encryption and SMTP credentials for JABS</span>
+        </div>
+    </div>
+    <div class="row align-items-stretch">
+        <!-- Encryption Passphrase Card (left) -->
+        <div class="col-12 col-md-6 mb-4">
+            <form method="post" action="{{ url_for('security.set_passphrase') }}">
+                <div class="card h-100">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span><i class="fa fa-key me-2"></i> Encryption Passphrase</span>
+                        <span class="badge bg-secondary">.env</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-2 text-muted">
+                            Set or update the encryption passphrase used to encrypt and decrypt your backup archives. Save this passphrase securely, as it is required to access your backups.
+                        </div>
+                        <div class="input-group mb-2">
+                            <input type="password" class="form-control" name="passphrase" id="passphraseInput" placeholder="Set encryption passphrase" required>
+                            <button class="btn btn-outline-secondary" type="button" id="togglePassphrase">
+                                <span id="toggleIcon" class="fa fa-eye"></span>
+                            </button>
+                        </div>
+                        {% if current_passphrase %}
+                            <small class="form-text text-success">Current passphrase is set.</small>
+                        {% else %}
+                            <small class="form-text text-danger">No passphrase set.</small>
+                        {% endif %}
+                    </div>
+                    <div class="card-footer text-end">
+                        <button class="btn btn-primary" type="submit">Save</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+        <!-- SMTP Credentials Card (right) -->
+        <div class="col-12 col-md-6 mb-4">
+            <form method="post" action="{{ url_for('security.set_smtp_credentials') }}">
+                <div class="card h-100">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span><i class="fa fa-envelope me-2"></i> SMTP Credentials</span>
+                        <span class="badge bg-secondary">.env</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-2 text-muted">
+                            Set or update the SMTP username and password used for sending email notifications from JABS.
+                        </div>
+                        <div class="mb-2">
+                            <label for="smtpUsernameInput" class="form-label mb-1">SMTP Username (email address)</label>
+                            <input type="text" class="form-control" name="smtp_username" id="smtpUsernameInput"
+                                placeholder="Set SMTP username (email address)" required
+                                value="{{ current_smtp_username or '' }}">
+                        </div>
+                        <div class="mb-2">
+                            <label for="smtpPasswordInput" class="form-label mb-1">SMTP Password</label>
+                            <div class="input-group">
+                                <input type="password" class="form-control" name="smtp_password" id="smtpPasswordInput" placeholder="Set SMTP password" required>
+                                <button class="btn btn-outline-secondary" type="button" id="toggleSmtpPassword">
+                                    <span id="toggleSmtpIcon" class="fa fa-eye"></span>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="mt-2">
+                            {% if current_smtp_username and current_smtp_password %}
+                                <small class="form-text text-success">
+                                    SMTP username and password are set.
+                                </small>
+                            {% elif current_smtp_username %}
+                                <small class="form-text text-warning">
+                                    SMTP username is set, but password is not.
+                                </small>
+                            {% elif current_smtp_password %}
+                                <small class="form-text text-warning">
+                                    SMTP password is set, but username is not.
+                                </small>
+                            {% else %}
+                                <small class="form-text text-danger">
+                                    SMTP username and password are not set.
+                                </small>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="card-footer text-end">
+                        <button class="btn btn-primary" type="submit">Save</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/global.js') }}"></script>
+<script>
+  // Passphrase show/hide toggle
+  const passInput = document.getElementById('passphraseInput');
+  const toggleBtn = document.getElementById('togglePassphrase');
+  const toggleIcon = document.getElementById('toggleIcon');
+  if (passInput && toggleBtn && toggleIcon) {
+      toggleBtn.addEventListener('click', function() {
+          if (passInput.type === 'password') {
+              passInput.type = 'text';
+              toggleIcon.classList.remove('fa-eye');
+              toggleIcon.classList.add('fa-eye-slash');
+          } else {
+              passInput.type = 'password';
+              toggleIcon.classList.remove('fa-eye-slash');
+              toggleIcon.classList.add('fa-eye');
+          }
+      });
+  }
+
+  // SMTP password show/hide toggle
+  const smtpInput = document.getElementById('smtpPasswordInput');
+  const smtpToggleBtn = document.getElementById('toggleSmtpPassword');
+  const smtpToggleIcon = document.getElementById('toggleSmtpIcon');
+  if (smtpInput && smtpToggleBtn && smtpToggleIcon) {
+      smtpToggleBtn.addEventListener('click', function() {
+          if (smtpInput.type === 'password') {
+              smtpInput.type = 'text';
+              smtpToggleIcon.classList.remove('fa-eye');
+              smtpToggleIcon.classList.add('fa-eye-slash');
+          } else {
+              smtpInput.type = 'password';
+              smtpToggleIcon.classList.remove('fa-eye-slash');
+              smtpToggleIcon.classList.add('fa-eye');
+          }
+      });
+  }
+</script>
+{% endblock %}

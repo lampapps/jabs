@@ -31,7 +31,7 @@
                             <li><b>Destination:</b> <code>{{ global_config.destination or 'Not set' }}</code></li>
                             <li><b>Keep Sets:</b> <code>{{ global_config.keep_sets or 'Not set' }}</code></li>
                             <li><b>Max Tarball Size (MB):</b> <code>{{ global_config.max_tarball_size or 'Not set' }}</code></li>
-                            <li><b>Use Common Exclude:</b>
+                            <li><b>Use Global Excludes:</b>
                                 <code>
                                     {% if global_config.use_common_exclude is defined and global_config.use_common_exclude is not none %}
                                         {{ 'True' if global_config.use_common_exclude else 'False' }}
@@ -92,8 +92,10 @@
                         <ul class="mb-0 small">
                             <li>SMTP Server: <code>{{ global_config.email.smtp_server or 'Not set' }}</code></li>
                             <li>SMTP Port: <code>{{ global_config.email.smtp_port or 'Not set' }}</code></li>
-                            <li>Username: <code>{{ global_config.email.username or 'Not set' }}</code></li>
-                            <li>From Address: <code>{{ global_config.email.from_addr or 'Not set' }}</code></li>
+                            <li>
+                              SMTP Credentials:
+                              <a href="{{ url_for('security.security') }}">Edit Security Settings</a>
+                            </li>
                             <li>To Addresses:
                                 <ul>
                                     {% for addr in global_config.email.to_addrs or [] %}
@@ -146,7 +148,7 @@
         <div class="col-12 col-md-6 mb-4">
             <div class="card h-100">
                 <div class="card-header d-flex justify-content-between align-items-center">
-                    <span><i class="fa fa-file-code me-2"></i> Common Exclude Patterns</span>
+                    <span><i class="fa fa-file-code me-2"></i> Global Excludes</span>
                     <span class="badge bg-secondary">common_exclude.yaml</span>
                 </div>
                 <div class="card-body">
@@ -154,7 +156,6 @@
                         <div class="alert alert-danger">{{ common_exclude_error }}</div>
                         <pre class="bg-light p-2 rounded" style="max-height: 350px; overflow:auto;">{{ common_exclude_raw }}</pre>
                     {% else %}
-                        <strong>Current Patterns:</strong>
                         <pre class="p-2 rounded" style="max-height: 750px; overflow:auto;">{{ common_exclude_raw }}</pre>
                     {% endif %}
                 </div>
@@ -165,22 +166,6 @@
                 </div>
             </div>
         </div>
-    </div>
-    <div class="mt-4">
-        <form method="post" action="{{ url_for('config.set_passphrase') }}">
-            <div class="input-group">
-                <input type="password" class="form-control" name="passphrase" id="passphraseInput" placeholder="Set encryption passphrase" required>
-                <button class="btn btn-outline-secondary" type="button" id="togglePassphrase">
-                    <span id="toggleIcon" class="fa fa-eye"></span>
-                </button>
-                <button class="btn btn-primary" type="submit">Save Passphrase</button>
-            </div>
-            {% if current_passphrase %}
-                <small class="form-text text-muted">Current passphrase is set.</small>
-            {% else %}
-                <small class="form-text text-danger">No passphrase set.</small>
-            {% endif %}
-        </form>
     </div>
 </div>
 {% endblock %}
@@ -216,24 +201,6 @@
     document.querySelector("#editGlobalModal form").onsubmit = function() {
       document.getElementById("content").value = editor.getValue();
     };
-  }
-
-  // Passphrase show/hide toggle
-  const passInput = document.getElementById('passphraseInput');
-  const toggleBtn = document.getElementById('togglePassphrase');
-  const toggleIcon = document.getElementById('toggleIcon');
-  if (passInput && toggleBtn && toggleIcon) {
-      toggleBtn.addEventListener('click', function() {
-          if (passInput.type === 'password') {
-              passInput.type = 'text';
-              toggleIcon.classList.remove('fa-eye');
-              toggleIcon.classList.add('fa-eye-slash');
-          } else {
-              passInput.type = 'password';
-              toggleIcon.classList.remove('fa-eye-slash');
-              toggleIcon.classList.add('fa-eye');
-          }
-      });
   }
 </script>
 {% endblock %}

@@ -3,84 +3,79 @@
 {% block html_tag %} <html lang="en" data-bs-theme="dark">{% endblock %}
 
 {% block top_scripts %}{% endblock %}
-
+{% block spinner %}
+    <!-- Spinner overlay -->
+    <div id="loading-spinner" style="position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:2000;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.7);">
+    <div class="spinner-border text-light" role="status" style="width:4rem;height:4rem;">
+        <span class="visually-hidden">Loading...</span>
+    </div>
+    </div>
+{% endblock %}
 {% block navbar %}
-<div class="container-fluid p-0">
-    <nav class="sb-topnav navbar navbar-expand-md navbar-dark bg-black">
-        <a class="navbar-brand ps-3" href="#">&#123; JABS &#125;</a>
-    </nav>
-</div>
+    <div class="container-fluid p-0">
+        <nav class="sb-topnav navbar navbar-expand-md navbar-dark bg-black">
+            <a class="navbar-brand ps-3" href="#">&#123; JABS &#125;</a>
+        </nav>
+    </div>
 {% endblock %}
-
-{% block get_flashed_messages %}
-<!-- Spinner overlay -->
-<div id="loading-spinner" style="position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:2000;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.7);">
-  <div class="spinner-border text-light" role="status" style="width:4rem;height:4rem;">
-    <span class="visually-hidden">Loading...</span>
-  </div>
-</div>
-{% endblock %}
-
+{% block get_flashed_messages %}{% endblock %}
 {% block restore_options %}
-<p>
-    <strong>To manually restore your backup from archived files:</strong>
-    <ol>
-        <li>Move <code>restore.py</code> and <strong>all archive files</strong> (e.g., <code>archive-001.tar</code>, <code>archive-002.tar</code>, etc.) into the folder where you want the files to be restored.</li>
-        <li>Open a terminal in that folder.</li>
-        <li>Run the restore script:<br>
-            <code>python3 restore.py</code>
-        </li>
-        <li>Follow the on-screen prompts to restore a single archive or all archives.</li>
-    </ol>
-    <strong>Example:</strong>
-    <pre>
-cd /path/to/restore/location
-mv /path/to/archives/archive-*.tar .
-mv /path/to/restore.py .
-python3 restore.py
-    </pre>
-    <span class="text-muted">Tip: Make sure you have Python 3 installed. If you see a permissions error, try <code>chmod +x restore.py</code>.</span>
-</p>
+    <p>
+        <strong>To manually restore your backup from archived files:</strong>
+        <ol>
+            <li>Move <code>restore.py</code> and <strong>all archive files</strong> (e.g., <code>archive-001.tar</code>, <code>archive-002.tar</code>, etc.) into the folder where you want the files to be restored.</li>
+            <li>Open a terminal in that folder.</li>
+            <li>Run the restore script:<br>
+                <code>python3 restore.py</code>
+            </li>
+            <li>Follow the on-screen prompts to restore a single archive or all archives.</li>
+        </ol>
+        <strong>Example:</strong>
+        <pre>
+    cd /path/to/restore/location
+    mv /path/to/archives/archive-*.tar .
+    mv /path/to/restore.py .
+    python3 restore.py
+        </pre>
+        <span class="text-muted">Tip: Make sure you have Python 3 installed. If you see a permissions error, try <code>chmod +x restore.py</code>.</span>
+    </p>
 {% endblock %}
-
 {% block tarball_size %}
-{% for tarball in tarball_summary %}
-    <li class="list-group-item d-flex align-items-center">
-        <span>
-            {{ tarball.name }}
-        </span>
-    </li>
-{% endfor %}
+    {% for tarball in tarball_summary %}
+        <li class="list-group-item d-flex align-items-center">
+            <span>
+                {{ tarball.name }}
+            </span>
+        </li>
+    {% endfor %}
 {% endblock %}
-
 {% block manifest_table %}
-<table id="manifestTable" class="table table-striped table-bordered table-hover display responsive">
-    <thead>
-        <tr>
-            <th>Tarball</th>
-            <th>Path</th>
-            <th>Size</th>
-            <th>Last Modified</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for file in tarballs %}
-        <tr>
-            <td>{{ file.tarball }}</td>
-            <td>{{ file.path }}</td>
-            <td>{{ file.size }}</td>
-            <td>{{ file.modified }}</td>
-        </tr>
-        {% endfor %}
-        {% if tarballs|length == 0 %}
-        <tr>
-            <td colspan="4" class="text-center text-muted">No data available in table</td>
-        </tr>
-        {% endif %}
-    </tbody>
-</table>
+    <table id="manifestTable" class="table table-striped table-bordered table-hover display responsive">
+        <thead>
+            <tr>
+                <th>Tarball</th>
+                <th>Path</th>
+                <th>Size</th>
+                <th>Last Modified</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for file in tarballs %}
+            <tr>
+                <td>{{ file.tarball }}</td>
+                <td>{{ file.path }}</td>
+                <td>{{ file.size }}</td>
+                <td>{{ file.modified }}</td>
+            </tr>
+            {% endfor %}
+            {% if tarballs|length == 0 %}
+            <tr>
+                <td colspan="4" class="text-center text-muted">No data available in table</td>
+            </tr>
+            {% endif %}
+        </tbody>
+    </table>
 {% endblock %}
-
 {% block scripts %}
 <script>
     $(document).ready(function () {

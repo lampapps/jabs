@@ -78,3 +78,15 @@ thead th, tfoot th {
 #page-top, .scroll-anchor {
   scroll-margin-top: 60px; 
 }
+
+#scheduledJobsMiniChart-card {
+    height: 60px !important;
+    max-height: 60px !important;
+    min-height: 60px !important;
+    overflow: hidden;
+}
+#scheduledJobsMiniChart {
+    height: 60px !important;
+    max-height: 60px !important;
+    min-height: 60px !important;
+}

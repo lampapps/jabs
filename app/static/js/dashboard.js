@@ -204,7 +204,7 @@ $(document).ready(function () {
     if (window.Sortable && dashboardRow) {
         new Sortable(dashboardRow, {
             animation: 150,
-            handle: '.card-header',
+            handle: '.fa-arrows-alt',
             draggable: '.dashboard-card',
             ghostClass: 'sortable-ghost',
             onEnd: saveCardOrder // Save order after drag-and-drop
@@ -485,17 +485,112 @@ $(document).ready(function () {
             });
     }
 
+    let scheduledJobsMiniChart = null;
+    function initializeScheduledJobsMiniChart() {
+        const canvas = document.getElementById('scheduledJobsMiniChart');
+        const card = document.getElementById('scheduledJobsMiniChart-card');
+        const nodata = document.getElementById('scheduledJobsMiniChart-nodata');
+        if (!canvas) return;
+        fetch("/data/dashboard/scheduler_events.json")
+            .then(r => r.json())
+            .then(data => {
+                if (!Array.isArray(data) || data.length === 0) {
+                    if (card) card.style.maxHeight = "60px";
+                    if (nodata) nodata.style.display = "";
+                    if (canvas) canvas.style.display = "none";
+                    return;
+                }
+                if (card) card.style.maxHeight = "";
+                if (nodata) nodata.style.display = "none";
+                if (canvas) canvas.style.display = "";
+
+                // Build bar colors: blue for "No jobs", red for error, green for success
+                const barColors = data.map(event => {
+                    if (event.job_name === "No jobs" || event.status === "none") {
+                        return "rgba(15, 107, 255, 0.47)"; // blue
+                    }
+                    if (event.status === "error") {
+                        return "rgba(220, 53, 70, 0.43)"; // red
+                    }
+                    return "rgba(40, 167, 70, 0.49)"; // green
+                });
+
+                if (window.scheduledJobsMiniChart && typeof window.scheduledJobsMiniChart.destroy === "function") {
+                    window.scheduledJobsMiniChart.destroy();
+                }
+                window.scheduledJobsMiniChart = new Chart(canvas.getContext('2d'), {
+                    type: 'bar',
+                    data: {
+                        labels: data.map(e => e.datetime || ""),
+                        datasets: [{
+                            data: data.map(() => 1),
+                            backgroundColor: barColors,
+                            borderWidth: 0,
+                            barPercentage: 0.99,
+                            categoryPercentage: 0.99
+                        }]
+                    },
+                    options: {
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                displayColors: true,
+                                callbacks: {
+                                    title: ctx => {
+                                        const e = data[ctx[0].dataIndex];
+                                        return e.datetime || "";
+                                    },
+                                    label: ctx => {
+                                        const e = data[ctx.dataIndex];
+                                        if (e.job_name === "No jobs" || e.status === "none") {
+                                            return "No jobs run";
+                                        }
+                                        return `${e.job_name || "?"} (${e.backup_type || "unknown"}) : ${e.status || "unknown"}`;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                display: false,
+                                grid: { display: false, drawBorder: false },
+                                barPercentage: 0.99,
+                                categoryPercentage: 0.99
+                            },
+                            y: {
+                                display: false,
+                                grid: { display: false, drawBorder: false }
+                            }
+                        },
+                        elements: { bar: { borderRadius: 0 } },
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        animation: false
+                    }
+                });
+            })
+            .catch((error) => {
+                console.error("Failed to fetch scheduler events:", error);
+                if (card) card.style.maxHeight = "50px";
+                if (nodata) nodata.textContent = "Error loading scheduler data.";
+                if (nodata) nodata.style.display = "";
+                if (canvas) canvas.style.display = "none";
+            });
+}
+    
     // Initialize charts
     initializeDiskUsageChart();
     initializeS3UsageChart();
+    initializeScheduledJobsMiniChart();
 
     // Optional: Refresh charts periodically (if needed)
-    // setInterval(initializeDiskUsageChart, 60000); // Refresh disk usage every minute
-    // setInterval(initializeS3UsageChart, 300000); // Refresh S3 usage every 5 minutes
+    // setInterval(initializeDiskUsageChart, 60000);
+    // setInterval(initializeS3UsageChart, 300000);
 
-    // Refresh the table data periodically
+    // Refresh the table data and mini chart periodically
     setInterval(function () {
         eventsTable.ajax.reload(null, false);
-    }, 10000); // every 10 seconds (adjust as needed)
+        initializeScheduledJobsMiniChart();
+    }, 10000); // every 10 seconds
 
 }); // End document ready

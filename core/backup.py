@@ -47,7 +47,6 @@ def load_exclude_patterns(job_config_path, global_config_path, common_exclude_pa
     else:
         common_exclude = []
 
-    # --- NEW LOGIC: allow per-job override, fallback to global, default True ---
     if "use_common_exclude" in job_config:
         use_common = job_config["use_common_exclude"]
     elif "use_common_exclude" in global_config:
@@ -317,7 +316,8 @@ def run_backup(config, backup_type, encrypt=False, sync=False, event_id=None, jo
                 event_id=event_id,
                 status="skipped",
                 event=f"Backup already running for job '{job_name}'.",
-                backup_set_id=None
+                backup_set_id=None,
+                event_type="backup_complete"
             )
         return None, event_id, None
 
@@ -439,6 +439,14 @@ def run_backup(config, backup_type, encrypt=False, sync=False, event_id=None, jo
             modified_files = get_modified_files(src, last_full_time, exclude_patterns)
             if not modified_files:
                 logger.info("No modified files since last full backup.")
+                if event_id and event_exists(event_id):
+                    finalize_event(
+                        event_id=event_id,
+                        status="skipped",
+                        event="No files modified. Backup skipped.",
+                        backup_set_id=None,
+                        runtime="00:00:00"
+                    )
                 return None, event_id, None
             tarball_paths, _ = create_tar_archives(
                 modified_files,

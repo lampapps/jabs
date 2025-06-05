@@ -1,6 +1,6 @@
 #!/venv/bin/python3
 # /cli.py
-"""JABS CLI: Run backup jobs from the command line with options for encryption and cloud sync."""
+"""JABS CLI: Run backup jobs with options for encryption and cloud sync."""
 
 import argparse
 import logging

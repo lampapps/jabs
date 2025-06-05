@@ -2,7 +2,8 @@
 
 import os
 import yaml
-from app.settings import JOBS_DIR
+import json
+from app.settings import JOBS_DIR, SCHEDULER_EVENTS_PATH
 
 def find_config_path_by_job_name(target_job_name):
     """Find the path to a job config file by its job_name."""
@@ -35,3 +36,27 @@ def load_config(config_path):
     except Exception as e:  # pylint: disable=broad-except
         print(f"Error loading config file {config_path}: {e}")
         return None
+    
+def ensure_minimum_scheduler_events():
+    """
+    If the scheduler_events.json file has less than 50 events,
+    prepend 100 blank events to the beginning.
+    """
+    if not os.path.exists(SCHEDULER_EVENTS_PATH):
+        events = []
+    else:
+        with open(SCHEDULER_EVENTS_PATH, "r", encoding="utf-8") as f:
+            try:
+                events = json.load(f)
+            except json.JSONDecodeError:
+                events = []
+    if len(events) < 300:
+        blank_event = {
+            "datetime": "",
+            "job_name": "No jobs",
+            "backup_type": "null",
+            "status": "none"
+        }
+        events = [blank_event.copy() for _ in range(300)] + events
+        with open(SCHEDULER_EVENTS_PATH, "w", encoding="utf-8") as f:
+            json.dump(events, f, indent=2)

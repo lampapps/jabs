@@ -17,7 +17,7 @@
                     <li><b>Destination:</b> <code>{{ global_config.destination or 'Not set' }}</code></li>
                     <li><b>Keep Sets:</b> <code>{{ global_config.keep_sets or 'Not set' }}</code></li>
                     <li><b>Max Tarball Size (MB):</b> <code>{{ global_config.max_tarball_size or 'Not set' }}</code></li>
-                    <li><b>Use Common Exclude:</b>
+                    <li><b>Use Global Excludes:</b>
                         <code>
                             {% if global_config.use_common_exclude is defined and global_config.use_common_exclude is not none %}
                                 {{ 'True' if global_config.use_common_exclude else 'False' }}

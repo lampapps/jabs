@@ -1,3 +1,4 @@
+#Tuned for linux
 # tar files
 - "*.tar"
 - "**/*.tar"

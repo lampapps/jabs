@@ -14,6 +14,7 @@ from croniter import croniter
 from app.utils.logger import setup_logger, trim_all_logs
 from app.utils.emailer import send_email_digest
 from app.settings import CONFIG_DIR, LOCK_DIR, LOG_DIR, CLI_SCRIPT, PYTHON_EXECUTABLE
+from app.utils.scheduler_events import append_scheduler_event
 
 # --- Constants ---
 SCHEDULE_TOLERANCE = timedelta(seconds=15)
@@ -29,7 +30,7 @@ _lock_files = {}
 def acquire_lock(lock_file_path):
     """Acquire a non-blocking exclusive lock on the given file path."""
     try:
-        f = open(lock_file_path, 'w')
+        f = open(lock_file_path, 'w', encoding='utf-8')  # FIX: specify encoding
         fcntl.lockf(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
         _lock_files[lock_file_path] = f
         logger.debug(f"Acquired lock: {lock_file_path}")
@@ -44,8 +45,8 @@ def acquire_lock(lock_file_path):
         if 'f' in locals():
             f.close()
         raise
-    except Exception as e:
-        logger.error(f"Unexpected error acquiring lock for {lock_file_path}: {e}")
+    except OSError as e:  # Only one except OSError needed
+        logger.error(f"Unexpected OSError acquiring lock for {lock_file_path}: {e}")
         if lock_file_path in _lock_files and _lock_files[lock_file_path]:
             _lock_files[lock_file_path].close()
             del _lock_files[lock_file_path]
@@ -60,7 +61,7 @@ def release_lock(lock_file_path):
                 fcntl.lockf(f, fcntl.LOCK_UN)
                 f.close()
                 logger.debug(f"Released lock: {lock_file_path}")
-            except Exception as e:
+            except OSError as e:
                 logger.error(f"Error releasing lock for {lock_file_path}: {e}")
         else:
             logger.warning(
@@ -82,7 +83,7 @@ def load_yaml_config(path):
     except yaml.YAMLError as e:
         logger.error(f"Error parsing YAML file {path}: {e}")
         return None
-    except Exception as e:
+    except OSError as e:
         logger.error(f"Error loading config {path}: {e}")
         return None
 
@@ -98,7 +99,7 @@ def should_trigger(cron_expr, now):
         cron = croniter(cron_expr, now)
         prev_run_time = cron.get_prev(datetime)
         return (now - prev_run_time) < SCHEDULE_TOLERANCE, prev_run_time
-    except Exception as e:
+    except (ValueError, TypeError) as e:
         logger.error(f"Invalid cron expression '{cron_expr}': {e}")
         return False, None
 
@@ -174,8 +175,10 @@ def process_job_config(config_path, global_config, now):
                     logger.error(
                         f"Error: The script '{CLI_SCRIPT}' or python executable '{PYTHON_EXECUTABLE}' was not found."
                     )
-                except Exception as e:
+                except subprocess.SubprocessError as e:
                     logger.error(f"Failed to launch subprocess for job '{job_name}': {e}")
+                except Exception as e:  # If you must, add a comment
+                    logger.error(f"Unexpected error launching subprocess for job '{job_name}': {e}")
             else:
                 logger.debug(
                     f"Schedule '{cron_expr}' in {config_path} did not match within tolerance. "
@@ -191,7 +194,7 @@ def update_status_file():
         with open(SCHEDULER_STATUS_FILE, 'w', encoding='utf-8') as f:
             f.write(str(time.time()))
         logger.debug(f"Updated status file: {SCHEDULER_STATUS_FILE}")
-    except Exception as e:
+    except OSError as e:
         logger.error(f"Failed to update status file {SCHEDULER_STATUS_FILE}: {e}")
 
 def send_digest_email(global_config, now):
@@ -204,7 +207,7 @@ def send_digest_email(global_config, now):
         cron = croniter(cron_expr, now)
         prev_run_time = cron.get_prev(datetime)
         return (now - prev_run_time) < SCHEDULE_TOLERANCE
-    except Exception as e:
+    except (ValueError, TypeError) as e:
         logger.error(f"Invalid digest_email_schedule cron '{cron_expr}': {e}")
         return False
 
@@ -224,11 +227,52 @@ def main():
     global_config = load_yaml_config(global_config_path) or {}
 
     triggered_jobs_count = 0
+    triggered_jobs_info = []  # List to keep track of jobs that actually ran
+    any_job_errored = False   # <-- Add this line
 
     try:
         for config_path in config_files:
-            triggered_jobs_count += process_job_config(config_path, global_config, now)
+            job_name_from_file = os.path.splitext(os.path.basename(config_path))[0]
+            config = load_yaml_config(config_path)
+            job_name = config.get("job_name", job_name_from_file) if config else job_name_from_file
+            schedules = config.get('schedules', []) if config else []
+            backup_type = None  # FIX: removed unused variable 'job_triggered'
 
+            for schedule in schedules:
+                cron_expr = schedule.get('cron')
+                enabled = schedule.get('enabled', False)
+                backup_type = schedule.get('type', 'full')
+                if not enabled or not cron_expr:
+                    continue
+                matched, _ = should_trigger(cron_expr, now)
+                if matched:
+                    # Actually trigger the job
+                    command = build_command(config_path, backup_type, config, global_config)
+                    try:
+                        subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                        triggered_jobs_count += 1
+                        # If you have per-job error info, set it here. For now, use any_job_errored.
+                        triggered_jobs_info.append({
+                            "name": job_name,
+                            "backup_type": backup_type,
+                            "error": any_job_errored
+                        })
+                        break  # Only trigger once per config per run
+                    except FileNotFoundError:
+                        logger.error(
+                            f"Error: The script '{CLI_SCRIPT}' or python executable '{PYTHON_EXECUTABLE}' was not found."
+                        )
+                    except subprocess.SubprocessError as e:
+                        logger.error(f"Failed to launch subprocess for job '{job_name}': {e}")
+                    except Exception as e:  # pylint: disable=broad-except
+                        logger.error(f"Unexpected error launching subprocess for job '{job_name}': {e}")
+                        triggered_jobs_info.append({
+                            "name": job_name,
+                            "backup_type": backup_type,
+                            "error": True
+                        })
+                        any_job_errored = True
+                        break
         # --- Digest email schedule check ---
         if send_digest_email(global_config, now):
             logger.info("Digest email schedule matched. Sending digest email.")
@@ -237,10 +281,27 @@ def main():
         logger.info(f"Triggered {triggered_jobs_count} job(s) during this check.")
         logger.info("--- Scheduler Check Finished ---")
         update_status_file()
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-except
         logger.error(f"An unexpected error occurred in the main scheduler loop: {e}", exc_info=True)
+        any_job_errored = True
     finally:
+        now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        if triggered_jobs_count == 0:
+            append_scheduler_event(
+                datetime=now_str,
+                job_name="No jobs",
+                backup_type=None,
+                status="none"
+            )
         trim_all_logs()
 
 if __name__ == "__main__":
     main()
+    # Clean up stale lock files after log trimming 
+    try:
+        from app.utils.cleanup import cleanup_stale_locks
+        removed = cleanup_stale_locks()
+        if removed:
+            logger.info(f"Cleaned up stale lock files: {removed}")
+    except Exception as e:  # pylint: disable=broad-except
+        logger.error(f"Error during lock file cleanup: {e}")

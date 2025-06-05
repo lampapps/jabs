@@ -4,7 +4,7 @@ import os
 import sys
 import yaml
 
-VERSION = "v0.5.1"
+VERSION = "v0.6.0"
 
 # --- Application Configuration ---
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
@@ -24,14 +24,15 @@ GLOBAL_CONFIG_PATH = os.path.join(CONFIG_DIR, "global.yaml")
 DATA_DIR = os.path.join(BASE_DIR, 'data')
 MANIFEST_BASE = os.path.join(DATA_DIR, 'manifests')
 EVENTS_FILE = os.path.join(DATA_DIR, 'dashboard', 'events.json')
+SCHEDULER_EVENTS_PATH = os.path.join(DATA_DIR, "dashboard", "scheduler_events.json")
 
 # --- Logging Configuration ---
 LOG_DIR = os.path.join(BASE_DIR, 'logs')
-MAX_LOG_LINES = 1001
+MAX_LOG_LINES = 1000
 
 # --- Restore Configuration ---
-HOME_DIR = os.path.expanduser("~")
-RESTORE_SCRIPT_SRC = os.path.join(BASE_DIR, 'restore.py')
+HOME_DIR = os.path.expanduser("~") # user's home path to restrict custom restore location
+RESTORE_SCRIPT_SRC = os.path.join(BASE_DIR, 'restore.py') # script that is copied to archive destination directory
 
 # --- Load GLOBAL_CONFIG ---
 with open(GLOBAL_CONFIG_PATH, "r", encoding="utf-8") as f:
@@ -39,3 +40,7 @@ with open(GLOBAL_CONFIG_PATH, "r", encoding="utf-8") as f:
 
 # --- SMTP Configuration ---
 EMAIL_CONFIG = GLOBAL_CONFIG.get("email", {})
+EMAIL_DIGEST_FILE = os.path.join(DATA_DIR, "email_digest_queue.json") 
+
+#--- Dashboard Scheduler Events Bar Graph ---
+MAX_SCHEDULER_EVENTS = 300

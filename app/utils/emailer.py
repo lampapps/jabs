@@ -7,7 +7,8 @@ import threading
 from datetime import datetime
 from email.mime.text import MIMEText
 from dotenv import load_dotenv
-from app.settings import EMAIL_CONFIG, DATA_DIR
+
+from app.settings import EMAIL_CONFIG, EMAIL_DIGEST_FILE
 from app.utils.logger import setup_logger
 
 # Set up a dedicated logger for email notifications
@@ -15,45 +16,53 @@ email_logger = setup_logger("email", log_file="email.log")
 
 load_dotenv()
 
-EMAIL_DIGEST_FILE = os.path.join(DATA_DIR, "email_digest_queue.json")  # Store digest in data folder
 EMAIL_DIGEST_LOCK = threading.Lock()
 
-def send_email(subject, body, html=False):
+def _get_smtp_credentials():
+    """Fetch SMTP username and password from environment variables."""
+    username = os.environ.get("JABS_SMTP_USERNAME")
+    password = os.environ.get("JABS_SMTP_PASSWORD")
+    return username, password
+
+def _send_email(subject, body, html=False):
     """
     Send an email with the given subject and body.
     If html is True, send as HTML email.
     """
-    password = os.environ.get("JABS_EMAIL_PASSWORD")
+    username, password = _get_smtp_credentials()
     app_env = os.environ.get("APP_ENV", "").lower()
     if app_env == "development":
         subject = f"[DEV] {subject}"
+    if not username:
+        email_logger.error("No SMTP username found in environment variable JABS_SMTP_USERNAME.")
+        return False
     if not password:
-        email_logger.error("No email password found in environment variable JABS_EMAIL_PASSWORD.")
+        email_logger.error("No SMTP password found in environment variable JABS_SMTP_PASSWORD.")
         return False
 
     msg_type = "html" if html else "plain"
     msg = MIMEText(body, msg_type)
     msg['Subject'] = subject
-    msg['From'] = EMAIL_CONFIG['from_addr']
+    msg['From'] = username
     msg['To'] = ", ".join(EMAIL_CONFIG['to_addrs'])
 
     try:
         with smtplib.SMTP(EMAIL_CONFIG['smtp_server'], EMAIL_CONFIG['smtp_port']) as server:
             if EMAIL_CONFIG.get('use_tls'):
                 server.starttls()
-            server.login(EMAIL_CONFIG['username'], password)
-            server.sendmail(
-                EMAIL_CONFIG['from_addr'],
-                EMAIL_CONFIG['to_addrs'],
-                msg.as_string()
-            )
+                server.login(username, password)
+                server.sendmail(
+                    username,
+                    EMAIL_CONFIG['to_addrs'],
+                    msg.as_string()
+                )
         email_logger.info(f"Email sent: '{subject}' to {EMAIL_CONFIG['to_addrs']}")
         return True
     except (smtplib.SMTPException, OSError) as exc:
         email_logger.error(f"Failed to send email '{subject}' to {EMAIL_CONFIG['to_addrs']}: {exc}")
         return False
 
-def queue_email(subject, body, html=False, event_type=None):
+def _queue_email(subject, body, html=False, event_type=None):
     """Queue an email for later digest sending."""
     with EMAIL_DIGEST_LOCK:
         if os.path.exists(EMAIL_DIGEST_FILE):
@@ -69,7 +78,7 @@ def queue_email(subject, body, html=False, event_type=None):
             "event_type": event_type,
         })
         with open(EMAIL_DIGEST_FILE, "w", encoding="utf-8") as f:
-            json.dump(queue, f)
+            json.dump(queue, f, indent=2)
 
 def send_email_digest():
     """Send all queued emails as a single digest and clear the queue."""
@@ -96,7 +105,11 @@ def send_email_digest():
         if timestamps:
             start_time = min(timestamps)
             end_time = max(timestamps)
-            time_frame = f"Digest covers: {start_time.strftime('%Y-%m-%d %H:%M:%S')} to {end_time.strftime('%Y-%m-%d %H:%M:%S')}\n"
+            time_frame = (
+                "Digest covers:\n"
+                f"  Start: {start_time.strftime('%Y-%m-%d %H:%M:%S')}\n"
+                f"  End:   {end_time.strftime('%Y-%m-%d %H:%M:%S')}\n"
+            )
         else:
             time_frame = "Digest covers: (time frame unavailable)\n"
 
@@ -106,11 +119,10 @@ def send_email_digest():
         digest_body = summary
         for item in queue:
             digest_body += (
-                f"\n---\nTime: {item['timestamp']}\n"
-                f"Type: {item.get('event_type','')}\n"
-                f"Subject: {item['subject']}\n{item['body']}\n"
+                f"\n---\n"
+                f"{item.get('body', '').strip()}\n"
             )
-        success = send_email(digest_subject, digest_body, html=False)
+        success = _send_email(digest_subject, digest_body, html=False)
         if success:
             os.remove(EMAIL_DIGEST_FILE)
         return success
@@ -119,6 +131,7 @@ def email_event(event_type, subject, body, html=False):
     """
     Send an email notification if the event_type is enabled in config.
     Uses per-event mode: immediate or digest.
+    If mode is immediate, send and also queue for digest.
     """
     notify_on = EMAIL_CONFIG.get('notify_on', {})
     event_cfg = notify_on.get(event_type, {})
@@ -134,7 +147,11 @@ def email_event(event_type, subject, body, html=False):
         email_logger.info(f"Notification for event '{event_type}' is disabled in config.")
         return False
     if mode == "digest":
-        queue_email(subject, body, html, event_type=event_type)
+        _queue_email(subject, body, html, event_type=event_type)
         email_logger.info(f"Queued email for digest: '{subject}' (type: {event_type})")
         return True
-    return send_email(subject, body, html)
+    # If mode is immediate, send and also queue
+    sent = _send_email(subject, body, html)
+    _queue_email(subject, body, html, event_type=event_type)
+    email_logger.info(f"Sent and queued immediate email: '{subject}' (type: {event_type})")
+    return sent

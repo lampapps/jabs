@@ -7,15 +7,15 @@ import json
 import shutil
 import time
 import math
+import yaml
+import boto3
 
 from flask import (
     Blueprint, jsonify, send_from_directory, request, render_template, flash, url_for
 )
-import yaml
-import boto3
 
 from app.settings import (
-    BASE_DIR, LOG_DIR, EVENTS_FILE, GLOBAL_CONFIG_PATH, HOME_DIR, MAX_LOG_LINES
+    BASE_DIR, LOG_DIR, EVENTS_FILE, GLOBAL_CONFIG_PATH, HOME_DIR, MAX_LOG_LINES, SCHEDULER_EVENTS_PATH
 )
 from core import restore
 from app.utils.restore_status import check_restore_status
@@ -376,3 +376,15 @@ def delete_events():
             "Remove any remaining backup sets manually."
         )
     })
+
+@api_bp.route("/data/dashboard/scheduler_events.json")
+def get_scheduler_events():
+    """Return the scheduler events as JSON for the dashboard mini chart."""
+    path = SCHEDULER_EVENTS_PATH
+    if not os.path.exists(path):
+        return jsonify([])
+    with open(path, "r", encoding="utf-8") as f:
+        try:
+            return jsonify(json.load(f))
+        except json.JSONDecodeError:
+            return jsonify([])

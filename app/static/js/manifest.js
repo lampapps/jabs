@@ -15,7 +15,7 @@ $(document).ready(function () {
                     orderable: false,
                     className: 'text-center',
                     render: function (data, type, row, meta) {
-                        return `<input type="checkbox" class="file-checkbox" value="${row.path}">`;
+                        return `<input type="checkbox" class="file-checkbox" value="${row.path}" data-tarball="${row.tarball_path}">`;
                     }
                 },
                 { data: 'tarball', title: 'Tarball' },
@@ -85,7 +85,10 @@ $(document).ready(function () {
         restoreType = "selected";
         selectedFiles = [];
         $('.file-checkbox:checked').each(function() {
-            selectedFiles.push($(this).val());
+            selectedFiles.push({
+                path: $(this).val(),
+                tarball_path: $(this).data('tarball')
+            });
         });
         startRestore();
     });
@@ -219,4 +222,6 @@ $(document).ready(function () {
     document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function (el) {
         new bootstrap.Tooltip(el);
     });
+    // Hide spinner when everything is ready
+    document.getElementById('loading-spinner').style.display = 'none';
 });

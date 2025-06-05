@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Scheduler{% endblock %}
+{% block top_scripts %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
+{% endblock %}
+{% block content %}
+<div class="container mt-4 mb-4">
+  <div class="mb-4">
+      <h2 class="mb-0">Backup Job Scheduler</h2>
+      <div class="mb-2">
+          <span class="fs-6">Set up a method to run <code>scheduler.py</code> to trigger your backup jobs</span>
+      </div>
+  </div>
+  <div class="card mt-4">
+    <div class="card-header">
+      <i class="fa fa-clock me-2"></i>
+      <strong>How to Schedule the JABS Scheduler</strong>
+    </div>
+    <div class="card-body">
+      <div class="mb-2">
+        <strong>Python interpreter:</strong> <code>{{ venv_python }}</code><br>
+        <strong>Scheduler script:</strong> <code>{{ scheduler_py }}</code>
+      </div>
+      <hr>
+      <div class="mb-2">
+        <strong>Linux/macOS (Cron):</strong>
+        <pre class="mb-2"><code>0 * * * * {{ venv_python }} {{ scheduler_py }}</code></pre>
+        <div class="small text-muted">
+          Add the above line to your crontab (run <code>crontab -e</code>) to run the scheduler every hour.
+        </div>
+      </div>
+      <div class="mb-2">
+        <strong>Windows (Task Scheduler):</strong>
+        <ol class="mb-1">
+          <li>Open <b>Task Scheduler</b> and create a new Basic Task.</li>
+          <li>Set your desired trigger (e.g., hourly).</li>
+          <li>For <b>Program/script</b>, enter:<br>
+            <code>{{ venv_python|replace('/', '\\') }}</code>
+          </li>
+          <li>For <b>Add arguments</b>, enter:<br>
+            <code>{{ scheduler_py|replace('/', '\\') }}</code>
+          </li>
+          <li>Finish and enable the task.</li>
+        </ol>
+        <div class="small text-muted">
+          Make sure the paths above match your installation. You can test by running the command in a terminal first.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

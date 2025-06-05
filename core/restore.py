@@ -62,6 +62,9 @@ def extract_file_from_tarball(tarball_path, member_path, target_path, logger):
                             os.makedirs(os.path.dirname(target_path), exist_ok=True)
                             with open(target_path, "wb") as out_f, tar.extractfile(member) as in_f:
                                 out_f.write(in_f.read())
+                            # Set mtime from tar member
+                            if hasattr(member, "mtime"):
+                                os.utime(target_path, (member.mtime, member.mtime))
                             logger.info(f"Successfully restored '{member_path}' to '{target_path}'")
                             return True, None
                     logger.error(f"{member_path} not found in {tarball_path}")
@@ -85,6 +88,9 @@ def extract_file_from_tarball(tarball_path, member_path, target_path, logger):
                 os.makedirs(os.path.dirname(target_path), exist_ok=True)
                 with open(target_path, "wb") as out_f, tar.extractfile(member) as in_f:
                     out_f.write(in_f.read())
+                # Set mtime from tar member
+                if hasattr(member, "mtime"):
+                    os.utime(target_path, (member.mtime, member.mtime))
             logger.info(f"Successfully restored '{member_path}' to '{target_path}'")
             return True, None
     except KeyError:
@@ -102,7 +108,7 @@ def restore_files(
     Restore a list of files from a backup set.
     :param job_name: Name of the backup job.
     :param backup_set_id: Timestamp string identifying the backup set.
-    :param files: List of file paths (relative to source) to restore.
+    :param files: List of dicts: {"path": ..., "tarball_path": ...} to restore.
     :param dest: Optional destination directory for restore.
     :param base_dir: Base directory of the project.
     :param event_id: Optional event ID for logging.
@@ -115,6 +121,7 @@ def restore_files(
         logger = setup_logger(job_name, log_file="restore.log")
     logger.info(f"PASSPHRASE loaded: {'YES' if get_passphrase() else 'NO'}")
     logger.info(f"Starting restore_files for job '{job_name}', backup_set_id '{backup_set_id}'")
+    logger.info(f"Files requested for restore: {files}")
     set_restore_status(job_name, backup_set_id, running=True)
     manifest = get_manifest(job_name, backup_set_id, base_dir, logger)
     restored = []
@@ -139,22 +146,34 @@ def restore_files(
         update_event(event_id, event=f"{event_desc}", status="running")
 
     try:
-        for f in manifest.get("files", []):
-            if f["path"] in files:
-                tarball_path = f["tarball_path"]
-                member_path = f["path"]
-                if dest:
-                    target = os.path.join(dest, member_path)
-                else:
-                    source_base = manifest["config"]["source"]
-                    target = os.path.join(source_base, member_path)
-                ok, err = extract_file_from_tarball(tarball_path, member_path, target, logger)
-                if ok:
-                    restored.append(target)
-                else:
-                    errors.append({"file": member_path, "error": err})
-                    logger.error(f"Restore failed for '{member_path}': {err}")
-                    break
+        # files is a list of dicts: {"path": ..., "tarball_path": ...}
+        manifest_files = manifest.get("files", [])
+        for selected in files:
+            sel_path = selected["path"]
+            sel_tarball = selected["tarball_path"]
+            # Find the exact manifest entry
+            entry = next(
+                (f for f in manifest_files if f["path"] == sel_path and f["tarball_path"] == sel_tarball),
+                None
+            )
+            if not entry:
+                errors.append({"file": sel_path, "error": "Selected version not found in manifest"})
+                logger.error(f"Restore failed for '{sel_path}' from '{sel_tarball}': Not found in manifest")
+                continue
+            tarball_path = entry["tarball_path"]
+            member_path = entry["path"]
+            if dest:
+                target = os.path.join(dest, member_path)
+            else:
+                source_base = manifest["config"]["source"]
+                target = os.path.join(source_base, member_path)
+            ok, err = extract_file_from_tarball(tarball_path, member_path, target, logger)
+            if ok:
+                restored.append(target)
+            else:
+                errors.append({"file": member_path, "error": err})
+                logger.error(f"Restore failed for '{member_path}': {err}")
+                break
         logger.info(f"Restore complete. Restored: {len(restored)}, Errors: {len(errors)}")
         if errors:
             logger.error(f"Restore errors: {errors}")
@@ -190,21 +209,50 @@ def restore_files(
 
 def restore_full(job_name, backup_set_id, dest=None, base_dir=None, event_id=None):
     """
-    Restore all files from a backup set.
-    :param job_name: Name of the backup job.
-    :param backup_set_id: Timestamp string identifying the backup set.
-    :param dest: Optional destination directory for restore.
-    :param base_dir: Base directory of the project.
-    :param event_id: Optional event ID for logging.
-    :return: Dict with lists of restored files and errors.
+    Restore all files from a backup set: full backup, then latest diff only.
     """
     logger = setup_logger(job_name, log_file="restore.log")
     logger.info(f"Starting full restore for job '{job_name}', backup_set_id '{backup_set_id}'")
     set_restore_status(job_name, backup_set_id, running=True)
     manifest = get_manifest(job_name, backup_set_id, base_dir, logger)
-    files = [f["path"] for f in manifest.get("files", [])]
+    manifest_files = manifest.get("files", [])
+
+    # 1. Restore all files from full backup tarballs
+    full_files = [
+        {"path": f["path"], "tarball_path": f["tarball_path"]}
+        for f in manifest_files
+        if "full_part_" in os.path.basename(f["tarball_path"])
+    ]
+
+    # 2. Find the latest diff tarball(s)
+    diff_files = [f for f in manifest_files if "diff_part_" in os.path.basename(f["tarball_path"])]
+    latest_diff_files = []
+    if diff_files:
+        # Find the latest diff tarball by timestamp in filename
+        def extract_ts(f):
+            # Example: diff_part_1_20250602_130002.tar.gz.gpg
+            base = os.path.basename(f["tarball_path"])
+            parts = base.split("_")
+            # The timestamp is usually at the end before .tar.gz.gpg
+            for p in reversed(parts):
+                if p.isdigit() and len(p) == 6 or len(p) == 8 or len(p) == 15:
+                    return p
+            # fallback: use the whole filename
+            return base
+        # Get the latest timestamp
+        latest_ts = max([extract_ts(f) for f in diff_files])
+        # Get all files from the latest diff tarball(s)
+        latest_diff_files = [
+            {"path": f["path"], "tarball_path": f["tarball_path"]}
+            for f in diff_files
+            if extract_ts(f) == latest_ts
+        ]
+
+    # 3. Restore: full files first, then latest diff files (overwriting as needed)
+    files_to_restore = full_files + latest_diff_files
+
     result = restore_files(
-        job_name, backup_set_id, files, dest=dest, base_dir=base_dir,
+        job_name, backup_set_id, files_to_restore, dest=dest, base_dir=base_dir,
         event_id=event_id, restore_option="full", logger=logger
     )
     set_restore_status(job_name, backup_set_id, running=False)

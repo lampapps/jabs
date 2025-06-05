@@ -4,6 +4,14 @@
 {% block top_scripts %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
 {% endblock %}
+{% block spinner %}
+<!-- Spinner overlay -->
+<div id="loading-spinner" style="position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:2000;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.7);">
+  <div class="spinner-border text-light" role="status" style="width:4rem;height:4rem;">
+    <span class="visually-hidden">Loading...</span>
+  </div>
+</div>
+{% endblock %}
 {% block content %}
 <div class="container-fluid px-4">
     <h2 class="mt-4">Backup Manifest: {{ job_name }}</h2>
@@ -150,7 +158,6 @@
                                         <li><b>Destination:</b> <code>{{ used_config.get('destination', 'Not set') }}</code></li>
                                         <li><b>Keep Sets:</b> <code>{{ used_config.get('keep_sets', 'Not set') }}</code></li>
                                         <li><b>Max Tarball Size (MB):</b> <code>{{ used_config.get('max_tarball_size', 'Not set') }}</code></li>
-                                        <li><b>Use Common Exclude: <code>{{ used_config.get('use_common_exclude', 'Not set') }}</code></b></li>
                                         <li><b>AWS:</b>
                                             <ul>
                                                 <li>Enabled: <code>{{ used_config.get('aws', {}).get('enabled', 'Not set') }}</code></li>
@@ -166,7 +173,8 @@
                                                 <li>Passphrase Env: <code>{{ used_config.get('encryption', {}).get('passphrase_env', 'Not set') }}</code></li>
                                             </ul>
                                         </li>
-                                        <li><b>Exclude Patterns:</b>
+                                        <li><b>Use Global Excludes: <code>{{ used_config.get('use_common_exclude', 'Not set') }}</code></b></li>
+                                        <li><b>Job Specific Excludes:</b>
                                             {% if used_config.get('exclude') %}
                                         <ul>
                                             {% for pattern in used_config.get('exclude') %}

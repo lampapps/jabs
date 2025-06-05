@@ -1,8 +1,17 @@
 
 ## To do
 
-- Add ability to set smtp password in through flask
-- Cleanup lock files
+## v0.6.0
+
+### Added
+- Security page to handle encryption passphrase and credentials for smtp
+- Schedule heartbeat chart on index.html, removed the chart from Schedule page and renamed all references.
+
+### Fixed
+- Full restore logic fixed so only latest diff backups is restore after the full backup
+- Partial restore logic fixed so only the file from the requested archive is restored. Not the file from all archives in the set
+- Improved emails notification logic and formatting
+- Cleanup of lock files
 
 ## v0.5.1
 

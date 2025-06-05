@@ -3,9 +3,9 @@
 import os
 import yaml
 from flask import Blueprint, render_template, request, redirect, url_for, abort, flash
-from dotenv import set_key, load_dotenv
-from app.settings import JOBS_DIR, GLOBAL_CONFIG_PATH
+from dotenv import load_dotenv
 from cron_descriptor import get_description
+from app.settings import JOBS_DIR, GLOBAL_CONFIG_PATH
 
 config_bp = Blueprint('config', __name__)
 
@@ -14,27 +14,25 @@ def show_global_config():
     """Display the global configuration."""
     with open(GLOBAL_CONFIG_PATH, encoding="utf-8") as f:
         global_config = yaml.safe_load(f)
-    # Load current passphrase status
     env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), ".env")
     load_dotenv(env_path)
     current_passphrase = bool(os.environ.get("JABS_ENCRYPT_PASSPHRASE"))
 
-    # Convert cron expression to human-readable format
     digest_cron = global_config.get("email", {}).get("digest_email_schedule")
     digest_cron_human = ""
     if digest_cron:
         try:
             digest_cron_human = get_description(digest_cron)
-        except Exception:
+        except Exception:  
             digest_cron_human = "Invalid cron expression"
 
     # --- Add this block for common_exclude.yaml ---
-    COMMON_EXCLUDE_PATH = os.path.join(os.path.dirname(GLOBAL_CONFIG_PATH), "common_exclude.yaml")
+    common_exclude_path = os.path.join(os.path.dirname(GLOBAL_CONFIG_PATH), "common_exclude.yaml")
     try:
-        with open(COMMON_EXCLUDE_PATH, encoding="utf-8") as f:
+        with open(common_exclude_path, encoding="utf-8") as f:
             common_exclude_raw = f.read()
         common_exclude_error = None
-    except Exception as e:
+    except OSError as e:
         common_exclude_raw = ""
         common_exclude_error = str(e)
 
@@ -116,15 +114,3 @@ def save_config(filename):
     flash("Configuration saved.", "success")
     return redirect(next_url)
 
-@config_bp.route("/config/set_passphrase", methods=["POST"])
-def set_passphrase():
-    """Set the encryption passphrase in the .env file."""
-    passphrase = request.form.get("passphrase", "").strip()
-    if not passphrase:
-        flash("Passphrase cannot be empty.", "danger")
-        return redirect(url_for("config.config"))
-    env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), ".env")
-    load_dotenv(env_path)
-    set_key(env_path, "JABS_ENCRYPT_PASSPHRASE", passphrase)
-    flash("Encryption passphrase updated.", "success")
-    return redirect(url_for("config.config"))
