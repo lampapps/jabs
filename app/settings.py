@@ -4,7 +4,9 @@ import os
 import sys
 import yaml
 
-VERSION = "v0.6.0"
+from datetime import timedelta
+
+VERSION = "v0.7.0.beta"
 
 # --- Application Configuration ---
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
@@ -42,5 +44,7 @@ with open(GLOBAL_CONFIG_PATH, "r", encoding="utf-8") as f:
 EMAIL_CONFIG = GLOBAL_CONFIG.get("email", {})
 EMAIL_DIGEST_FILE = os.path.join(DATA_DIR, "email_digest_queue.json") 
 
-#--- Dashboard Scheduler Events Bar Graph ---
-MAX_SCHEDULER_EVENTS = 300
+#--- Scheduler Configuration ---
+MAX_SCHEDULER_EVENTS = 300      # How many event bars show in the dashboard
+SCHEDULE_TOLERANCE = timedelta(seconds=15)      # buffer for cron job execution
+SCHEDULER_STATUS_FILE = os.path.join(LOG_DIR, "scheduler.status")

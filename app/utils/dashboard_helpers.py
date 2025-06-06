@@ -39,17 +39,25 @@ def load_config(config_path):
     
 def ensure_minimum_scheduler_events():
     """
-    If the scheduler_events.json file has less than 50 events,
-    prepend 100 blank events to the beginning.
+    If the scheduler_events.json file has less than 300 events,
+    prepend 300 blank events to the beginning.
+    Ensures the file exists.
     """
+    # Ensure the directory exists
+    os.makedirs(os.path.dirname(SCHEDULER_EVENTS_PATH), exist_ok=True)
+
+    # Ensure the file exists
     if not os.path.exists(SCHEDULER_EVENTS_PATH):
-        events = []
-    else:
-        with open(SCHEDULER_EVENTS_PATH, "r", encoding="utf-8") as f:
-            try:
-                events = json.load(f)
-            except json.JSONDecodeError:
-                events = []
+        with open(SCHEDULER_EVENTS_PATH, "w", encoding="utf-8") as f:
+            json.dump([], f, indent=2)
+
+    # Load events
+    with open(SCHEDULER_EVENTS_PATH, "r", encoding="utf-8") as f:
+        try:
+            events = json.load(f)
+        except json.JSONDecodeError:
+            events = []
+
     if len(events) < 300:
         blank_event = {
             "datetime": "",

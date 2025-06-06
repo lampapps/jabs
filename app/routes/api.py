@@ -9,17 +9,20 @@ import time
 import math
 import yaml
 import boto3
+import socket
+from datetime import datetime
 
 from flask import (
     Blueprint, jsonify, send_from_directory, request, render_template, flash, url_for
 )
 
 from app.settings import (
-    BASE_DIR, LOG_DIR, EVENTS_FILE, GLOBAL_CONFIG_PATH, HOME_DIR, MAX_LOG_LINES, SCHEDULER_EVENTS_PATH
+    BASE_DIR, LOG_DIR, EVENTS_FILE, GLOBAL_CONFIG_PATH, HOME_DIR, MAX_LOG_LINES, SCHEDULER_EVENTS_PATH, VERSION, SCHEDULER_STATUS_FILE
 )
 from core import restore
 from app.utils.restore_status import check_restore_status
 from app.utils.event_logger import load_events_locked, save_events_locked
+from app.utils.poll_targets import poll_targets
 
 api_bp = Blueprint('api', __name__)
 
@@ -196,7 +199,7 @@ def api_manifest_json(job_name, backup_set_id):
 @api_bp.route('/api/scheduler_status')
 def get_scheduler_status():
     """Return the status and last run time of the scheduler."""
-    status_file = os.path.join(LOG_DIR, "scheduler.status")
+    status_file = SCHEDULER_STATUS_FILE
     stale_threshold_seconds = 3600 + 300
     status = "unknown"
     last_run_timestamp = None
@@ -388,3 +391,36 @@ def get_scheduler_events():
             return jsonify(json.load(f))
         except json.JSONDecodeError:
             return jsonify([])
+
+@api_bp.route("/api/monitor_status")
+def monitor_status():
+    """Return the status of monitored targets."""
+    # Load targets from config
+    with open("config/global.yaml") as f:
+        config = yaml.safe_load(f)
+    targets = config.get("monitored_targets", [])
+    return jsonify(poll_targets(targets))
+
+
+@api_bp.route("/api/heartbeat")
+def heartbeat():
+    """Return basic health/status info for this JABS instance."""
+    status_file = SCHEDULER_STATUS_FILE
+    last_run = None
+    last_run_str = None
+    if os.path.exists(status_file):
+        try:
+            with open(status_file, "r", encoding="utf-8") as f:
+                ts = float(f.read().strip())
+                last_run = ts
+                last_run_str = datetime.fromtimestamp(ts).strftime("%Y-%m-%d %H:%M:%S")
+        except Exception:
+            last_run = None
+            last_run_str = None
+    return jsonify({
+        "hostname": socket.gethostname(),
+        "version": VERSION,
+        "status": "ok",
+        "last_scheduler_run": last_run,
+        "last_scheduler_run_str": last_run_str
+    })

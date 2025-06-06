@@ -55,6 +55,11 @@
                   Dashboard
                 </a>
               </li>
+              <li class="nav-item">
+                <a class="nav-link {% if request.endpoint == 'monitor.monitor' %}active{% endif %}" href="{{ url_for('monitor.monitor') }}">
+                  Monitor
+                </a>
+              </li>
               <li class="nav-item dropdown
                   {% if request.endpoint in ['jobs.jobs_view', 'config.config', 'dashboard.storage_tree_view', 'dashboard.scheduler', 'security.security' ] %}active{% endif %}">
                 <a class="nav-link dropdown-toggle

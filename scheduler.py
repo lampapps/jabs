@@ -6,19 +6,16 @@ import subprocess
 import fcntl
 import errno
 import time
-from datetime import datetime, timedelta
+from datetime import datetime
 
 import yaml
 from croniter import croniter
 
 from app.utils.logger import setup_logger, trim_all_logs
 from app.utils.emailer import send_email_digest
-from app.settings import CONFIG_DIR, LOCK_DIR, LOG_DIR, CLI_SCRIPT, PYTHON_EXECUTABLE
+from app.settings import CONFIG_DIR, LOCK_DIR, LOG_DIR, CLI_SCRIPT, PYTHON_EXECUTABLE, SCHEDULER_STATUS_FILE, SCHEDULE_TOLERANCE
 from app.utils.scheduler_events import append_scheduler_event
 
-# --- Constants ---
-SCHEDULE_TOLERANCE = timedelta(seconds=15)
-SCHEDULER_STATUS_FILE = os.path.join(LOG_DIR, "scheduler.status")
 
 # --- Logging Setup ---
 os.makedirs(LOG_DIR, exist_ok=True)

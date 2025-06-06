@@ -1,6 +1,14 @@
 
 ## To do
 
+## v0.7.0.beta
+
+### Added
+- Monitoring of web sites and other JABS apps
+
+### Fixed
+- error on fresh install, check for existence of email_digest_queue.json before writing.
+
 ## v0.6.0
 
 ### Added
