@@ -2,6 +2,7 @@
 
 import os
 import yaml
+import socket
 from flask import Blueprint, render_template, request, redirect, url_for, abort, flash
 from dotenv import load_dotenv
 from cron_descriptor import get_description
@@ -9,7 +10,7 @@ from app.settings import JOBS_DIR, GLOBAL_CONFIG_PATH
 
 config_bp = Blueprint('config', __name__)
 
-@config_bp.route("/config.html", endpoint="config")
+@config_bp.route("/config", endpoint="config")
 def show_global_config():
     """Display the global configuration."""
     with open(GLOBAL_CONFIG_PATH, encoding="utf-8") as f:
@@ -43,6 +44,7 @@ def show_global_config():
         digest_cron_human=digest_cron_human,
         common_exclude_raw=common_exclude_raw,
         common_exclude_error=common_exclude_error,
+        hostname=socket.gethostname()
     )
 
 @config_bp.route("/config/save_global", methods=["POST"])
@@ -63,13 +65,15 @@ def save_global():
 def edit_config(filename):
     """Edit a configuration file."""
     error_message = None
-    # Add support for common_exclude.yaml
     if filename == "global.yaml":
         file_path = GLOBAL_CONFIG_PATH
         cancel_url = url_for("config.config")
     elif filename == "common_exclude.yaml":
         file_path = os.path.join(os.path.dirname(GLOBAL_CONFIG_PATH), "common_exclude.yaml")
         cancel_url = url_for("config.config")
+    elif filename == "monitor.yaml":
+        file_path = os.path.join(os.path.dirname(GLOBAL_CONFIG_PATH), "monitor.yaml")
+        cancel_url = url_for("monitor.monitor")
     else:
         file_path = os.path.join(JOBS_DIR, filename)
         cancel_url = url_for("jobs.jobs_view")
@@ -83,7 +87,8 @@ def edit_config(filename):
         file_name=filename,
         raw_data=loaded_yaml,
         cancel_url=cancel_url,
-        error=error_message
+        error=error_message,
+        hostname=socket.gethostname()
     )
 
 @config_bp.route("/config/save/<filename>", methods=["POST"])
@@ -95,6 +100,8 @@ def save_config(filename):
         file_path = GLOBAL_CONFIG_PATH
     elif filename == "common_exclude.yaml":
         file_path = os.path.join(os.path.dirname(GLOBAL_CONFIG_PATH), "common_exclude.yaml")
+    elif filename == "monitor.yaml":
+        file_path = os.path.join(os.path.dirname(GLOBAL_CONFIG_PATH), "monitor.yaml")
     else:
         file_path = os.path.join(JOBS_DIR, filename)
     new_content = request.form.get("content", "")

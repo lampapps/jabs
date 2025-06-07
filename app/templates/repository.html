@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Storage Tree View{% endblock %}
+{% block title %}Repository{% endblock %}
 {% block top_scripts %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
 {% endblock %}
@@ -7,8 +7,9 @@
 {% block content %}
 <div class="container my-4">
     <div class="mb-4">
-        <h2 class="mb-0">Storage Tree View</h2>
-         <span class="fs-6">Configure the backup storage directories and S3 buckets in the global/job settings</span>
+        <h2 class="mb-0">Backup Repository</h2>
+         <span class="fs-6">Configure the default backup repositories in the 
+            <a href="{{ url_for('config.config') }}">global settings</a></span>
     </div>
     <div class="row g-4">
         <div class="col-12 col-lg-6">

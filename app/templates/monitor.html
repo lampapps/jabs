@@ -3,17 +3,17 @@
 {% block top_scripts %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
 {% endblock %}
-
 {% block content %}
 <div class="container my-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
             <h2 class="mb-0">Monitor</h2>
             <div class="mb-2">
-                <span class="fs-6">Monitoring tool</span>
+                <span class="fs-6">Monitor other JABS instances on local network</span>
             </div>
         </div>
-        <a class="btn btn-warning btn-sm" href="{{ url_for('config.edit_config', filename=config.file_name, next=url_for('monitor.monitor')) }}">
+        <a class="btn btn-warning btn-sm"
+           href="{{ url_for('config.edit_config', filename='monitor.yaml', next=url_for('monitor.monitor')) }}">
             <i class="fa fa-edit"></i> Edit
         </a>
     </div>
@@ -24,27 +24,32 @@
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <span>
                         <strong>{{ monitor.name }}</strong>
-                        <span class="badge bg-{{ 'success' if monitor.ok else 'danger' }}">
-                            {{ 'Online' if monitor.ok else 'Offline' }}
-                        </span>
                     </span>
-                    <span class="text-muted small">{{ monitor.type|capitalize }}</span>
+                    <span class="badge bg-{{ 'success' if monitor.ok else 'danger' }}">
+                        {{ 'Online' if monitor.ok else 'Offline' }}
+                    </span>
                 </div>
                 <div class="card-body d-flex flex-column">
-                    {% if monitor.type == 'jabs' %}
-                        <div>Hostname: {{ monitor.details.hostname }}</div>
-                        <div>Version: {{ monitor.details.version }}</div>
-                        <div>Last Run: {{ monitor.details.last_scheduler_run_str or 'N/A' }}</div>
+                    <div><strong>API Status:</strong></div>
+                    <div>Hostname: {{ monitor.details.hostname }}</div>
+                    <div>Version: {{ monitor.details.version }}</div>
+                    <div>Last Run: {{ monitor.details.last_scheduler_run_str or 'N/A' }}</div>
+                    <hr>
+                    <div><strong>Backup Status File:</strong></div>
+                    {% set status = monitor_statuses.get(monitor.name) %}
+                    {% if status %}
+                        <div>Machine: {{ status.machinename }}</div>
+                        <div>Version: {{ status.version }}</div>
+                        <div>Last Run: {{ status.last_run }}</div>
+                        <div>Backup Log Errors: {{ status.backup_log_errors }}</div>
+                        <div>Email Log Errors: {{ status.email_log_errors }}</div>
+                        <div>Scheduler Log Errors: {{ status.scheduler_log_errors }}</div>
                     {% else %}
-                        <div>Status Code: {{ monitor.details.status_code or 'N/A' }}</div>
-                        <div>Text Found: {{ monitor.details.found_text }}</div>
-                        {% if monitor.details.error %}
-                            <div class="text-danger">Error: {{ monitor.details.error }}</div>
-                        {% endif %}
+                        <div class="text-danger">No status file found.</div>
                     {% endif %}
                 </div>
                 <div class="card-footer d-flex flex-wrap gap-2 justify-content-end">
-                    <a class="btn btn-outline-primary btn-sm" href="{{ monitor.url }}" target="_blank">
+                    <a class="btn btn-outline-primary btn-sm" href="{{ monitor.base_url }}" target="_blank">
                         Visit
                     </a>
                 </div>

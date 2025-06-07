@@ -1,12 +1,13 @@
 """Routes for security management in JABS."""
 
 import os
+import socket
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from dotenv import set_key, load_dotenv
 
 security_bp = Blueprint('security', __name__)
 
-@security_bp.route("/security.html", endpoint="security")
+@security_bp.route("/security", endpoint="security")
 def show_security():
     """Display the security settings page."""
     env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), ".env")
@@ -19,6 +20,7 @@ def show_security():
         current_passphrase=current_passphrase,
         current_smtp_password=current_smtp_password,
         current_smtp_username=current_smtp_username,
+        hostname=socket.gethostname()
     )
 
 @security_bp.route("/security/set_passphrase", methods=["POST"])

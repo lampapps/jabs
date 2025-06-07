@@ -8,6 +8,7 @@ import tempfile
 import pathlib
 import fcntl
 import yaml
+import socket
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from werkzeug.utils import secure_filename
 from cron_descriptor import get_description
@@ -92,7 +93,8 @@ def jobs_view():
         "jobs.html",
         configs=jobs,
         templates=templates,
-        global_config=global_config
+        global_config=global_config,
+        hostname=socket.gethostname()
     )
 
 @jobs_bp.route("/jobs/run/<filename>", methods=["POST"])

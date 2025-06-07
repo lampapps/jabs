@@ -147,7 +147,7 @@ def documentation():
         content = Markup(
             markdown.markdown(md_content, extensions=["fenced_code", "tables"])
         )
-    return render_template("documentation.html", content=content)
+    return render_template("documentation.html", content=content, hostname=socket.gethostname())
 
 @dashboard_bp.route("/change_log")
 def change_log():
@@ -161,7 +161,7 @@ def change_log():
         content = Markup(
             markdown.markdown(md_content, extensions=["fenced_code", "tables"])
         )
-    return render_template("change_log.html", content=content)
+    return render_template("change_log.html", content=content, hostname=socket.gethostname())
 
 @dashboard_bp.route('/manifest/<string:job_name>/<string:backup_set_id>')
 def view_manifest(job_name, backup_set_id):
@@ -218,10 +218,11 @@ def view_manifest(job_name, backup_set_id):
         total_size_human=total_size_human,
         used_config=used_config,
         HOME_DIR=HOME_DIR,
+        hostname=socket.gethostname()
     )
 
-@dashboard_bp.route('/storage-tree')
-def storage_tree_view():
+@dashboard_bp.route('/repository')
+def repository():
     """Render the storage tree view for local and S3 storage."""
     config_path = os.path.join(
         os.path.dirname(current_app.root_path), 'config', 'global.yaml'
@@ -275,9 +276,10 @@ def storage_tree_view():
                 }
             })
     return render_template(
-        "storage_tree_view.html",
+        "repository.html",
         local_tree_json=json.dumps(local_trees),
-        s3_tree_json=json.dumps(s3_trees)
+        s3_tree_json=json.dumps(s3_trees),
+        hostname=socket.gethostname()
     )
 
 @dashboard_bp.route("/scheduler")
@@ -290,5 +292,6 @@ def scheduler():
     return render_template(
         "scheduler.html",
         venv_python=venv_python,
-        scheduler_py=scheduler_py
+        scheduler_py=scheduler_py,
+        hostname=socket.gethostname()
     )

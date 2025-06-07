@@ -2,6 +2,7 @@
 
 import os
 import re
+import socket
 from collections import Counter
 from flask import Blueprint, render_template
 from app.settings import LOG_DIR, MAX_LOG_LINES
@@ -56,5 +57,6 @@ def logs_view():
     return render_template(
         "logs.html",
         logs=logs_list,
-        MAX_LOG_LINES=MAX_LOG_LINES
+        MAX_LOG_LINES=MAX_LOG_LINES,
+        hostname=socket.gethostname()
     )

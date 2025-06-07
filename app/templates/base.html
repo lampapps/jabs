@@ -22,7 +22,7 @@
     <meta charset="utf-8" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
-    <title>{% block title %}JABS3{% endblock %}</title>
+    <title>{{ hostname }} {% block title %}Dashboard{% endblock %}</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-9ndCyUaIbzAi2FUVXJi0CjmCapSmO7SnpJef0486qhLnuZ2cdeRhO02iuK6FUUVM" crossorigin="anonymous">
     <link href="https://cdn.datatables.net/v/bs5/jq-3.7.0/dt-2.2.2/b-3.2.2/b-print-3.2.2/fh-4.0.1/r-3.0.4/rg-1.5.1/datatables.min.css" rel="stylesheet" integrity="sha384-MZ0CnLBP8jRsPEkJ8ufEXHxsgPRgrjE1Vs14Vq6b4oXxC1atRMXMDb4bLqd6dX6J" crossorigin="anonymous">
@@ -55,15 +55,25 @@
                   Dashboard
                 </a>
               </li>
+              <li>
+                <a class="nav-link {% if request.endpoint == 'jobs.jobs_view' %}active{% endif %}" href="{{ url_for('jobs.jobs_view') }}">
+                  Backups
+                </a>
+              </li>
+              <li>
+                <a class="nav-link {% if request.endpoint == 'dashboard.repository' %}active{% endif %}" href="{{ url_for('dashboard.repository') }}">
+                  Repository
+                </a>
+              </li>
               <li class="nav-item">
                 <a class="nav-link {% if request.endpoint == 'monitor.monitor' %}active{% endif %}" href="{{ url_for('monitor.monitor') }}">
                   Monitor
                 </a>
               </li>
               <li class="nav-item dropdown
-                  {% if request.endpoint in ['jobs.jobs_view', 'config.config', 'dashboard.storage_tree_view', 'dashboard.scheduler', 'security.security' ] %}active{% endif %}">
+                  {% if request.endpoint in ['config.config', 'dashboard.scheduler', 'security.security' ] %}active{% endif %}">
                 <a class="nav-link dropdown-toggle
-                  {% if request.endpoint in ['jobs.jobs_view', 'config.config', 'dashboard.storage_tree_view', 'dashboard.scheduler', 'security.security' ] %}active{% endif %}"
+                  {% if request.endpoint in ['config.config', 'dashboard.scheduler', 'security.security' ] %}active{% endif %}"
                   href="#" id="configurationDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                   Configuration
                 </a>
@@ -74,11 +84,6 @@
                     </a>
                   </li>
                   <li>
-                    <a class="dropdown-item {% if request.endpoint == 'jobs.jobs_view' %}active{% endif %}" href="{{ url_for('jobs.jobs_view') }}">
-                      <i class="fas fa-tasks me-1"></i> Jobs
-                    </a>
-                  </li>
-                  <li>
                     <a class="dropdown-item {% if request.endpoint == 'dashboard.scheduler' %}active{% endif %}" href="{{ url_for('dashboard.scheduler') }}">
                       <i class="fas fa-clock me-1"></i> Scheduler
                     </a>
@@ -86,11 +91,6 @@
                   <li>
                     <a class="dropdown-item {% if request.endpoint == 'security.security' %}active{% endif %}" href="{{ url_for('security.security') }}">
                       <i class="fas fa-lock me-1"></i> Security
-                    </a>
-                  </li>
-                  <li>
-                    <a class="dropdown-item {% if request.endpoint == 'dashboard.storage_tree_view' %}active{% endif %}" href="{{ url_for('dashboard.storage_tree_view') }}">
-                      <i class="fas fa-folder-tree me-1"></i> Storage Tree
                     </a>
                   </li>
                 </ul>
