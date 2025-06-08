@@ -24,13 +24,17 @@
             {% set api_status = api_statuses.get(key) %}
             {% set file_status = monitor_statuses.get(key) %}
             {% set status = api_status or file_status %}
+            {% set problem = problems.get(key) %}
             <div class="col-12 col-md-6">
-                <div class="card border-{{ 'success' if monitor.ok else 'danger' }}">
+                <div class="card border-{{ 'danger' if problem else 'success' }}">
                     <div class="card-header d-flex justify-content-between align-items-center">
                         <span>
                             <strong>{{ monitor.name }}</strong>
                         </span>
-                        <span class="badge bg-{{ 'success' if monitor.ok else 'danger' }}">
+                        <span class="badge bg-{{ 'danger' if problem else 'success' }}">
+                            {{ 'Problem' if problem else 'OK' }}
+                        </span>
+                        <span class="badge bg-{{ 'success' if monitor.ok else 'secondary' }}">
                             {{ 'Online' if monitor.ok else 'Offline' }}
                         </span>
                     </div>
@@ -46,6 +50,18 @@
                                     {{ status.get('error_event_count', 0) }}
                                 </span>
                             </div>
+                            {% if problem %}
+                                <div class="mt-2 alert alert-danger p-2">
+                                    {% if status.get('error_event_count', 0) > 0 %}
+                                        <div><i class="fa fa-exclamation-triangle"></i> Backup error(s) detected.</div>
+                                    {% endif %}
+                                    {% set last_run_ts = status.get('last_scheduler_run') %}
+                                    {% if not last_run_ts %}
+                                        <div><i class="fa fa-clock"></i> No recent backup run detected.</div>
+                                    {% endif %}
+                                    {# If you want to show "too old" warning, you can add more logic here #}
+                                </div>
+                            {% endif %}
                         {% else %}
                             <div class="text-danger">No status available.</div>
                         {% endif %}

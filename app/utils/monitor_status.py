@@ -29,10 +29,18 @@ def write_monitor_status(shared_monitor_dir, version, last_run, log_dir):
     last_run_ts = None
     last_run_str = None
     try:
+        # Try to parse as float (timestamp)
         last_run_ts = float(last_run)
         last_run_str = datetime.fromtimestamp(last_run_ts).strftime("%Y-%m-%d %H:%M:%S")
     except Exception:
-        last_run_str = last_run
+        try:
+            # Try to parse as ISO string
+            dt = datetime.fromisoformat(str(last_run))
+            last_run_ts = dt.timestamp()
+            last_run_str = dt.strftime("%Y-%m-%d %H:%M:%S")
+        except Exception:
+            last_run_str = str(last_run)
+            last_run_ts = None
 
     error_event_count = count_error_events(EVENTS_FILE)
 

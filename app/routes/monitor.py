@@ -21,7 +21,12 @@ def monitor():
     monitor_statuses = {}
     expected_paths = {}
     api_statuses = {}
-    for target in targets:
+    problems = {}
+
+    from datetime import datetime, timezone
+
+    now = datetime.now(timezone.utc)
+    for idx, target in enumerate(targets):
         host_keys = []
         if target.get("hostname"):
             host_keys.append(target["hostname"])
@@ -55,6 +60,25 @@ def monitor():
         api_statuses[key] = api_status
         expected_paths[key] = api_url if api_available else (os.path.join(shared_monitor_dir, "monitor", f"{host_keys[0]}.json") if host_keys else None)
 
+        # Determine if there is a problem
+        s = api_status or status or {}
+        error_count = s.get("error_event_count", 0)
+        last_run_ts = s.get("last_scheduler_run")
+        grace_period = target.get("grace_period", 60)
+        too_old = False
+        if last_run_ts:
+            try:
+                # last_run_ts may be float or int (seconds since epoch)
+                last_run_dt = datetime.fromtimestamp(float(last_run_ts), tz=timezone.utc)
+                minutes_since = (now - last_run_dt).total_seconds() / 60
+                too_old = minutes_since > grace_period
+            except Exception:
+                too_old = True  # If can't parse, flag as problem
+        else:
+            too_old = True  # No last_run_ts, flag as problem
+
+        problems[key] = (error_count > 0) or too_old
+
     return render_template(
         "monitor.html",
         monitors=monitors,
@@ -62,6 +86,8 @@ def monitor():
         api_statuses=api_statuses,
         expected_paths=expected_paths,
         targets=targets,
+        problems=problems,
         hostname=socket.gethostname(),
         monitor_yaml_path=monitor_yaml_path
     )
+

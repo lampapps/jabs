@@ -3,7 +3,7 @@
 - improve setup.sh: needs to activate venv after install and then run.py
 - fix scheduler file not found in new installs
 
-## v0.7.1.beta2
+## v0.7.1.beta3
 
 ### Added
 - Monitoring of web sites and other JABS apps
