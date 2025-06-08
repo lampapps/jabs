@@ -19,42 +19,46 @@
     </div>
     <div class="row g-4">
         {% for monitor in monitors %}
-        <div class="col-12 col-md-6">
-            <div class="card border-{{ 'success' if monitor.ok else 'danger' }}">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <span>
-                        <strong>{{ monitor.name }}</strong>
-                    </span>
-                    <span class="badge bg-{{ 'success' if monitor.ok else 'danger' }}">
-                        {{ 'Online' if monitor.ok else 'Offline' }}
-                    </span>
-                </div>
-                <div class="card-body d-flex flex-column">
-                    <div><strong>API Status:</strong></div>
-                    <div>Hostname: {{ monitor.details.hostname }}</div>
-                    <div>Version: {{ monitor.details.version }}</div>
-                    <div>Last Run: {{ monitor.details.last_scheduler_run_str or 'N/A' }}</div>
-                    <hr>
-                    <div><strong>Backup Status File:</strong></div>
-                    {% set status = monitor_statuses.get(monitor.name) %}
-                    {% if status %}
-                        <div>Machine: {{ status.machinename }}</div>
-                        <div>Version: {{ status.version }}</div>
-                        <div>Last Run: {{ status.last_run }}</div>
-                        <div>Backup Log Errors: {{ status.backup_log_errors }}</div>
-                        <div>Email Log Errors: {{ status.email_log_errors }}</div>
-                        <div>Scheduler Log Errors: {{ status.scheduler_log_errors }}</div>
-                    {% else %}
-                        <div class="text-danger">No status file found.</div>
-                    {% endif %}
-                </div>
-                <div class="card-footer d-flex flex-wrap gap-2 justify-content-end">
-                    <a class="btn btn-outline-primary btn-sm" href="{{ monitor.base_url }}" target="_blank">
-                        Visit
-                    </a>
+            {% set target = targets[loop.index0] %}
+            {% set key = target.hostname or target.name %}
+            {% set api_status = api_statuses.get(key) %}
+            {% set file_status = monitor_statuses.get(key) %}
+            {% set status = api_status or file_status %}
+            <div class="col-12 col-md-6">
+                <div class="card border-{{ 'success' if monitor.ok else 'danger' }}">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span>
+                            <strong>{{ monitor.name }}</strong>
+                        </span>
+                        <span class="badge bg-{{ 'success' if monitor.ok else 'danger' }}">
+                            {{ 'Online' if monitor.ok else 'Offline' }}
+                        </span>
+                    </div>
+                    <div class="card-body d-flex flex-column">
+                        <div><strong>Status:</strong></div>
+                        {% if status %}
+                            <div>Hostname: {{ status.get('hostname', 'N/A') }}</div>
+                            <div>Version: {{ status.get('version', 'N/A') }}</div>
+                            <div>Last Run: {{ status.get('last_scheduler_run_str', 'N/A') }}</div>
+                            <div>
+                                Error Count:
+                                <span class="{{ 'text-danger fw-bold' if status.get('error_event_count', 0) > 0 else 'text-muted' }}">
+                                    {{ status.get('error_event_count', 0) }}
+                                </span>
+                            </div>
+                        {% else %}
+                            <div class="text-danger">No status available.</div>
+                        {% endif %}
+                    </div>
+                    <div class="card-footer d-flex flex-wrap gap-2 justify-content-end">
+                        {% if api_status %}
+                            <a class="btn btn-outline-primary btn-sm" href="{{ target.url }}" target="_blank">
+                                Visit API
+                            </a>
+                        {% endif %}
+                    </div>
                 </div>
             </div>
-        </div>
         {% endfor %}
     </div>
 </div>

@@ -4,9 +4,11 @@ import os
 import smtplib
 import json
 import threading
+import socket
 from datetime import datetime
 from email.mime.text import MIMEText
 from dotenv import load_dotenv
+from collections import Counter
 
 from app.settings import EMAIL_CONFIG, EMAIL_DIGEST_FILE
 from app.utils.logger import setup_logger
@@ -92,10 +94,12 @@ def send_email_digest():
             return False
 
         # --- Build summary of event types ---
-        from collections import Counter
         event_types = [item.get("event_type", "unknown") for item in queue]
         counts = Counter(event_types)
-        summary_lines = ["Digest Summary:"]
+        summary_lines = [
+            "Digest Summary:",
+            f"Host: {socket.gethostname()}",
+        ]
         for event_type, count in counts.items():
             summary_lines.append(f"  {event_type}: {count}")
 
@@ -115,7 +119,7 @@ def send_email_digest():
 
         summary = "\n".join(summary_lines) + "\n" + time_frame + "\n"
 
-        digest_subject = f"JABS Daily Digest ({datetime.now().strftime('%Y-%m-%d')})"
+        digest_subject = f"JABS Daily Digest from {socket.gethostname()} ({datetime.now().strftime('%Y-%m-%d')})"
         digest_body = summary
         for item in queue:
             digest_body += (
@@ -127,7 +131,7 @@ def send_email_digest():
             os.remove(EMAIL_DIGEST_FILE)
         return success
 
-def email_event(event_type, subject, body, html=False):
+def process_email_event(event_type, subject, body, html=False):
     """
     Send an email notification if the event_type is enabled in config.
     Uses per-event mode: immediate or digest.

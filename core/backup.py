@@ -438,15 +438,7 @@ def run_backup(config, backup_type, encrypt=False, sync=False, event_id=None, jo
             last_full_time = float(time.mktime(time.strptime(last_full_timestamp, "%Y%m%d_%H%M%S")))
             modified_files = get_modified_files(src, last_full_time, exclude_patterns)
             if not modified_files:
-                logger.info("No modified files since last full backup.")
-                if event_id and event_exists(event_id):
-                    finalize_event(
-                        event_id=event_id,
-                        status="skipped",
-                        event="No files modified. Backup skipped.",
-                        backup_set_id=None,
-                        runtime="00:00:00"
-                    )
+                logger.info("No modified files since last full backup.(debug)")
                 return None, event_id, None
             tarball_paths, _ = create_tar_archives(
                 modified_files,

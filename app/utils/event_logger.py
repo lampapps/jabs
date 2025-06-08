@@ -9,7 +9,7 @@ import portalocker
 import yaml
 from app.settings import EVENTS_FILE, GLOBAL_CONFIG_PATH
 from app.utils.scheduler_events import append_scheduler_event
-from app.utils.emailer import email_event
+from app.utils.emailer import process_email_event
 
 def update_events_json_atomic(modifier_func):
     """
@@ -176,9 +176,8 @@ def finalize_event(event_id, status, event, runtime=None, backup_set_id=None, ev
     # Email 
     notify_cfg = notify_on.get(event_type, {})
     if notify_cfg.get("enabled", False):
-        subject = f"JABS Notification: {event_type.replace('_', ' ').title()}"
+        subject = f"JABS Notification from {event_data.get('hostname', 'N/A')}: {event_type.replace('_', ' ').title()}"
         body = (
-            f"Machine: {event_data.get('hostname', 'N/A')}\n"
             f"Start Time: {event_data.get('starttimestamp', 'N/A')}\n"
             f"Job Name: {event_data.get('job_name', 'N/A')}\n"
             f"Type: {event_data.get('backup_type', 'N/A')}\n"
@@ -186,7 +185,7 @@ def finalize_event(event_id, status, event, runtime=None, backup_set_id=None, ev
             f"Status: {status}\n"
             f"Runtime: {event_data.get('runtime', 'N/A')}\n"
         )
-        email_event(event_type, subject, body)
+        process_email_event(event_type, subject, body)
 
         # --- Scheduler mini chart logging ---
         append_scheduler_event(

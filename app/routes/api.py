@@ -417,10 +417,28 @@ def heartbeat():
         except Exception:
             last_run = None
             last_run_str = None
+
+    # Count events with status == "error"
+    error_event_count = 0
+    events_path = EVENTS_FILE
+    if os.path.exists(events_path):
+        try:
+            with open(events_path, "r", encoding="utf-8") as f:
+                events_data = json.load(f)
+                # If events_data is a dict with "data" key, use that, else assume it's a list
+                if isinstance(events_data, dict) and "data" in events_data:
+                    events = events_data["data"]
+                else:
+                    events = events_data
+                error_event_count = sum(1 for e in events if e.get("status") == "error")
+        except Exception:
+            error_event_count = 0
+
     return jsonify({
         "hostname": socket.gethostname(),
         "version": VERSION,
         "status": "ok",
         "last_scheduler_run": last_run,
-        "last_scheduler_run_str": last_run_str
+        "last_scheduler_run_str": last_run_str,
+        "error_event_count": error_event_count
     })

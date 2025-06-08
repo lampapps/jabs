@@ -86,21 +86,16 @@ try:
                 job_config_path=config_path
             )
 
-            # --- PATCH: Check event still exists before finalizing ---
-            if not event_exists(returned_event_id):
-                logger.error("Event with ID %s not found after backup. Skipping finalize.", returned_event_id)
-                return
-
-            if not latest_backup_set and backup_set_id_str is None:
-                status = get_event_status(returned_event_id)
-                if status != "error":
-                    logger.info("No files modified or backup skipped. Finalizing event.")
-                    finalize_event(
-                        event_id=returned_event_id,
-                        status="skipped",
-                        event="No files modified. Backup skipped.",
-                        backup_set_id=None
-                    )
+            # Check for skipped diff backup
+            if backup_type in ["diff", "differential"] and latest_backup_set is None and backup_set_id_str is None:
+                logger.info("No files modified. Differential backup skipped.")
+                finalize_event(
+                    event_id=returned_event_id,
+                    status="skipped",
+                    event="No files modified. Backup skipped.",
+                    backup_set_id=None,
+                    runtime="00:00:00"
+                )
                 return
 
             if sync_effective and latest_backup_set:

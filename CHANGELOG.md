@@ -3,14 +3,15 @@
 - improve setup.sh: needs to activate venv after install and then run.py
 - fix scheduler file not found in new installs
 
-## v0.7.1.beta1
+## v0.7.1.beta2
 
 ### Added
 - Monitoring of web sites and other JABS apps
 
 ### Fixed
-- error on fresh install, check for existence of email_digest_queue.json before writing.
+- error on fresh install, check for existence of email_digest_queue.json before writing
 - Title tag includes machine name
+- Double email notifications for diff backup when no modified files found
 
 ## v0.6.0
 

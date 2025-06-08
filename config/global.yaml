@@ -4,7 +4,7 @@
 # The `destination` directory must have sufficient space for the backup sets.
 destination: "/media/jim2/backupdrive/jabs_dev" 
 
-keep_sets: 2  # Number of backup sets to retain (older sets will be deleted automatically)
+keep_sets: 5  # Number of backup sets to retain (older sets will be deleted automatically)
 max_tarball_size: 2048  # Maximum size of each tarball in MB (e.g., 1024 MB = 1 GB)
 
 use_common_exclude: true   # true | false to exclude patterns from config/common_exlude.yaml
