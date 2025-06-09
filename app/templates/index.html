@@ -15,13 +15,28 @@
         <!-- Modified Column for Badges -->
         <div class="col-md-6 mb-4 mb-ms-0">
             <!-- Use flexbox to align items horizontally -->
-            <div class="mt-4 mt-ms-0 d-flex align-items-center justify-content-md-end">
-                <!-- Cronitor Badge -->
-                <img src="https://cronitor.io/badges/KLrCh0/production/wLW3ZcGEKKogN1auD-k2sxJiy5U.svg" alt="jabs-imac-cron Status" class="me-2" />
-                <img src="https://cronitor.io/badges/IZqG5P/production/3JqP8cW-uep-qWN-uxZbOUunZHE.svg" alt="lampapps.com Status" class="me-2" />
-                <img src="https://cronitor.io/badges/kt7GDT/production/mqH_nruSiBGFa0ahGS4cP-dP9IA.svg" alt="jof.gallery Status" class="me-2" />
-        </div>
+            <div class="mt-4 mt-ms-0 d-flex align-items-center justify-content-md-end flex-wrap gap-2">
+                {% include 'partials/monitor_badges.html' %}
+                {% for target in targets %}
+                    {% set key = target.hostname or target.name %}
+                    {% set problem = problems.get(key) %}
+                    {% set api_status = api_statuses.get(key) %}
+                    <a href="{{ url_for('monitor.monitor') }}" style="text-decoration: none;">
+                        <span class="badge
+                            {% if problem %}bg-danger
+                            {% elif api_status %}bg-success
+                            {% else %}bg-secondary
+                            {% endif %}
+                            ms-2 mb-2"
+                            title="{{ target.name or key }}">
+                            <i class="fa fa-server me-1"></i>
+                            {{ target.name or key }}
+                        </span>
+                    </a>
+                {% endfor %}
+            </div>
         <!-- End Modified Column -->
+        </div>
     </div>
     <div class="row pb-3" id="dashboard-cards-row">
         <!-- Scheduled Jobs Card -->
@@ -132,39 +147,46 @@
             </div>
         </div>
     </div>
-    <!-- Backup/Restore mini chart -->
-    <div class="card mb-3" id="scheduledJobsMiniChart-card">
-        <canvas id="scheduledJobsMiniChart" class="p-1" height="60"></canvas>
-        <div id="scheduledJobsMiniChart-nodata" class="text-muted small text-center py-2" style="display:none;">
-            No scheduler data yet.
+    <!-- Wrap the mini chart and event log in a new row -->
+    <div class="row">
+        <div class="col-12">
+            <!-- Backup/Restore mini chart -->
+            <div class="card mb-3" id="scheduledJobsMiniChart-card">
+                <canvas id="scheduledJobsMiniChart" class="p-1" height="60"></canvas>
+                <div id="scheduledJobsMiniChart-nodata" class="text-muted small text-center py-2" style="display:none;">
+                    No scheduler data yet.
+                </div>
+            </div>
         </div>
-    </div>
-    <div class="card mb-4">
-        <div class="card-header d-flex align-items-center justify-content-between">
-            <span>
-                <i class="fa-regular fa-clock me-1"></i> Event Log
-            </span>
-            <button class="btn btn-danger btn-sm" id="delete-selected-btn" title="Delete selected events from the event log">
-                Delete Selected
-            </button>
-        </div>
-        <div class="card-body">
-            <table id="eventsTable" class="table table-striped table-bordered table-hover display responsive">
-                <thead>
-                    <tr>
-                        <th><input type="checkbox" id="select-all-events"></th>
-                        <th>Start</th>
-                        <th>Backup Title</th>
-                        <th>Type</th>
-                        <th>Event</th>
-                        <th>Options</th>
-                        <th>Run Time</th>
-                        <th>Status</th>
-                    </tr>
-                </thead>
-                <tbody>                              
-                </tbody>
-            </table>
+        <div class="col-12">
+            <div class="card mb-4">
+                <div class="card-header d-flex align-items-center justify-content-between">
+                    <span>
+                        <i class="fa-regular fa-clock me-1"></i> Event Log
+                    </span>
+                    <button class="btn btn-danger btn-sm" id="delete-selected-btn" title="Delete selected events from the event log">
+                        Delete Selected
+                    </button>
+                </div>
+                <div class="card-body">
+                    <table id="eventsTable" class="table table-striped table-bordered table-hover display responsive">
+                        <thead>
+                            <tr>
+                                <th><input type="checkbox" id="select-all-events"></th>
+                                <th>Start</th>
+                                <th>Backup Title</th>
+                                <th>Type</th>
+                                <th>Event</th>
+                                <th>Options</th>
+                                <th>Run Time</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>                              
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     </div>
 </div>

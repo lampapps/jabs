@@ -1,16 +1,23 @@
+"""Flask routes for the JABS monitor page: displays status of monitored targets."""
+
 import os
 import json
-import requests
-from flask import Blueprint, render_template, current_app
-from app.utils.poll_targets import poll_targets
-import yaml
 import socket
+from datetime import datetime, timezone
+
+import requests
+import yaml
+from flask import Blueprint, render_template
+
 from app.settings import CONFIG_DIR
+from app.utils.poll_targets import poll_targets
+
 
 monitor_bp = Blueprint('monitor', __name__)
 
 @monitor_bp.route("/monitor")
 def monitor():
+    """Render the monitor page with status of all monitored targets."""
     monitor_yaml_path = os.path.join(CONFIG_DIR, "monitor.yaml")
     with open(monitor_yaml_path, "r", encoding="utf-8") as f:
         monitor_cfg = yaml.safe_load(f)
@@ -23,10 +30,8 @@ def monitor():
     api_statuses = {}
     problems = {}
 
-    from datetime import datetime, timezone
-
     now = datetime.now(timezone.utc)
-    for idx, target in enumerate(targets):
+    for target in targets:
         host_keys = []
         if target.get("hostname"):
             host_keys.append(target["hostname"])
@@ -43,7 +48,7 @@ def monitor():
                 if resp.ok:
                     api_status = resp.json()
                     api_available = True
-            except Exception:
+            except requests.RequestException:
                 api_status = None
                 api_available = False
         # If API not available, try local file
@@ -68,11 +73,10 @@ def monitor():
         too_old = False
         if last_run_ts:
             try:
-                # last_run_ts may be float or int (seconds since epoch)
                 last_run_dt = datetime.fromtimestamp(float(last_run_ts), tz=timezone.utc)
                 minutes_since = (now - last_run_dt).total_seconds() / 60
                 too_old = minutes_since > grace_period
-            except Exception:
+            except (ValueError, TypeError, OSError, IOError):
                 too_old = True  # If can't parse, flag as problem
         else:
             too_old = True  # No last_run_ts, flag as problem
@@ -88,6 +92,6 @@ def monitor():
         targets=targets,
         problems=problems,
         hostname=socket.gethostname(),
-        monitor_yaml_path=monitor_yaml_path
+        monitor_yaml_path=monitor_yaml_path,
+        now=datetime.now(timezone.utc).timestamp(),
     )
-

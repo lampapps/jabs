@@ -7,6 +7,7 @@ import tarfile
 import glob
 import shutil
 import socket
+import subprocess
 from datetime import datetime
 
 import yaml
@@ -65,6 +66,17 @@ def load_exclude_patterns(job_config_path, global_config_path, common_exclude_pa
     return exclude_patterns
 
 def is_excluded(path, exclude_patterns, src_base):
+    """
+    Determine if a given path should be excluded based on exclude patterns.
+
+    Args:
+        path (str): The file or directory path to check.
+        exclude_patterns (list): List of patterns to match for exclusion.
+        src_base (str): The base source directory for relative path calculation.
+
+    Returns:
+        bool: True if the path matches any exclude pattern, False otherwise.
+    """
     rel_path = os.path.relpath(path, src_base)
     rel_path = rel_path.replace(os.sep, "/")
     is_dir = os.path.isdir(path)
@@ -210,7 +222,6 @@ def rotate_backups(job_dst, keep_sets, logger, config=None):
     """
     Rotate backup sets to keep only the latest 'keep_sets' sets and clean up corresponding JSON files, events, and S3 folders.
     """
-    import subprocess
     backup_sets = sorted(glob.glob(os.path.join(job_dst, "backup_set_*")), reverse=True)
     if len(backup_sets) > keep_sets:
         to_delete = backup_sets[keep_sets:]
@@ -409,7 +420,7 @@ def run_backup(config, backup_type, encrypt=False, sync=False, event_id=None, jo
                     )
                     logger.info(f"JSON Manifest written to: {json_manifest_path}")
                     logger.info(f"HTML Manifest written to: {html_manifest_path}")
-                except Exception as e:
+                except (OSError, IOError, ValueError, yaml.YAMLError) as e:
                     logger.error(f"Failed to write manifest files: {e}", exc_info=True)
                     finalize_event(
                         event_id=event_id,
@@ -439,7 +450,7 @@ def run_backup(config, backup_type, encrypt=False, sync=False, event_id=None, jo
             modified_files = get_modified_files(src, last_full_time, exclude_patterns)
             if not modified_files:
                 logger.info("No modified files since last full backup.(debug)")
-                return None, event_id, None
+                return "skipped", event_id, None
             tarball_paths, _ = create_tar_archives(
                 modified_files,
                 backup_set_dir,
@@ -465,7 +476,7 @@ def run_backup(config, backup_type, encrypt=False, sync=False, event_id=None, jo
                     )
                     logger.info(f"JSON Manifest written to: {json_manifest_path}")
                     logger.info(f"HTML Manifest written to: {html_manifest_path}")
-                except Exception as e:
+                except (OSError, IOError, ValueError, yaml.YAMLError) as e:
                     logger.error(f"Failed to write manifest files: {e}", exc_info=True)
                     finalize_event(
                         event_id=event_id,
@@ -505,3 +516,4 @@ def run_backup(config, backup_type, encrypt=False, sync=False, event_id=None, jo
         raise
     finally:
         release_lock(lock_file)
+

@@ -4,7 +4,7 @@ monitored_targets:
   - name: "Raspberry Pi"
     hostname: "raspberrypi"
     url: "http://192.168.1.28:5000"
-    grace_period: 60                     # time in minutes to wait after last scheduled run to throw error
+    grace_period: 15                   # time in minutes to wait after last scheduled run to throw error
   - name: "jim-imac"
     hostname: "jim-imac"
     url: "http://192.168.1.15:5000"

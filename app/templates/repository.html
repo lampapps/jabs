@@ -2,6 +2,13 @@
 {% block title %}Repository{% endblock %}
 {% block top_scripts %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
+<style>
+    /* Keep cards white even in dark mode */
+    .card.bg-white, .card-header.bg-white, .card-body.bg-white {
+        background-color: #fff !important;
+        color: #212529 !important;
+    }
+</style>
 {% endblock %}
 
 {% block content %}
@@ -112,11 +119,4 @@
         });
     });
 </script>
-<style>
-    /* Keep cards white even in dark mode */
-    .card.bg-white, .card-header.bg-white, .card-body.bg-white {
-        background-color: #fff !important;
-        color: #212529 !important;
-    }
-</style>
 {% endblock %}

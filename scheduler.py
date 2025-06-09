@@ -28,26 +28,20 @@ _lock_files = {}
 def acquire_lock(lock_file_path):
     """Acquire a non-blocking exclusive lock on the given file path."""
     try:
-        f = open(lock_file_path, 'w', encoding='utf-8')  # FIX: specify encoding
+        f = open(lock_file_path, 'w', encoding='utf-8')
         fcntl.lockf(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
         _lock_files[lock_file_path] = f
         logger.debug(f"Acquired lock: {lock_file_path}")
         return f
-    except IOError as e:
-        if e.errno in (errno.EACCES, errno.EAGAIN):
+    except OSError as e:
+        if hasattr(e, "errno") and e.errno in (errno.EACCES, errno.EAGAIN):
             logger.debug(f"Lock already held for: {lock_file_path}")
             if 'f' in locals():
                 f.close()
             return None
-        logger.error(f"Unexpected IOError acquiring lock for {lock_file_path}: {e}")
+        logger.error(f"Unexpected OSError acquiring lock for {lock_file_path}: {e}")
         if 'f' in locals():
             f.close()
-        raise
-    except OSError as e:  # Only one except OSError needed
-        logger.error(f"Unexpected OSError acquiring lock for {lock_file_path}: {e}")
-        if lock_file_path in _lock_files and _lock_files[lock_file_path]:
-            _lock_files[lock_file_path].close()
-            del _lock_files[lock_file_path]
         return None
 
 def release_lock(lock_file_path):
@@ -294,7 +288,7 @@ def main():
         trim_all_logs()
         # Monitor status reporting
         try:
-            with open(os.path.join(CONFIG_DIR, "monitor.yaml")) as f:
+            with open(os.path.join(CONFIG_DIR, "monitor.yaml"), encoding="utf-8") as f:
                 monitor_cfg = yaml.safe_load(f)
             if monitor_cfg.get("enable_monitoring"):
                 shared_dir = monitor_cfg.get("shared_monitor_dir")
@@ -304,7 +298,7 @@ def main():
                     last_run=datetime.now().isoformat(),
                     log_dir=LOG_DIR
                 )
-        except Exception as e:
+        except (OSError, IOError, yaml.YAMLError) as e:
             logger.error(f"Failed to write monitor status: {e}")
 
 if __name__ == "__main__":

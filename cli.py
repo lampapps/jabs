@@ -87,7 +87,7 @@ try:
             )
 
             # Check for skipped diff backup
-            if backup_type in ["diff", "differential"] and latest_backup_set is None and backup_set_id_str is None:
+            if backup_type in ["diff", "differential"] and latest_backup_set == "skipped":
                 logger.info("No files modified. Differential backup skipped.")
                 finalize_event(
                     event_id=returned_event_id,
@@ -107,25 +107,31 @@ try:
                 )
                 sync_to_s3(latest_backup_set, config, returned_event_id)
 
-            logger.info("Completed backup successfully")
-            final_event = f"Backup Set ID: {backup_set_id_str}"
-            finalize_event(
-                event_id=returned_event_id,
-                status="success",
-                event=final_event,
-                backup_set_id=backup_set_id_str
-            )
+            # Only finalize as success if backup_set_id_str is not None and event is not already finalized
+            if backup_set_id_str is not None and event_exists(returned_event_id):
+                current_status = get_event_status(returned_event_id)
+                if current_status not in ("error", "skipped", "success"):
+                    logger.info("Completed backup successfully")
+                    final_event = f"Backup Set ID: {backup_set_id_str}"
+                    finalize_event(
+                        event_id=returned_event_id,
+                        status="success",
+                        event=final_event,
+                        backup_set_id=backup_set_id_str
+                    )
 
         except (OSError, yaml.YAMLError, ValueError) as e:
             logger.error("Backup failed: %s", e, exc_info=True)
-            # Only finalize if event still exists
+            # Only finalize if event still exists and not already finalized
             if event_exists(event_id):
-                finalize_event(
-                    event_id=event_id,
-                    status="error",
-                    event=f"Backup failed: {e}",
-                    backup_set_id=None
-                )
+                current_status = get_event_status(event_id)
+                if current_status not in ("error", "skipped", "success"):
+                    finalize_event(
+                        event_id=event_id,
+                        status="error",
+                        event=f"Backup failed: {e}",
+                        backup_set_id=None
+                    )
             raise
 
     if __name__ == "__main__":

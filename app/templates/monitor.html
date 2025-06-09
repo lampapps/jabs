@@ -31,15 +31,16 @@
                         <span>
                             <strong>{{ monitor.name }}</strong>
                         </span>
-                        <span class="badge bg-{{ 'danger' if problem else 'success' }}">
-                            {{ 'Problem' if problem else 'OK' }}
-                        </span>
                         <span class="badge bg-{{ 'success' if monitor.ok else 'secondary' }}">
-                            {{ 'Online' if monitor.ok else 'Offline' }}
+                            Server {{ 'Online' if monitor.ok else 'Offline' }}
                         </span>
                     </div>
                     <div class="card-body d-flex flex-column">
-                        <div><strong>Status:</strong></div>
+                        <div><strong>Status:</strong>
+                            <span class="badge bg-{{ 'danger' if problem else 'success' }}">
+                                {{ 'Problem' if problem else 'OK' }}
+                            </span>
+                        </div>
                         {% if status %}
                             <div>Hostname: {{ status.get('hostname', 'N/A') }}</div>
                             <div>Version: {{ status.get('version', 'N/A') }}</div>
@@ -56,10 +57,13 @@
                                         <div><i class="fa fa-exclamation-triangle"></i> Backup error(s) detected.</div>
                                     {% endif %}
                                     {% set last_run_ts = status.get('last_scheduler_run') %}
-                                    {% if not last_run_ts %}
-                                        <div><i class="fa fa-clock"></i> No recent backup run detected.</div>
+                                    {% set grace_period = target.grace_period or 60 %}
+                                    {% if last_run_ts %}
+                                        {% set minutes_since = ((now - last_run_ts) / 60) %}
+                                        {% if minutes_since > grace_period %}
+                                            <div><i class="fa fa-clock"></i> Last run was {{ minutes_since|round(1) }} min ago (over {{ grace_period }} min grace period).</div>
+                                        {% endif %}
                                     {% endif %}
-                                    {# If you want to show "too old" warning, you can add more logic here #}
                                 </div>
                             {% endif %}
                         {% else %}
@@ -67,11 +71,13 @@
                         {% endif %}
                     </div>
                     <div class="card-footer d-flex flex-wrap gap-2 justify-content-end">
-                        {% if api_status %}
-                            <a class="btn btn-outline-primary btn-sm" href="{{ target.url }}" target="_blank">
-                                Visit API
-                            </a>
-                        {% endif %}
+                        <a class="btn btn-primary btn-sm {% if not api_status %}disabled{% endif %}"
+                           href="{% if api_status %}{{ target.url }}{% else %}#{% endif %}"
+                           target="_blank"
+                           tabindex="-1"
+                           aria-disabled="{% if not api_status %}true{% else %}false{% endif %}">
+                            Dashboard
+                        </a>
                     </div>
                 </div>
             </div>
