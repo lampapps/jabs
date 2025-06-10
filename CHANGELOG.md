@@ -2,6 +2,13 @@
 ## To do
 - improve setup.sh: needs to activate venv after install and then run.py
 - fix scheduler file not found in new installs
+- Periodic refresh badges and monitor.html
+- Edit external badges (cronitor) from inside flask
+
+## v0.7.2.beta1
+
+### Fixed
+- Error if AWS credentials are not set. Now gracefully returns prompt.
 
 ## v0.7.1
 

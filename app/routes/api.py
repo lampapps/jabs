@@ -1,5 +1,5 @@
 """API routes for JABS: provides endpoints for restore, events, disk/S3 usage, logs, and manifest management."""
-
+ 
 import os
 import re
 import glob
@@ -92,6 +92,13 @@ def get_disk_usage():
 @api_bp.route('/api/s3_usage')
 def get_s3_usage():
     """Return S3 bucket usage statistics for configured buckets."""
+    # Check for AWS credentials before proceeding
+    import boto3
+    session = boto3.Session()
+    credentials = session.get_credentials()
+    if credentials is None or not credentials.access_key or not credentials.secret_key:
+        return jsonify({"error": "AWS credentials not found. Please configure your AWS CLI credentials."}), 403
+
     try:
         with open(GLOBAL_CONFIG_PATH, "r", encoding="utf-8") as f:
             config = yaml.safe_load(f)
@@ -106,7 +113,8 @@ def get_s3_usage():
         return jsonify({"error": f"Configuration file {GLOBAL_CONFIG_PATH} not found."}), 404
     except yaml.YAMLError as e:
         return jsonify({"error": f"Error parsing {GLOBAL_CONFIG_PATH}: {str(e)}"}), 500
-    s3 = boto3.client("s3")
+
+    s3 = session.client("s3")
     s3_usage = []
     for bucket in s3_buckets:
         if isinstance(bucket, dict):

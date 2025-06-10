@@ -20,7 +20,7 @@ use_common_exclude: true   # true | false to exclude patterns from config/common
 # - Cannot be formatted as an IP address (e.g., 192.168.5.4).
 
 aws:
-  enabled: true  # Default, false can be overridden in job config or by CLI
+  enabled: false  # Default, false can be overridden in job config or by CLI
   profile: "default"  # AWS CLI profile to use (default if not specified)
   region: "us-east-1"  # AWS region (overrides profile region if specified)
   bucket: "lampapps-jabs-dev"  # S3 bucket name (required for cloud backups)

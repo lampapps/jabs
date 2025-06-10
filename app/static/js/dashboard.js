@@ -333,6 +333,19 @@ $(document).ready(function () {
         fetch('/api/s3_usage')
             .then(response => response.json())
             .then(data => {
+                if (data.error) {
+                    // Show error in the chart area
+                    const canvas = document.getElementById('s3UsageChart');
+                    if (canvas) {
+                        const ctx = canvas.getContext('2d');
+                        ctx.font = '16px Arial';
+                        ctx.fillStyle = '#dc3545';
+                        ctx.textAlign = 'center';
+                        ctx.fillText(data.error, canvas.width / 2, canvas.height / 2);
+                    }
+                    return;
+                }
+
                 console.log("S3 Usage Data:", data);
                  if (!Array.isArray(data) || data.length === 0) {
                     console.warn("No S3 usage data received or data is empty.");
