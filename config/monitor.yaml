@@ -1,8 +1,0 @@
-enable_monitoring: true
-shared_monitor_dir: "/media/jim2/pishare/backups"
-monitored_targets:
-  - name: "Raspberry Pi"
-    hostname: "raspberrypi"
-    url: "http://192.168.1.28:5000"
-    grace_period: 15                   # time in minutes to wait after last scheduled run to throw error
-
