@@ -5,7 +5,7 @@
 - Periodic refresh badges and monitor.html
 - Edit external badges (cronitor) from inside flask
 
-## v0.7.2.beta1
+## v0.7.2.beta2
 
 ### Fixed
 - Error if AWS credentials are not set. Now gracefully returns prompt.

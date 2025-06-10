@@ -97,7 +97,7 @@ def get_s3_usage():
     session = boto3.Session()
     credentials = session.get_credentials()
     if credentials is None or not credentials.access_key or not credentials.secret_key:
-        return jsonify({"error": "AWS credentials not found. Please configure your AWS CLI credentials."}), 403
+        return jsonify({"error": "AWS credentials not found."}), 403
 
     try:
         with open(GLOBAL_CONFIG_PATH, "r", encoding="utf-8") as f:
