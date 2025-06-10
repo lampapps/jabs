@@ -1,0 +1,11 @@
+# Configure targets for monitoring. Rename this file to monitor.yaml if needed.
+# You can add as many targets aas you want
+
+enable_monitoring: true    # true |  false
+shared_monitor_dir: "/path/to/shared/directory"  # must be a local or mapped drive
+monitored_targets:
+  - name: "Example"               # Will be used as a label 
+    hostname: "raspberrypi"            # exact match of the targets hostname
+    url: "http://192.168.1.28:5000"    # local network ip address with port number
+    grace_period: 15                   # time in minutes to wait after last scheduled run to throw error
+

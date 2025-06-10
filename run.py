@@ -3,6 +3,7 @@
 import os
 import secrets
 import logging
+import socket
 from dotenv import load_dotenv
 from app.settings import LOG_DIR
 from app.utils.logger import ensure_dir
@@ -46,6 +47,18 @@ class AccessLogMiddleware:
         )
         return result
 
+def get_local_ip():
+    """Get the primary local IP address of the machine."""
+    try:
+        # This doesn't have to be reachable, just a valid IP
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except Exception:
+        return "127.0.0.1"
+
 if __name__ == "__main__":
     try:
         from waitress import serve
@@ -64,11 +77,35 @@ if __name__ == "__main__":
             ]
         )
 
+        # Get local IP addresses
+        hostname = socket.gethostname()
+        local_ip = socket.gethostbyname(hostname)
+        primary_ip = get_local_ip()
+        print("\n" + "="*60)
+        print("JABS server is starting!")
+        print(f"Open your browser and go to: http://{local_ip}:5000")
+        if primary_ip != local_ip:
+            print(f"Or try: http://{primary_ip}:5000")
+        print("\nTo stop the server, press Ctrl+C in this terminal.")
+        print("="*60 + "\n")
+
         # Wrap your app with the access log middleware
         app_with_access_log = AccessLogMiddleware(app)
 
         serve(app_with_access_log, host="0.0.0.0", port=5000)
     except ImportError:
         print("Waitress is not installed. Falling back to Flask's built-in server.")
+
+        # Get local IP addresses
+        hostname = socket.gethostname()
+        local_ip = socket.gethostbyname(hostname)
+        primary_ip = get_local_ip()
+        print("\n" + "="*60)
+        print("JABS server is starting!")
+        print(f"Open your browser and go to: http://{local_ip}:5000")
+        if primary_ip != local_ip:
+            print(f"Or try: http://{primary_ip}:5000")
+        print("\nTo stop the server, press Ctrl+C in this terminal.")
+        print("="*60 + "\n")
+
         app.run(host="0.0.0.0", port=5000, debug=True)
-        

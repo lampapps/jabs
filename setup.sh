@@ -31,6 +31,32 @@ else
     echo "AWS CLI not found."
 fi
 
+echo "Checking for config/global.yaml..."
+if [ ! -f config/global.yaml ]; then
+    if [ -f config/global-example.yaml ]; then
+        echo "config/global.yaml not found. Renaming global-example.yaml to global.yaml."
+        mv config/global-example.yaml config/global.yaml
+    else
+        echo "Neither config/global.yaml nor config/global-example.yaml found."
+        exit 1
+    fi
+else
+    echo "config/global.yaml found."
+fi
+
+echo "Checking for config/monitor.yaml..."
+if [ ! -f config/monitor.yaml ]; then
+    if [ -f config/monitor-example.yaml ]; then
+        echo "config/monitor.yaml not found. Renaming monitor-example.yaml to monitor.yaml."
+        mv config/monitor-example.yaml config/monitor.yaml
+    else
+        echo "Neither config/monitor.yaml nor config/monitor-example.yaml found."
+        exit 1
+    fi
+else
+    echo "config/monitor.yaml found."
+fi
+
 echo "Setting up virtual environment..."
 python3 -m venv venv
 source venv/bin/activate
@@ -44,3 +70,7 @@ else
     echo "requirements.txt not found."
     exit 1
 fi
+
+echo "Running run.py in virtual environment..."
+python3 run.py
+
