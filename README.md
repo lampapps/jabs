@@ -262,6 +262,7 @@ This project uses the following open source libraries:
 - [Bootstrap](https://getbootstrap.com/) - MIT License
 - [Font Awesome](https://fontawesome.com/) - CC BY 4.0 License
 - [SortableJS](https://sortablejs.github.io/Sortable/) - MIT License
+- [Shields.io](https://shields.io/) - CC0 License
 
 See each library's website for full license details.
 

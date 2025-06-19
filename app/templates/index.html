@@ -22,16 +22,13 @@
                     {% set problem = problems.get(key) %}
                     {% set api_status = api_statuses.get(key) %}
                     <a href="{{ url_for('monitor.monitor') }}" style="text-decoration: none;">
-                        <span class="badge
-                            {% if problem %}bg-danger
-                            {% elif api_status %}bg-success
-                            {% else %}bg-secondary
-                            {% endif %}
-                            ms-2 mb-2"
-                            title="{{ target.name or key }}">
-                            <i class="fa fa-server me-1"></i>
-                            {{ target.name or key }}
-                        </span>
+                        <img
+                            src="https://img.shields.io/static/v1?label={{ (target.name or key)|urlencode }}&message={{ 'problem' if problem else ('online' if api_status else 'offline') }}&labelColor=0B0021&color={{ 'red' if problem else ('00DF4D' if api_status else 'bdbdbd') }}&style=flat&logo=server&logoColor=white"
+                            alt="JABS Server: {{ target.name or key }}"
+                            class="ms-2 mb-2"
+                            title="{{ target.name or key }}"
+                            style="max-width: 100%; height: 20px;"
+                        />
                     </a>
                 {% endfor %}
             </div>

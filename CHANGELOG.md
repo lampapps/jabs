@@ -4,6 +4,13 @@
 - Periodic refresh badges and monitor.html
 - Edit external badges (cronitor) from inside flask
 
+## v0.7.3
+
+### Fixed
+- Removed Auto theme setting
+- Fixed badges alignment and switched to shields.io for badge generation.
+
+
 ## v0.7.2
 
 ### Fixed

@@ -6,7 +6,7 @@ import yaml
 
 from datetime import timedelta
 
-VERSION = "v0.7.2"
+VERSION = "v0.7.3"
 
 # --- Application Configuration ---
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
