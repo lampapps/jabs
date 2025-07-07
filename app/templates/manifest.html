@@ -56,10 +56,10 @@
                                         <span class="input-group-text">
                                             Restore Path
                                         </span>
-                                        <input type="text" class="form-control" value="{{ used_config.get('source', 'Not set') }}/" readonly>
+                                        <input type="text" class="form-control" value="{{ used_config.get('source', 'Not set') }}" readonly>
                                     </div>
                                 </div>
-                                <div class="col-12" id="customPathCol" style="display:none;">
+                                <div class="col-12" id="customPathCol">
                                     <div class="input-group">
                                         <span class="input-group-text" id="homeDirPrefix" data-bs-toggle="tooltip" title="Restore path will be relative to your home directory">
                                             {{ HOME_DIR }}/
@@ -76,7 +76,7 @@
                                         Restore Full Backup
                                     </button>
                                     <button id="restoreSelectedBtn" type="button" class="btn btn-primary"
-                                            data-bs-toggle="tooltip" title="Restore only the files selected below" disabled>
+                                            data-bs-toggle="tooltip" title="Restore only the files selected below">
                                         Restore Selected Files
                                     </button>
                                 </div>
@@ -197,7 +197,7 @@
     <!-- The rest of your page, e.g. the manifest table card, goes here -->
     <div class="card mb-4">
         <div class="card-header">
-            All Files in Backup Set Relative to <code>{{ used_config.get('source', 'Not set') }}/...</code>
+            All Files in Backup Set Relative to <code>{{ used_config.get('source', 'Not set') }}...</code>
         </div>
         <div class="card-body">
             {% block manifest_table %}

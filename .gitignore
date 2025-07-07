@@ -21,3 +21,4 @@ config/monitor.yaml
 
 # Do NOT ignore yaml files in config/jobs/templates
 !config/jobs/templates/*.yaml
+

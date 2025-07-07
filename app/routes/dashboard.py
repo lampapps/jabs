@@ -18,6 +18,7 @@ from app.settings import BASE_DIR, MANIFEST_BASE, GLOBAL_CONFIG_PATH, HOME_DIR, 
 from app.utils.manifest import get_tarball_summary, get_merged_cleaned_yaml_config
 from app.utils.dashboard_helpers import find_config_path_by_job_name, load_config, ensure_minimum_scheduler_events
 from app.utils.logger import sizeof_fmt
+from app.models.manifest_db import get_manifest_with_files
 
 dashboard_bp = Blueprint('dashboard', 'dashboard')
 
@@ -235,21 +236,23 @@ def change_log():
 
 @dashboard_bp.route('/manifest/<string:job_name>/<string:backup_set_id>')
 def view_manifest(job_name, backup_set_id):
-    """Render the manifest view for a specific job and backup set."""
+    """Render the manifest view for a specific job and backup set (from SQLite)."""
     sanitized_job = "".join(
         c if c.isalnum() or c in ("-", "_") else "_" for c in job_name
     )
-    abs_json_path = os.path.join(
-        BASE_DIR, MANIFEST_BASE, sanitized_job, f"{backup_set_id}.json"
-    )
-    if not os.path.exists(abs_json_path):
-        abort(404, description="Manifest file not found (os.path.exists failed).")
-    with open(abs_json_path, "r", encoding="utf-8") as f:
-        manifest_data = json.load(f)
+
+    # --- Fetch manifest from DB using new schema ---
+    # Pass job_name (sanitized) and backup_set_id separately
+    manifest_data = get_manifest_with_files(sanitized_job, backup_set_id)
+    if not manifest_data:
+        abort(404, description="Manifest not found in database.")
+
     job_config_path = find_config_path_by_job_name(job_name)
     tarball_summary_list = []
+    
     with open(GLOBAL_CONFIG_PATH, encoding="utf-8") as f:
         global_config = yaml.safe_load(f)
+    
     destination = None
     if job_config_path:
         job_config = load_config(job_config_path)
@@ -262,10 +265,13 @@ def view_manifest(job_name, backup_set_id):
                 f"backup_set_{backup_set_id}"
             )
             tarball_summary_list = get_tarball_summary(backup_set_path_on_dst)
+    
     cleaned_config = (
         get_merged_cleaned_yaml_config(job_config_path)
         if job_config_path else "Config file not found."
     )
+
+    # Format timestamp for display
     manifest_timestamp = manifest_data.get("timestamp", "N/A")
     if manifest_timestamp != "N/A":
         try:
@@ -273,16 +279,60 @@ def view_manifest(job_name, backup_set_id):
             manifest_timestamp = dt_object.strftime("%A, %B %d, %Y at %I:%M %p")
         except ValueError:
             pass
-    used_config = manifest_data.get("config", {})
-    total_size_bytes = sum(tb.get("size_bytes", 0) for tb in tarball_summary_list)
+
+    # Extract data from the new schema
+    all_files = manifest_data.get("files", [])
+    
+    # Calculate total size from database files - expecting numeric bytes
+    total_size_bytes = sum(f.get("size", 0) for f in all_files if isinstance(f.get("size", 0), (int, float)))
     total_size_human = sizeof_fmt(total_size_bytes)
+    
+    # Get config settings from database or fallback to actual config files
+    used_config = {}
+    if manifest_data.get("config_settings"):
+        try:
+            used_config = json.loads(manifest_data["config_settings"])
+        except (json.JSONDecodeError, TypeError):
+            # Database config is invalid, fall back to actual config files
+            pass
+    
+    # If database config is empty or invalid, load from actual config files
+    if not used_config and job_config_path:
+        try:
+            # Load global config first
+            with open(GLOBAL_CONFIG_PATH, 'r', encoding='utf-8') as f:
+                global_config = yaml.safe_load(f)
+            
+            # Load job config
+            job_config = load_config(job_config_path)
+            
+            # Merge configs (job overrides global)
+            used_config = global_config.copy()
+            used_config.update(job_config)
+            
+        except Exception as e:
+            print(f"Warning: Could not load config files: {e}")
+            used_config = {}
+    
+    # Ensure we have at least basic fallback values
+    if not used_config.get('source'):
+        used_config['source'] = '/unknown'
+    if not used_config.get('destination'):
+        used_config['destination'] = '/tmp/backup'
+
     return render_template(
         'manifest.html',
         job_name=manifest_data.get("job_name", job_name),
-        backup_set_id=manifest_data.get("backup_set_id", backup_set_id),
+        set_name=manifest_data.get("set_name", backup_set_id),  # New: separate set_name
+        backup_set_id=backup_set_id,  # For compatibility
+        backup_type=manifest_data.get("backup_type", "unknown"),
+        status=manifest_data.get("status", "unknown"),
+        event=manifest_data.get("event", ""),
         manifest_timestamp=manifest_timestamp,
+        started_at=manifest_data.get("started_at"),
+        completed_at=manifest_data.get("completed_at"),
         config_content=cleaned_config,
-        all_files=manifest_data.get("files", []),
+        all_files=all_files,
         tarball_summary=tarball_summary_list,
         total_size_bytes=total_size_bytes,
         total_size_human=total_size_human,

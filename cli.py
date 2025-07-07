@@ -56,6 +56,12 @@ try:
         if "destination" not in config or not config.get("destination"):
             config["destination"] = global_config.get("destination")
 
+        # Merge all missing flat values from global config
+        for key, value in global_config.items():
+            if key not in config or config[key] is None:
+                if not isinstance(value, dict):
+                    config[key] = value
+
         # Determine effective encrypt value: CLI overrides config
         encrypt_effective = encrypt or config.get("encryption", {}).get("enabled", False)
         sync_effective = sync or config.get("aws", {}).get("enabled", False)
@@ -86,9 +92,9 @@ try:
                 job_config_path=config_path
             )
 
-            # Check for skipped diff backup
-            if backup_type in ["diff", "differential"] and latest_backup_set == "skipped":
-                logger.info("No files modified. Differential backup skipped.")
+            # Check for skipped diff or incremental backup
+            if backup_type in ["diff", "differential", "incremental"] and latest_backup_set == "skipped":
+                logger.info("No files modified. Backup skipped.")
                 finalize_event(
                     event_id=returned_event_id,
                     status="skipped",
@@ -140,11 +146,22 @@ try:
             parser.add_argument("--config", required=True, help="Path to the YAML configuration file")
             parser.add_argument("--full", action="store_true", help="Perform a full backup")
             parser.add_argument("--diff", action="store_true", help="Perform a differential backup")
+            parser.add_argument("--incremental", action="store_true", help="Perform an incremental backup")
+            parser.add_argument("--dry_run", action="store_true", help="Perform a dry run backup (no files archived, manifest only)")
             parser.add_argument("--encrypt", action="store_true", help="Encrypt backup archives (tarballs) after creation")
             parser.add_argument("--sync", action="store_true", help="Sync to cloud (e.g., AWS S3)")
             args = parser.parse_args()
 
-            backup_type = "full" if args.full else "diff"
+            if args.full:
+                backup_type = "full"
+            elif args.diff:
+                backup_type = "diff"
+            elif args.incremental:
+                backup_type = "incremental"
+            elif args.dry_run:
+                backup_type = "dry_run"
+            else:
+                parser.error("You must specify one of --full, --diff, --incremental, or --dry_run")
             run_job(args.config, backup_type, encrypt=args.encrypt, sync=args.sync)
         except (OSError, yaml.YAMLError, ValueError) as e:
             logging.basicConfig(

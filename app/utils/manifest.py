@@ -6,6 +6,7 @@ import glob
 import json
 import tarfile
 import copy
+import time
 from datetime import datetime
 from collections import defaultdict
 
@@ -45,9 +46,8 @@ def extract_tar_info(tar_path, encryption_enabled=False):
                         "tarball": recorded_base,
                         "tarball_path": recorded_tar_path,
                         "path": member.name,
-                        "size": sizeof_fmt(member.size),
-                        "size_bytes": member.size,
-                        "modified": datetime.fromtimestamp(member.mtime).strftime('%Y-%m-%d %H:%M:%S')
+                        "size": member.size,  # Store numeric bytes (not formatted string)
+                        "mtime": member.mtime
                     })
     except (tarfile.TarError, OSError) as e:
         print(f"Error reading tar file {tar_path}: {e}")
@@ -69,11 +69,16 @@ def build_tarball_summary_from_manifest(files_list):
         match = timestamp_pattern.search(tarball_name)
         if match:
             tarballs[tarball_name]["timestamp_str"] = match.group(1)
-        # Sum up size_bytes for all files in this tarball
-        if "size_bytes" in f:
-            tarballs[tarball_name]["size_bytes"] += f["size_bytes"]
-        elif "size" in f:
-            tarballs[tarball_name]["size_bytes"] += parse_size_to_bytes(f["size"])
+        
+        # Handle size - now expecting numeric bytes from database
+        size_val = f.get("size", 0)
+        if isinstance(size_val, (int, float)):
+            # Numeric bytes - use directly
+            tarballs[tarball_name]["size_bytes"] += size_val
+        elif isinstance(size_val, str):
+            # String size - parse it (backward compatibility if needed)
+            tarballs[tarball_name]["size_bytes"] += parse_size_to_bytes(size_val)
+    
     summary = []
     for name, info in tarballs.items():
         summary.append({
@@ -108,16 +113,19 @@ def write_manifest_files(
     job_config_path, job_name, backup_set_id, backup_set_path, new_tar_info, mode="full"
 ):
     """
-    Write manifest files (JSON and HTML) for a backup set.
-    Updates or creates the manifest JSON and generates an HTML summary.
+    Write manifest files (HTML only) for a backup set, using SQLite for manifest storage.
+    This function is now mainly for HTML generation since job/file management is handled
+    in the backup logic itself.
+    
     :param job_config_path: Path to the job config YAML.
     :param job_name: Name of the backup job.
-    :param backup_set_id: Backup set identifier.
+    :param backup_set_id: Backup set identifier (set_name).
     :param backup_set_path: Path to the backup set directory.
-    :param new_tar_info: List of file info dicts for new tarballs.
-    :param mode: "full" to overwrite, "diff" to append.
-    :return: Tuple (json_path, html_path).
+    :param new_tar_info: List of file info dicts for new tarballs (not used in new schema).
+    :param mode: "full", "incremental", or "differential" (for compatibility).
+    :return: Tuple (None, html_path) for compatibility.
     """
+    # Load and merge configs for display
     try:
         with open(job_config_path, 'r', encoding='utf-8') as f:
             job_config_dict = yaml.safe_load(f)
@@ -127,58 +135,59 @@ def write_manifest_files(
     except (OSError, yaml.YAMLError) as e:
         merged_config = {"error": f"Could not load config: {e}"}
 
-    sanitized_job = "".join(
-        c if c.isalnum() or c in ("-", "_") else "_" for c in job_name
-    )
-    json_dir = os.path.join(MANIFEST_BASE, sanitized_job)
-    ensure_dir(json_dir)
-    json_path = os.path.join(json_dir, f"{backup_set_id}.json")
+    # Get backup set data from the new schema
+    from app.models.manifest_db import get_backup_set_by_job_and_set, get_files_for_backup_set
+    
+    backup_set_row = get_backup_set_by_job_and_set(job_name, backup_set_id)
+    if not backup_set_row:
+        # This shouldn't happen in the new flow, but handle gracefully
+        print(f"Warning: Backup set not found for {job_name}/{backup_set_id}")
+        return None, None
 
-    if os.path.exists(json_path):
-        try:
-            with open(json_path, "r", encoding='utf-8') as f:
-                manifest_data = json.load(f)
-        except (OSError, json.JSONDecodeError):
-            manifest_data = {
-                "job_name": job_name,
-                "backup_set_id": backup_set_id,
-                "timestamp": datetime.now().isoformat(),
-                "config": merged_config,
-                "files": []
-            }
-    else:
-        manifest_data = {
-            "job_name": job_name,
-            "backup_set_id": backup_set_id,
-            "timestamp": datetime.now().isoformat(),
-            "config": merged_config,
-            "files": []
+    # Retrieve all files for this backup set from DB for HTML generation
+    # This gets files from ALL jobs in the backup set (full + incrementals)
+    raw_files = get_files_for_backup_set(backup_set_row['id'])
+
+    # Format the files data for HTML template display
+    all_files = []
+    for f in raw_files:
+        # Format size to human readable
+        size_display = sizeof_fmt(f.get("size", 0)) if isinstance(f.get("size", 0), (int, float)) else "N/A"
+        
+        # Format timestamp to readable date
+        modified_display = "N/A"
+        if f.get("mtime"):
+            try:
+                dt = datetime.fromtimestamp(f["mtime"])
+                modified_display = dt.strftime("%Y-%m-%d %H:%M:%S")
+            except (ValueError, TypeError):
+                modified_display = "N/A"
+        
+        # Create formatted file entry for template
+        formatted_file = {
+            "tarball": f.get("tarball", "unknown"),
+            "tarball_path": f.get("tarball", "unknown"),  # For compatibility
+            "path": f.get("path", ""),
+            "size": size_display,  # Human readable size
+            "size_bytes": f.get("size", 0),  # Keep numeric for calculations
+            "modified": modified_display,  # Formatted timestamp
+            "mtime": f.get("mtime", 0),  # Keep raw timestamp
+            "backup_type": f.get("backup_type", "unknown"),  # Job type that added this file
+            "job_started_at": f.get("job_started_at", 0)  # When the job ran
         }
+        all_files.append(formatted_file)
 
-    manifest_data["job_name"] = job_name
-    manifest_data["backup_set_id"] = backup_set_id
-    manifest_data["config"] = merged_config
-    if mode == "diff":
-        # Append all new diff files, even if path matches (keep all versions)
-        manifest_data["files"].extend(new_tar_info)
-    else:
-        # For full backup, overwrite
-        manifest_data["files"] = new_tar_info
-    manifest_data["timestamp"] = datetime.now().isoformat()
-
-    with open(json_path, "w", encoding='utf-8') as f:
-        json.dump(manifest_data, f, indent=2)
-
-    tarball_summary = build_tarball_summary_from_manifest(manifest_data["files"])
+    # Build tarball summary for HTML (using raw data for calculations)
+    tarball_summary = build_tarball_summary_from_manifest(raw_files)
 
     last_file_modified = None
-    if manifest_data["files"]:
+    if raw_files:
         try:
             last_file_modified = max(
-                datetime.strptime(f["modified"], "%Y-%m-%d %H:%M:%S")
-                for f in manifest_data["files"] if "modified" in f
+                datetime.fromtimestamp(f["mtime"])
+                for f in raw_files if "mtime" in f and f["mtime"] is not None
             ).strftime("%Y-%m-%d %H:%M:%S")
-        except (ValueError, KeyError):
+        except (ValueError, KeyError, TypeError):
             last_file_modified = None
 
     html_path = os.path.join(backup_set_path, f"manifest_{backup_set_id}.html")
@@ -187,13 +196,14 @@ def write_manifest_files(
             job_name=job_name,
             backup_set_id=backup_set_id,
             job_config_path=job_config_path,
-            all_files=manifest_data["files"],
+            all_files=all_files,  # Now properly formatted with job info
             timestamp=last_file_modified,
             tarball_summary=tarball_summary,
             used_config=merged_config
         ))
 
-    return json_path, html_path
+    # Return None for json_path (no longer written), html_path for compatibility
+    return None, html_path
 
 def render_html_manifest(
     job_name,

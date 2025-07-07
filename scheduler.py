@@ -3,8 +3,6 @@
 import os
 import glob
 import subprocess
-import fcntl
-import errno
 import time
 from datetime import datetime
 
@@ -16,53 +14,12 @@ from app.utils.emailer import send_email_digest
 from app.utils.monitor_status import write_monitor_status
 from app.settings import CONFIG_DIR, LOCK_DIR, LOG_DIR, CLI_SCRIPT, PYTHON_EXECUTABLE, SCHEDULER_STATUS_FILE, SCHEDULE_TOLERANCE, VERSION
 from app.utils.scheduler_events import append_scheduler_event
+from core.backup.common import acquire_lock, release_lock
 
 
 # --- Logging Setup ---
 os.makedirs(LOG_DIR, exist_ok=True)
 logger = setup_logger("scheduler", log_file="scheduler.log")
-
-# --- Lock File Handling ---
-_lock_files = {}
-
-def acquire_lock(lock_file_path):
-    """Acquire a non-blocking exclusive lock on the given file path."""
-    try:
-        f = open(lock_file_path, 'w', encoding='utf-8')
-        fcntl.lockf(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        _lock_files[lock_file_path] = f
-        logger.debug(f"Acquired lock: {lock_file_path}")
-        return f
-    except OSError as e:
-        if hasattr(e, "errno") and e.errno in (errno.EACCES, errno.EAGAIN):
-            logger.debug(f"Lock already held for: {lock_file_path}")
-            if 'f' in locals():
-                f.close()
-            return None
-        logger.error(f"Unexpected OSError acquiring lock for {lock_file_path}: {e}")
-        if 'f' in locals():
-            f.close()
-        return None
-
-def release_lock(lock_file_path):
-    """Release the lock for the given file path."""
-    if lock_file_path in _lock_files:
-        f = _lock_files.pop(lock_file_path)
-        if f:
-            try:
-                fcntl.lockf(f, fcntl.LOCK_UN)
-                f.close()
-                logger.debug(f"Released lock: {lock_file_path}")
-            except OSError as e:
-                logger.error(f"Error releasing lock for {lock_file_path}: {e}")
-        else:
-            logger.warning(
-                f"Attempted to release lock for {lock_file_path}, but file handle was None."
-            )
-    else:
-        logger.warning(
-            f"Attempted to release lock for {lock_file_path}, but it was not found in tracked locks."
-        )
 
 def load_yaml_config(path):
     """Load a YAML configuration file and return its contents."""
@@ -98,8 +55,13 @@ def should_trigger(cron_expr, now):
 def build_command(config_path, backup_type, config, global_config):
     """Build the command to execute for the job."""
     command = [PYTHON_EXECUTABLE, CLI_SCRIPT, "--config", config_path]
-    if backup_type.lower() in ["diff", "differential"]:
+    
+    # Handle different backup types
+    backup_type_lower = backup_type.lower()
+    if backup_type_lower in ["diff", "differential"]:
         command.append("--diff")
+    elif backup_type_lower in ["inc", "incremental"]:
+        command.append("--incremental")
     else:
         command.append("--full")
 
@@ -121,13 +83,14 @@ def process_job_config(config_path, global_config, now):
     """Process a single job config file and trigger jobs if needed."""
     job_name_from_file = os.path.splitext(os.path.basename(config_path))[0]
     lock_file_path = os.path.join(LOCK_DIR, f"{job_name_from_file}.lock")
-    lock_handle = acquire_lock(lock_file_path)
-    if not lock_handle:
-        logger.info(f"Job '{job_name_from_file}' is already running or locked. Skipping.")
-        return 0
-
-    triggered = 0
+    lock_handle = None
     try:
+        lock_handle = acquire_lock(lock_file_path)
+        if not lock_handle:
+            logger.info(f"Job '{job_name_from_file}' is already running or locked. Skipping.")
+            return 0
+
+        triggered = 0
         config = load_yaml_config(config_path)
         if not config:
             logger.warning(f"Config file is empty or invalid: {config_path}")
@@ -176,9 +139,10 @@ def process_job_config(config_path, global_config, now):
                     f"Schedule '{cron_expr}' in {config_path} did not match within tolerance. "
                     f"Last scheduled: {prev_run_time}"
                 )
+        return triggered
     finally:
-        release_lock(lock_file_path)
-    return triggered
+        if lock_handle:
+            release_lock(lock_handle)
 
 def update_status_file():
     """Update the scheduler status file with the current timestamp."""
@@ -220,7 +184,7 @@ def main():
 
     triggered_jobs_count = 0
     triggered_jobs_info = []  # List to keep track of jobs that actually ran
-    any_job_errored = False   # <-- Add this line
+    any_job_errored = False
 
     try:
         for config_path in config_files:
@@ -228,7 +192,7 @@ def main():
             config = load_yaml_config(config_path)
             job_name = config.get("job_name", job_name_from_file) if config else job_name_from_file
             schedules = config.get('schedules', []) if config else []
-            backup_type = None  # FIX: removed unused variable 'job_triggered'
+            backup_type = None
 
             for schedule in schedules:
                 cron_expr = schedule.get('cron')
@@ -243,7 +207,6 @@ def main():
                     try:
                         subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
                         triggered_jobs_count += 1
-                        # If you have per-job error info, set it here. For now, use any_job_errored.
                         triggered_jobs_info.append({
                             "name": job_name,
                             "backup_type": backup_type,

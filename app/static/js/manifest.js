@@ -5,6 +5,29 @@ $(document).ready(function () {
     const backupSetId = decodeURIComponent(urlParts[urlParts.length - 1]);
     const apiUrl = `/api/manifest/${jobName}/${backupSetId}/json`;
 
+    // Track restore status
+    let isRestoreRunning = false;
+
+    // Initialize UI state immediately (before any AJAX calls)
+    function initializeUI() {
+        // Show/hide path input based on radio button selection
+        if ($('#restoreCustom').is(':checked')) {
+            $('#customPathCol').show();
+            $('#sourcePathCol').hide();
+        } else {
+            $('#customPathCol').hide();
+            $('#sourcePathCol').show();
+        }
+        
+        // Initialize button states - start with buttons enabled
+        isRestoreRunning = false;
+        $('#restoreProgressContainer').hide();
+        updateRestoreButtonStates();
+    }
+
+    // Call initialization immediately
+    initializeUI();
+
     // Fetch manifest data for the table and initialize DataTable
     $.getJSON(apiUrl, function (data) {
         $('#manifestTable').DataTable({
@@ -40,17 +63,16 @@ $(document).ready(function () {
             paging: true,
             searching: true,
             ordering: true,
-            lengthMenu: [25, 50, 100, 200]
+            lengthMenu: [25, 50, 100, 200],
+            initComplete: function() {
+                // Update button states after table is loaded
+                updateRestoreButtonStates();
+            }
         });
     }).fail(function (jqXHR, textStatus, errorThrown) {
         console.error("Failed to load manifest JSON for table:", textStatus, errorThrown);
         $('#manifestTable tbody').html('<tr><td colspan="5" class="text-center text-danger">Failed to load manifest file data.</td></tr>');
     });
-
-    // Show custom path input if "Custom Directory" is default
-    if ($('#restoreCustom').is(':checked')) {
-        $('#customPathCol').show();
-    }
 
     // Toggle custom path or source path input based on selected restore location
     $('input[name="restoreLocation"]').change(function() {
@@ -63,25 +85,18 @@ $(document).ready(function () {
         }
     });
 
-    // On page load, set the correct visibility
-    if ($('#restoreCustom').is(':checked')) {
-        $('#customPathCol').show();
-        $('#sourcePathCol').hide();
-    } else {
-        $('#customPathCol').hide();
-        $('#sourcePathCol').show();
-    }
-
     let restoreType = "full";
     let selectedFiles = [];
 
     $('#restoreFullBtn').click(function() {
+        if (isRestoreRunning) return;
         restoreType = "full";
         selectedFiles = [];
         startRestore();
     });
 
     $('#restoreSelectedBtn').click(function() {
+        if (isRestoreRunning) return;
         restoreType = "selected";
         selectedFiles = [];
         $('.file-checkbox:checked').each(function() {
@@ -98,6 +113,15 @@ $(document).ready(function () {
         return path && !/[<>:"|?*]/.test(path);
     }
 
+    function updateRestoreButtonStates() {
+        // Update "Restore Selected" button based on file selection and restore status
+        const hasSelectedFiles = $('.file-checkbox:checked').length > 0;
+        $('#restoreSelectedBtn').prop('disabled', isRestoreRunning || !hasSelectedFiles);
+        
+        // Update "Restore Full" button based only on restore status
+        $('#restoreFullBtn').prop('disabled', isRestoreRunning);
+    }
+
     function startRestore() {
         const locationType = $('input[name="restoreLocation"]:checked').val();
         const customPath = $('#customRestorePath').val();
@@ -106,9 +130,6 @@ $(document).ready(function () {
         if (locationType === "custom") {
             if (!isValidPath(customPath)) {
                 alert("Please enter a valid destination path for custom restore.");
-                $('#restoreFullBtn, #restoreSelectedBtn').prop('disabled', false);
-                $('#restoreProgressContainer').hide();
-                $('#customRestorePath').focus();
                 return;
             }
         }
@@ -116,16 +137,12 @@ $(document).ready(function () {
         // File selection validation for "Restore Selected Files"
         if (restoreType === "selected" && selectedFiles.length === 0) {
             alert("Please select at least one file to restore.");
-            $('#restoreFullBtn, #restoreSelectedBtn').prop('disabled', false);
-            $('#restoreProgressContainer').hide();
             return;
         }
 
         // Overwrite warning for original locations
         if (locationType === "original") {
             if (!confirm("Warning: Restoring to original locations may overwrite existing files. Continue?")) {
-                $('#restoreFullBtn, #restoreSelectedBtn').prop('disabled', false);
-                $('#restoreProgressContainer').hide();
                 return;
             }
         }
@@ -133,14 +150,13 @@ $(document).ready(function () {
         // Overwrite warning for custom directory
         if (locationType === "custom") {
             if (!confirm("Warning: Files in the destination directory may be overwritten if they already exist. Continue?")) {
-                $('#restoreFullBtn, #restoreSelectedBtn').prop('disabled', false);
-                $('#restoreProgressContainer').hide();
                 return;
             }
         }
 
-        // Disable buttons and show progress
-        $('#restoreFullBtn, #restoreSelectedBtn').prop('disabled', true);
+        // Set restore as running and update UI
+        isRestoreRunning = true;
+        updateRestoreButtonStates();
         $('#restoreProgressContainer').show();
 
         const payload = {
@@ -149,6 +165,7 @@ $(document).ready(function () {
             restore_location: locationType,
             custom_path: customPath
         };
+        
         if (restoreType === "selected") {
             payload.files = selectedFiles;
             $.ajax({
@@ -180,8 +197,11 @@ $(document).ready(function () {
     }
 
     function handleRestoreError(xhr) {
+        // Reset restore status
+        isRestoreRunning = false;
+        updateRestoreButtonStates();
         $('#restoreProgressContainer').hide();
-        $('#restoreFullBtn, #restoreSelectedBtn').prop('disabled', false);
+        
         let msg = "Restore failed. Please check the logs.";
         if (xhr.responseJSON && xhr.responseJSON.error) {
             msg = xhr.responseJSON.error;
@@ -192,9 +212,9 @@ $(document).ready(function () {
         alert(msg);
     }
 
-    // Enable/disable Restore Selected button
+    // Enable/disable Restore Selected button based on file selection
     $(document).on('change', '.file-checkbox, #selectAllFiles', function() {
-        $('#restoreSelectedBtn').prop('disabled', $('.file-checkbox:checked').length === 0);
+        updateRestoreButtonStates();
     });
 
     // Select/Deselect all checkboxes
@@ -204,24 +224,46 @@ $(document).ready(function () {
 
     function pollRestoreStatus() {
         $.getJSON(`/api/restore/status/${jobName}/${backupSetId}`, function(data) {
-            if (data.running) {
+            const wasRunning = isRestoreRunning;
+            isRestoreRunning = data.running || false;
+            
+            if (isRestoreRunning) {
                 $('#restoreProgressContainer').show();
-                $('#restoreFullBtn, #restoreSelectedBtn').prop('disabled', true);
             } else {
                 $('#restoreProgressContainer').hide();
-                $('#restoreFullBtn, #restoreSelectedBtn').prop('disabled', false);
+            }
+            
+            // Update button states
+            updateRestoreButtonStates();
+            
+            // If restore just finished, we might want to reload the page
+            if (wasRunning && !isRestoreRunning) {
+                // Optional: reload page when restore completes
+                // setTimeout(() => window.location.reload(), 1000);
+            }
+        }).fail(function(jqXHR, textStatus, errorThrown) {
+            // If the API call fails, assume no restore is running
+            console.warn("Failed to check restore status:", textStatus, errorThrown);
+            // Don't change isRestoreRunning here - only change it on successful API calls
+            // This prevents buttons from being stuck disabled if the API is temporarily unavailable
+            if (!isRestoreRunning) {
+                $('#restoreProgressContainer').hide();
+                updateRestoreButtonStates();
             }
         });
     }
 
-    // Poll on page load and every 5 seconds
-    pollRestoreStatus();
-    setInterval(pollRestoreStatus, 5000);
+    // Start polling after a short delay to allow page to fully load
+    setTimeout(function() {
+        pollRestoreStatus();
+        setInterval(pollRestoreStatus, 5000);
+    }, 1000);
 
     // Enable Bootstrap 5 tooltips
     document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function (el) {
         new bootstrap.Tooltip(el);
     });
+    
     // Hide spinner when everything is ready
     document.getElementById('loading-spinner').style.display = 'none';
 });

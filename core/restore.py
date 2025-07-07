@@ -5,9 +5,16 @@ import tarfile
 import json
 import subprocess
 import time
+from typing import List, Dict, Any, Optional
 from app.utils.logger import setup_logger
 from app.utils.restore_status import set_restore_status
 from app.utils.event_logger import initialize_event, update_event, finalize_event, event_exists
+from app.models.manifest_db import (
+    get_backup_set_by_job_and_set, 
+    get_files_for_backup_set,
+    get_jobs_for_backup_set,
+    list_backup_sets
+)
 
 def get_passphrase():
     """
@@ -16,24 +23,98 @@ def get_passphrase():
     """
     return os.getenv("JABS_ENCRYPT_PASSPHRASE")
 
-def get_manifest(job_name, backup_set_id, base_dir, logger):
+def get_manifest_from_db(job_name: str, backup_set_id: str, logger) -> Dict[str, Any]:
     """
-    Load the manifest JSON for a given job and backup set.
+    Load the manifest data from the database for a given job and backup set.
     :param job_name: Name of the backup job.
-    :param backup_set_id: Timestamp string identifying the backup set.
-    :param base_dir: Base directory of the project.
+    :param backup_set_id: Set name (timestamp string) identifying the backup set.
     :param logger: Logger instance for logging.
-    :return: Manifest dictionary.
+    :return: Manifest dictionary with config and files.
     """
-    sanitized_job = "".join(c if c.isalnum() or c in ("-", "_") else "_" for c in job_name)
-    manifest_path = os.path.join(base_dir, "data", "manifests", sanitized_job, f"{backup_set_id}.json")
-    logger.info(f"Loading manifest: {manifest_path}")
-    with open(manifest_path, "r", encoding="utf-8") as f:
-        manifest = json.load(f)
-    logger.info(f"Loaded manifest with {len(manifest.get('files', []))} files.")
-    return manifest
+    logger.info(f"Loading manifest from DB for job '{job_name}', set '{backup_set_id}'")
+    
+    # Debug: List all backup sets to see what's available
+    all_sets = list_backup_sets(job_name=None, limit=50)
+    logger.info(f"Debug: Found {len(all_sets)} backup sets in database:")
+    for backup_set in all_sets:
+        logger.info(f"  - Job: '{backup_set['job_name']}', Set: '{backup_set['set_name']}'")
+    
+    # Try to find backup set
+    backup_set = get_backup_set_by_job_and_set(job_name, backup_set_id)
+    if not backup_set:
+        # Try with sanitized job name (how backup jobs typically store names)
+        sanitized_job = "".join(c if c.isalnum() or c in ("-", "_") else "_" for c in job_name)
+        logger.info(f"Backup set not found with original job name '{job_name}', trying sanitized: '{sanitized_job}'")
+        backup_set = get_backup_set_by_job_and_set(sanitized_job, backup_set_id)
+        
+        if not backup_set:
+            # List all sets for this job name to help debug
+            job_sets = list_backup_sets(job_name=job_name, limit=10)
+            sanitized_sets = list_backup_sets(job_name=sanitized_job, limit=10)
+            
+            logger.error(f"No backup sets found for job '{job_name}' ({len(job_sets)} sets)")
+            logger.error(f"No backup sets found for sanitized job '{sanitized_job}' ({len(sanitized_sets)} sets)")
+            
+            raise FileNotFoundError(f"Backup set '{backup_set_id}' not found for job '{job_name}' or '{sanitized_job}'")
+    
+    # Get all files for this backup set
+    files = get_files_for_backup_set(backup_set['id'])
+    logger.info(f"Loaded manifest with {len(files)} files from database.")
+    
+    # Parse config from backup set
+    config = {}
+    if backup_set.get('config_snapshot'):
+        try:
+            # Try JSON first (newer format)
+            config = json.loads(backup_set['config_snapshot'])
+        except json.JSONDecodeError:
+            # Fall back to string representation (older format)
+            logger.warning("Config snapshot is not valid JSON, using string representation")
+            config = {"source": "/unknown"}  # Provide a default
+    
+    # Ensure config has required fields
+    if 'source' not in config:
+        logger.warning("No source directory found in config, using default")
+        config['source'] = "/unknown"
+    
+    return {
+        'job_name': backup_set['job_name'],
+        'set_name': backup_set['set_name'],
+        'config': config,
+        'files': files
+    }
 
-def extract_file_from_tarball(tarball_path, member_path, target_path, logger):
+def reconstruct_tarball_path(backup_set_name: str, tarball_basename: str, job_name: str, config: Dict[str, Any]) -> str:
+    """
+    Reconstruct the full path to a tarball file from the backup set name and tarball basename.
+    :param backup_set_name: The backup set timestamp (e.g., "20250706_151807")
+    :param tarball_basename: The tarball filename (e.g., "full_part_1_20250706_151807.tar.gz.gpg")
+    :param job_name: The job name for path construction
+    :param config: Config dict containing destination info
+    :return: Full path to the tarball file
+    """
+    import socket
+    
+    # Get destination from config
+    destination = config.get('destination', '/tmp/backup')
+    
+    # Sanitize names for filesystem paths
+    machine_name = socket.gethostname()
+    sanitized_job_name = "".join(c if c.isalnum() or c in ("-", "_") else "_" for c in job_name)
+    sanitized_machine_name = "".join(c if c.isalnum() or c in ("-", "_") else "_" for c in machine_name)
+    
+    # Construct the full path: destination/machine/job/backup_set_timestamp/tarball_file
+    full_path = os.path.join(
+        destination,
+        sanitized_machine_name,
+        sanitized_job_name,
+        f"backup_set_{backup_set_name}",
+        tarball_basename
+    )
+    
+    return full_path
+
+def extract_file_from_tarball(tarball_path: str, member_path: str, target_path: str, logger) -> tuple[bool, Optional[str]]:
     """
     Extract a single file from a tarball (optionally GPG-encrypted) to the target path.
     :param tarball_path: Path to the (possibly encrypted) tarball.
@@ -43,6 +124,13 @@ def extract_file_from_tarball(tarball_path, member_path, target_path, logger):
     :return: (success: bool, error_message: str or None)
     """
     logger.info(f"Extracting '{member_path}' from '{tarball_path}' to '{target_path}'")
+    
+    # Check if tarball file exists
+    if not os.path.exists(tarball_path):
+        error_msg = f"Tarball file does not exist: {tarball_path}"
+        logger.error(error_msg)
+        return False, error_msg
+    
     try:
         if tarball_path.endswith('.gpg'):
             passphrase = get_passphrase()
@@ -100,159 +188,264 @@ def extract_file_from_tarball(tarball_path, member_path, target_path, logger):
         return False, str(e)
 
 def restore_files(
-    job_name, backup_set_id, files, dest=None, base_dir=None,
-    event_id=None, restore_option="selected", logger=None
-):
+    job_name: str, 
+    backup_set_id: str, 
+    files: List[Dict[str, str]], 
+    dest: Optional[str] = None, 
+    base_dir: Optional[str] = None,
+    event_id: Optional[str] = None, 
+    restore_option: str = "selected", 
+    logger = None
+) -> Dict[str, List]:
     """
-    Restore a list of files from a backup set.
-    :param job_name: Name of the backup job.
-    :param backup_set_id: Timestamp string identifying the backup set.
-    :param files: List of dicts: {"path": ..., "tarball_path": ...} to restore.
-    :param dest: Optional destination directory for restore.
-    :param base_dir: Base directory of the project.
-    :param event_id: Optional event ID for logging.
-    :param restore_option: "full" or "selected"
-    :param logger: Logger instance for logging.
-    :return: Dict with lists of restored files and errors.
+    Restore a list of files from a backup set using direct tarball extraction.
     """
-    # pylint: disable=too-many-arguments, too-many-locals, too-many-branches, too-many-statements, too-many-return-statements
     if logger is None:
         logger = setup_logger(job_name, log_file="restore.log")
+    
     logger.info(f"PASSPHRASE loaded: {'YES' if get_passphrase() else 'NO'}")
-    logger.info(f"Starting restore_files for job '{job_name}', backup_set_id '{backup_set_id}'")
+    logger.info(f"Starting simplified restore for job '{job_name}', backup_set_id '{backup_set_id}'")
     logger.info(f"Files requested for restore: {files}")
-    set_restore_status(job_name, backup_set_id, running=True)
-    manifest = get_manifest(job_name, backup_set_id, base_dir, logger)
+    
+    # Track both original and effective job names for cleanup
+    original_job_name = job_name
+    effective_job_name = job_name
+    
+    set_restore_status(original_job_name, backup_set_id, running=True)
+    
     restored = []
     errors = []
-    start_time = time.time()
-
-    restore_path = dest if dest else manifest["config"]["source"]
-    event_type = "restore"
-    if restore_option == "full":
-        event_desc = f"Restoring all files to: {restore_path}"
-    else:
-        event_desc = f"Restoring selected files to: {restore_path}"
-
-    if not event_id:
-        event_id = initialize_event(
-            job_name=job_name,
-            event=event_desc,
-            backup_type=event_type,
-            encrypt=False,
-            sync=False
-        )
-        update_event(event_id, event=f"{event_desc}", status="running")
 
     try:
-        # files is a list of dicts: {"path": ..., "tarball_path": ...}
-        manifest_files = manifest.get("files", [])
-        for selected in files:
-            sel_path = selected["path"]
-            sel_tarball = selected["tarball_path"]
-            # Find the exact manifest entry
-            entry = next(
-                (f for f in manifest_files if f["path"] == sel_path and f["tarball_path"] == sel_tarball),
-                None
+        # Get basic config info (we need the actual destination path for tarball reconstruction)
+        backup_set = get_backup_set_by_job_and_set(job_name, backup_set_id)
+        if not backup_set:
+            # Try with sanitized job name
+            sanitized_job = "".join(c if c.isalnum() or c in ("-", "_") else "_" for c in job_name)
+            backup_set = get_backup_set_by_job_and_set(sanitized_job, backup_set_id)
+            effective_job_name = sanitized_job  # Use the sanitized name for path construction
+        
+        if not backup_set:
+            error_msg = f"Backup set '{backup_set_id}' not found for job '{job_name}'"
+            logger.error(error_msg)
+            return {"restored": [], "errors": [{"file": "backup_set", "error": error_msg}]}
+        
+        # Load config from actual config files instead of database snapshot
+        import yaml
+        from app.settings import GLOBAL_CONFIG_PATH
+        
+        config = {}
+        
+        # Load global config first
+        try:
+            with open(GLOBAL_CONFIG_PATH, 'r', encoding='utf-8') as f:
+                global_config = yaml.safe_load(f)
+                if 'destination' in global_config:
+                    config['destination'] = global_config['destination']
+                if 'source' in global_config:
+                    config['source'] = global_config['source']
+        except Exception as e:
+            logger.warning(f"Could not load global config: {e}")
+        
+        # Load job-specific config to override global settings
+        # Use the original job name for config file lookup
+        job_config_path = f"/home/jim/jabs_dev/config/jobs/{original_job_name}.yaml"
+        try:
+            with open(job_config_path, 'r', encoding='utf-8') as f:
+                job_config = yaml.safe_load(f)
+                # Job config overrides global config
+                if 'destination' in job_config:
+                    config['destination'] = job_config['destination']
+                if 'source' in job_config:
+                    config['source'] = job_config['source']
+        except Exception as e:
+            logger.warning(f"Could not load job config from {job_config_path}: {e}")
+        
+        # If still no destination, try the database config snapshot as fallback
+        if 'destination' not in config:
+            config_snapshot = backup_set['config_snapshot'] if backup_set['config_snapshot'] else None
+            if config_snapshot:
+                try:
+                    db_config = json.loads(config_snapshot)
+                    if 'destination' in db_config:
+                        config['destination'] = db_config['destination']
+                    if 'source' in db_config and 'source' not in config:
+                        config['source'] = db_config['source']
+                except json.JSONDecodeError:
+                    logger.warning("Config snapshot is not valid JSON")
+        
+        # Final fallback
+        if 'destination' not in config:
+            config['destination'] = '/tmp/backup'
+        if 'source' not in config:
+            config['source'] = '/tmp/jabs_restore'
+        
+        logger.info(f"Using config - destination: {config['destination']}, source: {config.get('source', 'not set')}")
+        
+        # Set default restore destination if not provided
+        if not dest and 'source' in config:
+            dest = config['source']
+        elif not dest:
+            dest = "/tmp/jabs_restore"  # fallback
+
+        # Initialize event if needed
+        if not event_id:
+            event_desc = f"Restoring {len(files)} files to: {dest}"
+            event_id = initialize_event(
+                job_name=effective_job_name,
+                event=event_desc,
+                backup_type="restore",
+                encrypt=False,
+                sync=False
             )
-            if not entry:
-                errors.append({"file": sel_path, "error": "Selected version not found in manifest"})
-                logger.error(f"Restore failed for '{sel_path}' from '{sel_tarball}': Not found in manifest")
+            update_event(event_id, event=event_desc, status="running")
+
+        for i, file_info in enumerate(files):
+            file_path = file_info["path"]
+            tarball_name = file_info.get("tarball_path", file_info.get("tarball"))
+            
+            logger.info(f"Restoring file {i+1}/{len(files)}: {file_path} from {tarball_name}")
+            
+            # Construct full tarball path using effective job name
+            tarball_path = reconstruct_tarball_path(
+                backup_set_name=backup_set_id,
+                tarball_basename=tarball_name,
+                job_name=effective_job_name,
+                config=config
+            )
+            
+            logger.info(f"Tarball path: {tarball_path}")
+            
+            # Check if tarball exists
+            if not os.path.exists(tarball_path):
+                error_msg = f"Tarball not found: {tarball_path}"
+                logger.error(error_msg)
+                errors.append({"file": file_path, "error": error_msg})
                 continue
-            tarball_path = entry["tarball_path"]
-            member_path = entry["path"]
-            if dest:
-                target = os.path.join(dest, member_path)
+            
+            # Determine target path
+            target_path = os.path.join(dest, file_path)
+            
+            # Extract the file directly
+            success, error = extract_file_from_tarball(tarball_path, file_path, target_path, logger)
+            
+            if success:
+                restored.append(target_path)
+                logger.info(f"Successfully restored: {target_path}")
             else:
-                source_base = manifest["config"]["source"]
-                target = os.path.join(source_base, member_path)
-            ok, err = extract_file_from_tarball(tarball_path, member_path, target, logger)
-            if ok:
-                restored.append(target)
-            else:
-                errors.append({"file": member_path, "error": err})
-                logger.error(f"Restore failed for '{member_path}': {err}")
-                break
+                errors.append({"file": file_path, "error": error})
+                logger.error(f"Failed to restore {file_path}: {error}")
+                
         logger.info(f"Restore complete. Restored: {len(restored)}, Errors: {len(errors)}")
-        if errors:
-            logger.error(f"Restore errors: {errors}")
-            status = "error"
-            if restore_option == "full":
-                event_msg = (
-                    f"Full restore failed to {restore_path}: "
-                    f"{errors[0]['error'] if errors else 'Unknown error'}"
-                )
+        
+        # Update event
+        if event_id:
+            if errors:
+                status = "error"
+                event_msg = f"Restore completed with errors: {len(restored)} restored, {len(errors)} failed"
             else:
-                event_msg = (
-                    f"Partial restore failed to {restore_path} with selected files: "
-                    f"{errors[0]['error'] if errors else 'Unknown error'}"
-                )
-        else:
-            status = "success"
-            if restore_option == "full":
-                event_msg = f"Full restore complete to {restore_path}"
-            else:
-                event_msg = f"Partial restore complete to {restore_path} with selected files"
-        runtime = int(time.time() - start_time)
-        runtime_str = f"{runtime//3600:02}:{(runtime%3600)//60:02}:{runtime%60:02}"
-        if event_exists(event_id):
-            finalize_event(
-                event_id=event_id,
-                status=status,
-                event=event_msg,
-                runtime=runtime_str
-            )
+                status = "completed"
+                event_msg = f"Restore completed successfully: {len(restored)} files"
+            finalize_event(event_id, event=event_msg, runtime="-", status=status)
+
+    except Exception as e:
+        logger.error(f"Failed to get backup set info: {e}")
+        errors.append({"file": "config", "error": str(e)})
+        
+        if event_id:
+            update_event(event_id, event=f"Restore failed: {str(e)}", status="error")
     finally:
-        set_restore_status(job_name, backup_set_id, running=False)
+        # Always cleanup restore status using the original job name
+        logger.info(f"Cleaning up restore status for job '{original_job_name}', backup_set '{backup_set_id}'")
+        try:
+            set_restore_status(original_job_name, backup_set_id, running=False)
+            logger.info("Successfully cleaned up restore status")
+        except Exception as cleanup_error:
+            logger.error(f"Failed to cleanup restore status: {cleanup_error}")
+
+    logger.info("Restore function complete")
     return {"restored": restored, "errors": errors}
 
-def restore_full(job_name, backup_set_id, dest=None, base_dir=None, event_id=None):
+def restore_full(job_name: str, backup_set_id: str, dest: Optional[str] = None, base_dir: Optional[str] = None, event_id: Optional[str] = None) -> Dict[str, List]:
     """
-    Restore all files from a backup set: full backup, then latest diff only.
+    Restore all files from a backup set using the simplified direct extraction approach.
+    For sets with multiple jobs (full + incremental/differential), restores files
+    from the latest version of each file across all jobs in the set.
     """
     logger = setup_logger(job_name, log_file="restore.log")
     logger.info(f"Starting full restore for job '{job_name}', backup_set_id '{backup_set_id}'")
-    set_restore_status(job_name, backup_set_id, running=True)
-    manifest = get_manifest(job_name, backup_set_id, base_dir, logger)
-    manifest_files = manifest.get("files", [])
-
-    # 1. Restore all files from full backup tarballs
-    full_files = [
-        {"path": f["path"], "tarball_path": f["tarball_path"]}
-        for f in manifest_files
-        if "full_part_" in os.path.basename(f["tarball_path"])
-    ]
-
-    # 2. Find the latest diff tarball(s)
-    diff_files = [f for f in manifest_files if "diff_part_" in os.path.basename(f["tarball_path"])]
-    latest_diff_files = []
-    if diff_files:
-        # Find the latest diff tarball by timestamp in filename
-        def extract_ts(f):
-            # Example: diff_part_1_20250602_130002.tar.gz.gpg
-            base = os.path.basename(f["tarball_path"])
-            parts = base.split("_")
-            # The timestamp is usually at the end before .tar.gz.gpg
-            for p in reversed(parts):
-                if p.isdigit() and len(p) == 6 or len(p) == 8 or len(p) == 15:
-                    return p
-            # fallback: use the whole filename
-            return base
-        # Get the latest timestamp
-        latest_ts = max([extract_ts(f) for f in diff_files])
-        # Get all files from the latest diff tarball(s)
-        latest_diff_files = [
-            {"path": f["path"], "tarball_path": f["tarball_path"]}
-            for f in diff_files
-            if extract_ts(f) == latest_ts
+    
+    # Track both original and effective job names for cleanup
+    original_job_name = job_name
+    effective_job_name = job_name
+    
+    set_restore_status(original_job_name, backup_set_id, running=True)
+    
+    try:
+        # Get backup set info without loading all files
+        backup_set = get_backup_set_by_job_and_set(job_name, backup_set_id)
+        if not backup_set:
+            # Try with sanitized job name
+            sanitized_job = "".join(c if c.isalnum() or c in ("-", "_") else "_" for c in job_name)
+            backup_set = get_backup_set_by_job_and_set(sanitized_job, backup_set_id)
+            effective_job_name = sanitized_job
+        
+        if not backup_set:
+            error_msg = f"Backup set '{backup_set_id}' not found for job '{job_name}'"
+            logger.error(error_msg)
+            return {"restored": [], "errors": [{"file": "backup_set", "error": error_msg}]}
+        
+        # Get all files for this backup set (we need them to determine latest versions)
+        logger.info("Loading file list from database for version resolution...")
+        all_files = get_files_for_backup_set(backup_set['id'])
+        logger.info(f"Loaded {len(all_files)} files from database")
+        
+        # Get jobs in the backup set
+        jobs = get_jobs_for_backup_set(backup_set['id'])
+        completed_jobs = [j for j in jobs if j['status'] == 'completed']
+        
+        if not completed_jobs:
+            error_msg = "No completed jobs found in backup set"
+            logger.error(error_msg)
+            return {"restored": [], "errors": [{"file": "jobs", "error": error_msg}]}
+        
+        # Group files by path and get the latest version of each
+        logger.info("Resolving latest version of each file...")
+        file_versions = {}
+        for file_entry in all_files:
+            path = file_entry['path']
+            job_started_at = file_entry.get('job_started_at', 0)
+            
+            # Keep the file from the most recent job
+            if path not in file_versions or job_started_at > file_versions[path].get('job_started_at', 0):
+                file_versions[path] = file_entry
+        
+        # Convert to list format expected by restore_files
+        files_to_restore = [
+            {"path": file_entry["path"], "tarball": file_entry["tarball"]}
+            for file_entry in file_versions.values()
         ]
-
-    # 3. Restore: full files first, then latest diff files (overwriting as needed)
-    files_to_restore = full_files + latest_diff_files
-
-    result = restore_files(
-        job_name, backup_set_id, files_to_restore, dest=dest, base_dir=base_dir,
-        event_id=event_id, restore_option="full", logger=logger
-    )
-    set_restore_status(job_name, backup_set_id, running=False)
-    return result
+        
+        logger.info(f"Restoring {len(files_to_restore)} files (latest version of each)")
+        
+        # Use the simplified restore_files function
+        result = restore_files(
+            original_job_name, backup_set_id, files_to_restore, dest=dest, base_dir=base_dir,
+            event_id=event_id, restore_option="full", logger=logger
+        )
+        
+        return result
+        
+    except Exception as e:
+        logger.error(f"Full restore failed: {e}", exc_info=True)
+        return {"restored": [], "errors": [{"file": "full_restore", "error": str(e)}]}
+    finally:
+        # Always cleanup restore status using the original job name
+        logger.info(f"Cleaning up restore status for job '{original_job_name}', backup_set '{backup_set_id}'")
+        try:
+            set_restore_status(original_job_name, backup_set_id, running=False)
+            logger.info("Successfully cleaned up restore status")
+        except Exception as cleanup_error:
+            logger.error(f"Failed to cleanup restore status: {cleanup_error}")
+        
+    logger.info("Full restore function complete")

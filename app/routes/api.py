@@ -188,21 +188,67 @@ def trim_logs():
 
 @api_bp.route('/api/manifest/<string:job_name>/<string:backup_set_id>/json')
 def api_manifest_json(job_name, backup_set_id):
-    """Return the manifest JSON for a specific job and backup set."""
+    """Return the manifest JSON for a specific job and backup set from SQLite database."""
+    from app.models.manifest_db import get_manifest_with_files
+    from datetime import datetime
+    
     sanitized_job = "".join(
         c if c.isalnum() or c in ("-", "_") else "_" for c in job_name
     )
-    json_path = os.path.join(
-        BASE_DIR, "data", "manifests", sanitized_job, f"{backup_set_id}.json"
-    )
-    if not os.path.exists(json_path):
+    
+    # Get manifest data from database using the new schema
+    manifest_data = get_manifest_with_files(sanitized_job, backup_set_id)
+    if not manifest_data:
         return jsonify({"error": "Manifest not found"}), 404
+    
     try:
-        with open(json_path, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        return jsonify(data)
-    except (OSError, json.JSONDecodeError):
-        return jsonify({"error": "Failed to read manifest file"}), 500
+        # Format the data for the JavaScript DataTable
+        files_for_table = []
+        for file_data in manifest_data.get('files', []):
+            # Format timestamp for display
+            modified_display = "N/A"
+            if file_data.get('mtime'):
+                try:
+                    dt = datetime.fromtimestamp(file_data['mtime'])
+                    modified_display = dt.strftime("%Y-%m-%d %H:%M:%S")
+                except (ValueError, TypeError):
+                    modified_display = "N/A"
+            
+            # Format size for display
+            size_display = file_data.get('size', 0)
+            if isinstance(size_display, (int, float)):
+                # Convert bytes to human readable format
+                def sizeof_fmt(num, suffix='B'):
+                    for unit in ['','K','M','G','T','P','E','Z']:
+                        if abs(num) < 1024.0:
+                            return f"{num:3.1f}{unit}{suffix}"
+                        num /= 1024.0
+                    return f"{num:.1f}Y{suffix}"
+                size_display = sizeof_fmt(size_display)
+            
+            files_for_table.append({
+                'tarball': file_data.get('tarball', 'unknown'),
+                'tarball_path': file_data.get('tarball', 'unknown'),  # For checkbox data attribute
+                'path': file_data.get('path', ''),
+                'size': size_display,
+                'modified': modified_display
+            })
+        
+        return jsonify({
+            'job_name': manifest_data.get('job_name'),
+            'set_name': manifest_data.get('set_name'),  # Separate set_name from new schema
+            'backup_set_id': backup_set_id,  # For compatibility
+            'backup_type': manifest_data.get('backup_type'),
+            'status': manifest_data.get('status'),
+            'event': manifest_data.get('event'),
+            'timestamp': manifest_data.get('timestamp'),
+            'started_at': manifest_data.get('started_at'),
+            'completed_at': manifest_data.get('completed_at'),
+            'files': files_for_table
+        })
+        
+    except Exception as e:
+        return jsonify({"error": f"Failed to process manifest data: {str(e)}"}), 500
 
 @api_bp.route('/api/scheduler_status')
 def get_scheduler_status():

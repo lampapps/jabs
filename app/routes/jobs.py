@@ -6,7 +6,6 @@ import subprocess
 import sys
 import tempfile
 import pathlib
-import fcntl
 import yaml
 import socket
 from flask import Blueprint, render_template, request, redirect, url_for, flash
@@ -15,19 +14,6 @@ from cron_descriptor import get_description
 from app.settings import LOCK_DIR, BASE_DIR, JOBS_DIR, GLOBAL_CONFIG_PATH
 
 jobs_bp = Blueprint('jobs', __name__)
-
-def is_job_locked(lock_path):
-    """Check if a job lock file is currently locked."""
-    try:
-        with open(lock_path, 'a+', encoding="utf-8") as lock_file:
-            try:
-                fcntl.flock(lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
-                fcntl.flock(lock_file, fcntl.LOCK_UN)
-                return False
-            except BlockingIOError:
-                return True
-    except OSError:
-        return True
 
 @jobs_bp.route("/jobs")
 def jobs_view():
@@ -125,13 +111,8 @@ def run_job(filename):
             global_config = yaml.safe_load(gf)
         aws_enabled = global_config.get("aws", {}).get("enabled", False)
 
-    lock_path = os.path.join(LOCK_DIR, f"{job_name}.lock")
-    if os.path.exists(lock_path) and is_job_locked(lock_path):
-        flash(f"Backup already running for job '{job_name}'.", "warning")
-        return redirect(url_for("jobs.jobs_view"))
-
     backup_type = request.form.get("backup_type", "full").lower()
-    if backup_type not in ("full", "diff"):
+    if backup_type not in ("full", "diff", "incremental", "dry_run"):
         flash("Invalid backup type.", "danger")
         return redirect(url_for("jobs.jobs_view"))
 
@@ -140,8 +121,12 @@ def run_job(filename):
     args = [sys.executable, cli_path, "--config", config_path]
     if backup_type == "full":
         args.append("--full")
-    else:
+    elif backup_type == "diff":
         args.append("--diff")
+    elif backup_type == "incremental":
+        args.append("--incremental")
+    elif backup_type == "dry_run":
+        args.append("--dry_run")
     if sync == "1" and aws_enabled:
         args.append("--sync")
 
@@ -157,7 +142,7 @@ def run_job(filename):
                 start_new_session=True,
                 cwd=BASE_DIR
             )
-        flash(f"{backup_type.capitalize()} backup for {job_name} has been started.", "success")
+        flash(f"{backup_type.replace('_', ' ').capitalize()} backup for {job_name} has been started.", "success")
     except (OSError, subprocess.SubprocessError) as e:
         flash(f"Failed to start backup: {e}", "danger")
 

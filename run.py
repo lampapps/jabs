@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 from app.settings import LOG_DIR
 from app.utils.logger import ensure_dir
 from app import create_app
+from app.models.manifest_db import init_db
 
 env_path = os.path.join(os.path.dirname(__file__), ".env")
 if not os.path.exists(env_path):
@@ -25,6 +26,8 @@ if "JABS_SECRET_KEY" not in os.environ:
     os.environ["JABS_SECRET_KEY"] = secrets.token_urlsafe(32)
 
 app = create_app()
+
+init_db()
 
 class AccessLogMiddleware:
     """WSGI middleware for logging HTTP access logs in Waitress style."""
