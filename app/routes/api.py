@@ -23,6 +23,7 @@ from core import restore
 from app.utils.restore_status import check_restore_status
 from app.utils.event_logger import load_events_locked, save_events_locked
 from app.utils.poll_targets import poll_targets
+from app.models.manifest_db import get_backup_set_by_job_and_set, delete_backup_set
 
 api_bp = Blueprint('api', __name__)
 
@@ -391,7 +392,7 @@ def manifest_page(job_name, backup_set_id):
 
 @api_bp.route('/api/events/delete', methods=['POST'])
 def delete_events():
-    """Delete events by ID and remove corresponding manifest files if they exist."""
+    """Delete events by ID and remove corresponding manifest files and DB entries if they exist."""
     data = request.get_json()
     ids = data.get('ids', [])
     if not ids:
@@ -414,6 +415,7 @@ def delete_events():
         job_name = event.get('job_name')
         backup_set_id = event.get('backup_set_id')
         if job_name and backup_set_id:
+            # Remove manifest files (legacy)
             sanitized_job = "".join(
                 c if c.isalnum() or c in ("-", "_") else "_" for c in job_name
             )
@@ -427,10 +429,15 @@ def delete_events():
                 except OSError:
                     pass  # Ignore errors if file does not exist or cannot be deleted
 
+            # Remove corresponding entries in the SQLite database
+            backup_set_row = get_backup_set_by_job_and_set(sanitized_job, backup_set_id)
+            if backup_set_row:
+                delete_backup_set(backup_set_row['id'])
+
     return jsonify({
         "message": (
-            f"Deleted {len(ids)} event(s) and any corresponding manifests. "
-            "Remove any remaining backup sets manually."
+            f"Deleted {len(ids)} event(s), any corresponding manifests, and database entries. "
+            "Remove any remaining backup sets manually if needed."
         )
     })
 

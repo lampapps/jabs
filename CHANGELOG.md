@@ -1,3 +1,4 @@
+<!-- markdownlint-disable MD024 -->
 # To do
 
 - fix scheduler file not found in new installs
@@ -8,8 +9,11 @@
 - destination path in global requires trailing slash '/'
 - error of missing "" in excludes in job.yaml were not caught
 - add excludes to job_min template and fix the required "example/" in the full version, it is missing ""
-- requirements.txt version where not compatable with pip or python on jim-imac, but they were on P3Tiny, errored when loading with python3.8 and pip 25.0.1
+- requirements.txt version were not compatable with pip or python on jim-imac, but they were on P3Tiny, errored when loading with python3.8 and pip 25.0.1
 - add cross platform locking with portalocker
+- incremental did not honor job specific excludes, specidicly Videos
+- incremental did not updates events when reverted to full backup due to no full backup found
+- check if last_full.txt is still needed.
 
 ## v0.7.3
 
@@ -17,7 +21,6 @@
 
 - Removed Auto theme setting
 - Fixed badges alignment and switched to shields.io for badge generation.
-
 
 ## v0.7.2
 
@@ -31,7 +34,7 @@
 
 ### Added
 
-- Monitoring other JABS apps on the same network. 
+- Monitoring other JABS apps on the same network.
 
 ### Fixed
 
@@ -76,7 +79,6 @@
 ### Fixed
 
 - backup error due to broken links and unaccessible files
-
 
 ## v0.4.2 - 2025-05-30
 

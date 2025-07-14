@@ -2,13 +2,14 @@ import os
 import shutil
 import socket
 import time
+import yaml
 from datetime import datetime
 from app.utils.logger import setup_logger, timestamp, ensure_dir
 from app.utils.manifest import write_manifest_files, extract_tar_info
 from app.utils.event_logger import update_event, finalize_event, event_exists
 from app.settings import LOCK_DIR, RESTORE_SCRIPT_SRC
 from core.encrypt import encrypt_tarballs
-from .utils import get_all_files, create_tar_archives
+from .utils import get_all_files, create_tar_archives, should_exclude
 from .common import rotate_backups
 
 # Import database functions
@@ -23,6 +24,12 @@ def run_full_backup(config, encrypt=False, sync=False, event_id=None, job_config
     job_name = config.get("job_name", "unknown_job")
     logger = setup_logger(job_name)
     logger.info(f"Starting FULL backup job '{job_name}' with provided config.")
+
+    # Debug common exclude settings
+    use_common_exclude = config.get("use_common_exclude", False)
+    logger.info(f"use_common_exclude setting: {use_common_exclude}")
+    if global_config and "use_common_exclude" in global_config:
+        logger.info(f"Global use_common_exclude setting: {global_config.get('use_common_exclude')}")
 
     src = config.get("source")
     dest = config.get("destination")
@@ -50,8 +57,60 @@ def run_full_backup(config, encrypt=False, sync=False, event_id=None, job_config
     backup_set_dir = os.path.join(job_dst, f"backup_set_{backup_set_id_string}")
     ensure_dir(backup_set_dir)
 
-    # Exclude patterns
-    exclude_patterns = config.get("exclude_patterns", [])
+    # Exclude patterns: merge job-specific and common excludes if enabled
+    exclude_patterns = []
+    
+    # First check if use_common_exclude is set in job config or inherited from global config
+    use_common = config.get("use_common_exclude", False)
+    if global_config:
+        use_common = config.get("use_common_exclude", global_config.get("use_common_exclude", False))
+    
+    if use_common:
+        # Load common_exclude.yaml
+        common_exclude_path = os.path.join(os.path.dirname(job_config_path or ""), "..", "common_exclude.yaml")
+        logger.info(f"Loading common exclude patterns from: {common_exclude_path}")
+        try:
+            with open(common_exclude_path, "r", encoding="utf-8") as f:
+                common_excludes = yaml.safe_load(f)
+            if isinstance(common_excludes, dict):
+                exclude_patterns.extend(common_excludes.get("exclude", []))
+            elif isinstance(common_excludes, list):
+                exclude_patterns.extend(common_excludes)
+            logger.info(f"Loaded {len(exclude_patterns)} common exclude patterns")
+        except Exception as e:
+            logger.warning(f"Could not load common_exclude.yaml: {e}")
+
+    # Add job-specific excludes
+    job_excludes = config.get("exclude", [])
+    exclude_patterns.extend(job_excludes)
+    logger.info(f"Added {len(job_excludes)} job-specific exclude patterns")
+    
+    # Also add any legacy 'exclude_patterns' key
+    legacy_excludes = config.get("exclude_patterns", [])
+    exclude_patterns.extend(legacy_excludes)
+    if legacy_excludes:
+        logger.info(f"Added {len(legacy_excludes)} legacy exclude patterns")
+        
+    # Log all patterns for debugging
+    logger.info(f"Total exclude patterns: {len(exclude_patterns)}")
+    for i, pattern in enumerate(exclude_patterns):
+        logger.info(f"  Pattern {i+1}: '{pattern}'")
+
+    # Special directory exclusion check
+    logger.info("Checking for Pictures/ and venv/ directories in exclusion patterns:")
+    pictures_pattern = "Pictures/"
+    venv_pattern = "venv/"
+    
+    if pictures_pattern in exclude_patterns:
+        logger.info(f"Found '{pictures_pattern}' in exclusion patterns")
+    else:
+        logger.warning(f"'{pictures_pattern}' NOT found in exclusion patterns")
+        
+    if venv_pattern in exclude_patterns:
+        logger.info(f"Found '{venv_pattern}' in exclusion patterns")
+    else:
+        logger.warning(f"'{venv_pattern}' NOT found in exclusion patterns")
+
     max_tarball_size_mb = config.get("max_tarball_size", 1024)
 
     # Create database entries for the new backup
@@ -89,7 +148,10 @@ def run_full_backup(config, encrypt=False, sync=False, event_id=None, job_config
         return None, event_id, None
 
     try:
+        logger.info(f"Collecting files with {len(exclude_patterns)} exclude patterns")
         files = get_all_files(src, exclude_patterns)
+        logger.info(f"Collected {len(files)} files after applying exclusion patterns")
+        
         tarball_paths = create_tar_archives(
             files, backup_set_dir, max_tarball_size_mb, logger, "full", config
         )
@@ -123,7 +185,6 @@ def run_full_backup(config, encrypt=False, sync=False, event_id=None, job_config
                 new_tar_info=new_tar_info,  # Still passed for compatibility
                 mode="full"
             )
-            logger.info(f"JSON Manifest written to: {json_manifest_path}")
             logger.info(f"HTML Manifest written to: {html_manifest_path}")
         else:
             logger.warning("No tarballs created, skipping manifest generation.")

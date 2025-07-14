@@ -2,9 +2,10 @@ import os
 import socket
 import time
 import json
+import yaml
 from app.utils.logger import setup_logger, timestamp, ensure_dir
 from app.utils.event_logger import update_event, finalize_event, event_exists
-from .utils import get_all_files
+from .utils import get_all_files, should_exclude
 import boto3
 from botocore.exceptions import ClientError
 import datetime
@@ -71,6 +72,12 @@ def run_dryrun_backup(config, encrypt=False, sync=False, event_id=None, job_conf
     job_name = config.get("job_name", "unknown_job")
     logger = setup_logger(job_name)
     logger.info(f"Starting DRYRUN backup job '{job_name}' with provided config.")
+
+    # Debug common exclude settings
+    use_common_exclude = config.get("use_common_exclude", False)
+    logger.info(f"use_common_exclude setting: {use_common_exclude}")
+    if global_config and "use_common_exclude" in global_config:
+        logger.info(f"Global use_common_exclude setting: {global_config.get('use_common_exclude')}")
 
     src = config.get("source")
     dest = config.get("destination")
@@ -155,8 +162,61 @@ def run_dryrun_backup(config, encrypt=False, sync=False, event_id=None, job_conf
 
     logger.info(f"DRYRUN: Would create backup in: {backup_set_dir}")
 
+    # Exclude patterns: merge job-specific and common excludes if enabled
+    exclude_patterns = []
+    
+    # First check if use_common_exclude is set in job config or inherited from global config
+    use_common = config.get("use_common_exclude", False)
+    if global_config:
+        use_common = config.get("use_common_exclude", global_config.get("use_common_exclude", False))
+    
+    if use_common:
+        # Load common_exclude.yaml
+        common_exclude_path = os.path.join(os.path.dirname(job_config_path or ""), "..", "common_exclude.yaml")
+        logger.info(f"Loading common exclude patterns from: {common_exclude_path}")
+        try:
+            with open(common_exclude_path, "r", encoding="utf-8") as f:
+                common_excludes = yaml.safe_load(f)
+            if isinstance(common_excludes, dict):
+                exclude_patterns.extend(common_excludes.get("exclude", []))
+            elif isinstance(common_excludes, list):
+                exclude_patterns.extend(common_excludes)
+            logger.info(f"Loaded {len(exclude_patterns)} common exclude patterns")
+        except Exception as e:
+            logger.warning(f"Could not load common_exclude.yaml: {e}")
+
+    # Add job-specific excludes
+    job_excludes = config.get("exclude", [])
+    exclude_patterns.extend(job_excludes)
+    logger.info(f"Added {len(job_excludes)} job-specific exclude patterns")
+    
+    # Also add any legacy 'exclude_patterns' key
+    legacy_excludes = config.get("exclude_patterns", [])
+    exclude_patterns.extend(legacy_excludes)
+    if legacy_excludes:
+        logger.info(f"Added {len(legacy_excludes)} legacy exclude patterns")
+        
+    # Log all patterns for debugging
+    logger.info(f"Total exclude patterns: {len(exclude_patterns)}")
+    for i, pattern in enumerate(exclude_patterns):
+        logger.info(f"  Pattern {i+1}: '{pattern}'")
+
+    # Special directory exclusion check
+    logger.info("Checking for Pictures/ and venv/ directories in exclusion patterns:")
+    pictures_pattern = "Pictures/"
+    venv_pattern = "venv/"
+    
+    if pictures_pattern in exclude_patterns:
+        logger.info(f"Found '{pictures_pattern}' in exclusion patterns")
+    else:
+        logger.warning(f"'{pictures_pattern}' NOT found in exclusion patterns")
+        
+    if venv_pattern in exclude_patterns:
+        logger.info(f"Found '{venv_pattern}' in exclusion patterns")
+    else:
+        logger.warning(f"'{venv_pattern}' NOT found in exclusion patterns")
+
     # Get files that would be backed up
-    exclude_patterns = config.get("exclude_patterns", [])
     files = get_all_files(src, exclude_patterns)
     logger.info(f"DRYRUN: Found {len(files)} files that would be archived.")
 

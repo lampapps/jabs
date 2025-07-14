@@ -31,7 +31,7 @@ DB_PATH = os.path.join(DATA_DIR, "jabs.sqlite")
 
 # --- Logging Configuration ---
 LOG_DIR = os.path.join(BASE_DIR, 'logs')
-MAX_LOG_LINES = 1000
+MAX_LOG_LINES = 5000
 
 # --- Restore Configuration ---
 HOME_DIR = os.path.expanduser("~") # user's home path to restrict custom restore location
