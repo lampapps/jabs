@@ -27,15 +27,15 @@ $(document).ready(function () {
                 data: 'event',
                 title: 'Event/Manifest',
                 render: function (data, type, row) { // 'data' is now the 'event' text
-                    // Check if backup_set_id AND job_name are present in the row object
-                    if (row.backup_set_id && row.job_name) {
-                        // Construct the correct manifest URL using row.backup_set_id
-                        const manifestUrl = `/manifest/${encodeURIComponent(row.job_name)}/${encodeURIComponent(row.backup_set_id)}`;
+                    // Check if job_name and set_name are present in the row object
+                    if (row.job_name && row.set_name) {
+                        // Construct the correct manifest URL using row.set_name instead of backup_set_id
+                        const manifestUrl = `/manifest/${encodeURIComponent(row.job_name)}/${encodeURIComponent(row.set_name)}`;
                         // Use the event text (passed as 'data') or job name as link text
                         const linkText = data || row.job_name || 'View Manifest';
                         return `<a href="${manifestUrl}">${linkText}</a>`;
                     } else {
-                        // If no backup_set_id/job_name, just display the event text (passed as 'data') 
+                        // If no set_name/job_name, just display the event text (passed as 'data') 
                         return data || ''; // Use 'data' which is row.event
                     }
                 },

@@ -36,6 +36,7 @@ def init_db(db_path: str = DB_PATH):
             description TEXT,
             is_active BOOLEAN DEFAULT 1,      -- Can mark old sets as inactive
             config_snapshot TEXT,             -- Config used when set was created
+            hostname TEXT,                    -- Added for events view
             UNIQUE(job_name, set_name)
         );
         """)
@@ -84,7 +85,137 @@ def init_db(db_path: str = DB_PATH):
         c.execute("CREATE INDEX IF NOT EXISTS idx_backup_files_job_id ON backup_files(backup_job_id)")
         c.execute("CREATE INDEX IF NOT EXISTS idx_backup_files_path ON backup_files(path)")
         
+        # Create the events view
+        create_events_view()
+        
         conn.commit()
+
+
+# -------------------- Events VIEW and Functions --------------------
+
+def create_events_view():
+    """Create a view for events based on backup_jobs table"""
+    with get_db_connection() as conn:
+        c = conn.cursor()
+        
+        # First ensure the hostname column exists in backup_sets
+        c.execute("PRAGMA table_info(backup_sets)")
+        columns = [column[1] for column in c.fetchall()]
+        
+        if 'hostname' not in columns:
+            # Add hostname column if it doesn't exist
+            c.execute("ALTER TABLE backup_sets ADD COLUMN hostname TEXT")
+            
+            # Set default hostname for existing records
+            import socket
+            hostname = socket.gethostname()
+            c.execute("UPDATE backup_sets SET hostname = ? WHERE hostname IS NULL", (hostname,))
+            conn.commit()
+        
+        # Create the events view - drop it first if it exists to ensure we have the latest definition
+        c.execute("DROP VIEW IF EXISTS events")
+        
+        c.execute("""
+        CREATE VIEW events AS
+        SELECT 
+            bj.id,
+            bs.job_name,
+            datetime(bj.started_at, 'unixepoch', 'localtime') as starttimestamp,
+            bs.hostname,
+            bj.backup_type,
+            bj.encrypted as encrypt,
+            bj.synced as sync,
+            bj.status,
+            CASE
+                WHEN bj.completed_at IS NULL THEN '<i class="fas fa-spinner fa-spin"></i>'
+                WHEN bj.runtime_seconds IS NOT NULL THEN 
+                    printf('%02d:%02d:%02d', 
+                        bj.runtime_seconds / 3600,
+                        (bj.runtime_seconds % 3600) / 60, 
+                        bj.runtime_seconds % 60)
+                ELSE NULL
+            END as runtime,
+            bj.event_message as event,
+            bj.error_message,
+            bs.id as backup_set_id,
+            bs.set_name,
+            bj.started_at as start_time_float
+        FROM 
+            backup_jobs bj
+        JOIN 
+            backup_sets bs ON bj.backup_set_id = bs.id
+        ORDER BY 
+            bj.started_at DESC
+        """)
+        conn.commit()
+
+# Event access functions
+def get_all_events() -> Dict[str, List[Dict[str, Any]]]:
+    """Get all events from the database."""
+    with get_db_connection() as conn:
+        c = conn.cursor()
+        c.execute("SELECT * FROM events")
+        rows = c.fetchall()
+        events = [dict(row) for row in rows]
+        return {"data": events}
+
+def get_event_by_id(event_id: int) -> Optional[Dict[str, Any]]:
+    """Get a specific event by ID."""
+    with get_db_connection() as conn:
+        c = conn.cursor()
+        c.execute("SELECT * FROM events WHERE id = ?", (event_id,))
+        row = c.fetchone()
+        return dict(row) if row else None
+
+def get_event_by_job_name(job_name: str) -> Optional[Dict[str, Any]]:
+    """Get the most recent event for a job."""
+    with get_db_connection() as conn:
+        c = conn.cursor()
+        c.execute("""
+            SELECT * FROM events 
+            WHERE job_name = ? 
+            ORDER BY start_time_float DESC 
+            LIMIT 1
+        """, (job_name,))
+        row = c.fetchone()
+        return dict(row) if row else None
+
+def get_events_for_job(job_name: str) -> List[Dict[str, Any]]:
+    """Get all events for a specific job."""
+    with get_db_connection() as conn:
+        c = conn.cursor()
+        c.execute("""
+            SELECT * FROM events 
+            WHERE job_name = ? 
+            ORDER BY start_time_float DESC
+        """, (job_name,))
+        return [dict(row) for row in c.fetchall()]
+
+def get_event_status(event_id: int) -> Optional[str]:
+    """Get the status of an event."""
+    with get_db_connection() as conn:
+        c = conn.cursor()
+        c.execute("SELECT status FROM events WHERE id = ?", (event_id,))
+        row = c.fetchone()
+        return row[0] if row else None
+
+def event_exists(event_id: int) -> bool:
+    """Check if an event exists."""
+    with get_db_connection() as conn:
+        c = conn.cursor()
+        c.execute("SELECT 1 FROM events WHERE id = ? LIMIT 1", (event_id,))
+        return c.fetchone() is not None
+
+def remove_events_by_backup_set_id(backup_set_id: int) -> bool:
+    """
+    Remove events by deleting their underlying backup jobs.
+    Returns True if any events were removed.
+    """
+    with get_db_connection() as conn:
+        c = conn.cursor()
+        c.execute("DELETE FROM backup_jobs WHERE backup_set_id = ?", (backup_set_id,))
+        conn.commit()
+        return c.rowcount > 0
 
 
 # =============================================================================
@@ -108,10 +239,12 @@ def get_or_create_backup_set(job_name: str, set_name: str, config_settings: Opti
         else:
             # Create new backup set
             current_time = time.time()
+            import socket
+            hostname = socket.gethostname()
             c.execute("""
-                INSERT INTO backup_sets (job_name, set_name, created_at, updated_at, config_snapshot)
-                VALUES (?, ?, ?, ?, ?)
-            """, (job_name, set_name, current_time, current_time, config_settings))
+                INSERT INTO backup_sets (job_name, set_name, created_at, updated_at, config_snapshot, hostname)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (job_name, set_name, current_time, current_time, config_settings, hostname))
             conn.commit()
             return c.lastrowid
 
@@ -528,3 +661,73 @@ def search_files(query: str, job_name: str = None) -> List[sqlite3.Row]:
             """, (f"%{query}%",))
         
         return c.fetchall()
+
+
+# -------------------- Events functions --------------------
+
+def get_all_events() -> Dict[str, List[Dict[str, Any]]]:
+    """Get all events from the database."""
+    with get_db_connection() as conn:
+        c = conn.cursor()
+        c.execute("SELECT * FROM events")
+        rows = c.fetchall()
+        events = [dict(row) for row in rows]
+        return {"data": events}
+
+def get_event_by_id(event_id: int) -> Optional[Dict[str, Any]]:
+    """Get a specific event by ID."""
+    with get_db_connection() as conn:
+        c = conn.cursor()
+        c.execute("SELECT * FROM events WHERE id = ?", (event_id,))
+        row = c.fetchone()
+        return dict(row) if row else None
+
+def get_event_by_job_name(job_name: str) -> Optional[Dict[str, Any]]:
+    """Get the most recent event for a job."""
+    with get_db_connection() as conn:
+        c = conn.cursor()
+        c.execute("""
+            SELECT * FROM events 
+            WHERE job_name = ? 
+            ORDER BY start_time_float DESC 
+            LIMIT 1
+        """, (job_name,))
+        row = c.fetchone()
+        return dict(row) if row else None
+
+def get_events_for_job(job_name: str) -> List[Dict[str, Any]]:
+    """Get all events for a specific job."""
+    with get_db_connection() as conn:
+        c = conn.cursor()
+        c.execute("""
+            SELECT * FROM events 
+            WHERE job_name = ? 
+            ORDER BY start_time_float DESC
+        """, (job_name,))
+        return [dict(row) for row in c.fetchall()]
+
+def get_event_status(event_id: int) -> Optional[str]:
+    """Get the status of an event."""
+    with get_db_connection() as conn:
+        c = conn.cursor()
+        c.execute("SELECT status FROM events WHERE id = ?", (event_id,))
+        row = c.fetchone()
+        return row[0] if row else None
+
+def event_exists(event_id: int) -> bool:
+    """Check if an event exists."""
+    with get_db_connection() as conn:
+        c = conn.cursor()
+        c.execute("SELECT 1 FROM events WHERE id = ? LIMIT 1", (event_id,))
+        return c.fetchone() is not None
+
+def remove_events_by_backup_set_id(backup_set_id: int) -> bool:
+    """
+    Remove events by deleting their underlying backup jobs.
+    Returns True if any events were removed.
+    """
+    with get_db_connection() as conn:
+        c = conn.cursor()
+        c.execute("DELETE FROM backup_jobs WHERE backup_set_id = ?", (backup_set_id,))
+        conn.commit()
+        return c.rowcount > 0

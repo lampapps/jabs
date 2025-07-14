@@ -35,7 +35,7 @@ MAX_LOG_LINES = 5000
 
 # --- Restore Configuration ---
 HOME_DIR = os.path.expanduser("~") # user's home path to restrict custom restore location
-RESTORE_SCRIPT_SRC = os.path.join(BASE_DIR, 'restore.py') # script that is copied to archive destination directory
+RESTORE_SCRIPT_SRC = os.path.join(BASE_DIR, 'restore.py') # script that is copied to repositories with archives
 
 # --- Load GLOBAL_CONFIG ---
 with open(GLOBAL_CONFIG_PATH, "r", encoding="utf-8") as f:

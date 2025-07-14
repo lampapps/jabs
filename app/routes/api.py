@@ -21,7 +21,7 @@ from app.settings import (
 )
 from core import restore
 from app.utils.restore_status import check_restore_status
-from app.utils.event_logger import load_events_locked, save_events_locked
+from app.utils.event_logger import load_events  # Updated from load_events_locked
 from app.utils.poll_targets import poll_targets
 from app.models.manifest_db import get_backup_set_by_job_and_set, delete_backup_set
 
@@ -46,15 +46,16 @@ def restore_status(job_name, backup_set_id):
 
 @api_bp.route("/api/events")
 def get_events():
-    """Return all events from the events file."""
-    events = load_events_locked()
+    """Return all events from the database."""
+    from app.models.manifest_db import get_all_events
+    events = get_all_events()
     return jsonify(events)
 
 @api_bp.route('/data/dashboard/events.json')
 def serve_events():
-    """Serve the events.json file from the events directory."""
-    events_dir = os.path.dirname(EVENTS_FILE)
-    return send_from_directory(events_dir, "events.json")
+    """Serve the events from the database in JSON format."""
+    from app.models.manifest_db import get_all_events
+    return jsonify(get_all_events())
 
 @api_bp.route('/api/disk_usage')
 def get_disk_usage():
@@ -390,55 +391,74 @@ def manifest_page(job_name, backup_set_id):
         HOME_DIR=HOME_DIR
     )
 
-@api_bp.route('/api/events/delete', methods=['POST'])
+@api_bp.route("/api/events/delete", methods=["POST"])
 def delete_events():
-    """Delete events by ID and remove corresponding manifest files and DB entries if they exist."""
+    """Delete events by ID directly from the database."""
     data = request.get_json()
     ids = data.get('ids', [])
     if not ids:
         return jsonify({"message": "No IDs provided."}), 400
 
-    events_json = load_events_locked()
-    events = events_json.get("data", [])
-
-    events_to_delete = [
-        e for e in events if str(e.get('id') or e.get('starttimestamp')) in ids
-    ]
-    events = [
-        e for e in events if str(e.get('id') or e.get('starttimestamp')) not in ids
-    ]
-    events_json["data"] = events
-
-    save_events_locked(events_json)
-
-    for event in events_to_delete:
-        job_name = event.get('job_name')
-        backup_set_id = event.get('backup_set_id')
-        if job_name and backup_set_id:
+    deleted_count = 0
+    deleted_backup_sets = set()
+    
+    # Get the events data for reference before deletion
+    events_data = []
+    from app.models.manifest_db import get_db_connection
+    with get_db_connection() as conn:
+        c = conn.cursor()
+        placeholders = ",".join("?" for _ in ids)
+        c.execute(f"SELECT id, job_name, backup_set_id FROM events WHERE id IN ({placeholders})", ids)
+        events_data = [dict(row) for row in c.fetchall()]
+        
+    # Delete each event by removing the corresponding backup job
+    for event_data in events_data:
+        event_id = event_data.get("id")
+        job_name = event_data.get("job_name")
+        backup_set_id = event_data.get("backup_set_id")
+        
+        try:
+            with get_db_connection() as conn:
+                c = conn.cursor()
+                # Delete the backup job
+                c.execute("DELETE FROM backup_jobs WHERE id = ?", (event_id,))
+                conn.commit()
+                
+                if c.rowcount > 0:
+                    deleted_count += 1
+                    
+                    # Check if we should also delete the backup set (if no more jobs)
+                    if backup_set_id:
+                        c.execute("SELECT COUNT(*) FROM backup_jobs WHERE backup_set_id = ?", (backup_set_id,))
+                        if c.fetchone()[0] == 0:
+                            # No more jobs for this set, delete it
+                            deleted_backup_sets.add((backup_set_id, job_name))
+        except Exception as e:
+            print(f"Error deleting event {event_id}: {e}")
+    
+    # Delete any backup sets that have no more jobs
+    for backup_set_id, job_name in deleted_backup_sets:
+        try:
             # Remove manifest files (legacy)
             sanitized_job = "".join(
                 c if c.isalnum() or c in ("-", "_") else "_" for c in job_name
             )
             manifest_dir = os.path.join(BASE_DIR, "data", "manifests", sanitized_job)
-            json_path = os.path.join(manifest_dir, f"{backup_set_id}.json")
-            html_path = os.path.join(manifest_dir, f"{backup_set_id}.html")
-            for path in [json_path, html_path]:
-                try:
-                    if os.path.exists(path):
-                        os.remove(path)
-                except OSError:
-                    pass  # Ignore errors if file does not exist or cannot be deleted
-
-            # Remove corresponding entries in the SQLite database
-            backup_set_row = get_backup_set_by_job_and_set(sanitized_job, backup_set_id)
-            if backup_set_row:
-                delete_backup_set(backup_set_row['id'])
-
+            
+            # Find all manifest files for this backup set
+            if os.path.exists(manifest_dir):
+                for filename in os.listdir(manifest_dir):
+                    if filename.startswith(f"{backup_set_id}."):
+                        os.remove(os.path.join(manifest_dir, filename))
+                        
+            # Delete the backup set from the database
+            delete_backup_set(backup_set_id)
+        except Exception as e:
+            print(f"Error cleaning up after event deletion: {e}")
+    
     return jsonify({
-        "message": (
-            f"Deleted {len(ids)} event(s), any corresponding manifests, and database entries. "
-            "Remove any remaining backup sets manually if needed."
-        )
+        "success": True, 
+        "deleted": deleted_count
     })
 
 @api_bp.route("/data/dashboard/scheduler_events.json")
