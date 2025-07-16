@@ -3,20 +3,16 @@ import socket
 import time
 import json
 import yaml
-from app.utils.logger import setup_logger, timestamp, ensure_dir
-from app.utils.event_logger import update_event, finalize_event, event_exists
-from .utils import get_all_files, should_exclude
+from app.utils.logger import setup_logger, timestamp
+from app.models.events import update_event, finalize_event, event_exists
+from .utils import get_all_files
 import boto3
 from botocore.exceptions import ClientError
-import datetime
 
-# Import database functions
-from app.models.manifest_db import (
-    get_or_create_backup_set,
-    insert_backup_job,
-    finalize_backup_job,
-    insert_files
-)
+from app.models.backup_sets import get_or_create_backup_set
+from app.models.backup_jobs import insert_backup_job, finalize_backup_job
+from app.models.backup_files import insert_files
+from app.models.db_core import get_db_connection
 
 def check_s3_accessible(config, logger):
     """Check if S3 bucket is accessible and writable."""
@@ -72,6 +68,10 @@ def run_dryrun_backup(config, encrypt=False, sync=False, event_id=None, job_conf
     job_name = config.get("job_name", "unknown_job")
     logger = setup_logger(job_name)
     logger.info(f"Starting DRYRUN backup job '{job_name}' with provided config.")
+    
+    # Update event with our current status
+    if event_id and event_exists(event_id):
+        update_event(event_id, event_message=f"Initializing dryrun backup for {job_name}")
 
     # Debug common exclude settings
     use_common_exclude = config.get("use_common_exclude", False)
@@ -82,15 +82,20 @@ def run_dryrun_backup(config, encrypt=False, sync=False, event_id=None, job_conf
     src = config.get("source")
     dest = config.get("destination")
     
+    # Update event for path validation
+    if event_id and event_exists(event_id):
+        update_event(event_id, event_message="Validating source and destination paths")
+    
     # Test source folder
     if not src or not os.path.exists(src):
         error_msg = f"Source path does not exist: {src}"
         logger.error(error_msg)
+        # Finalize the event ONLY for errors
         if event_id and event_exists(event_id):
             finalize_event(
                 event_id=event_id,
                 status="error",
-                event=error_msg,
+                event_message=error_msg,
                 backup_set_id=None,
                 runtime="00:00:00"
             )
@@ -99,11 +104,12 @@ def run_dryrun_backup(config, encrypt=False, sync=False, event_id=None, job_conf
     if not os.access(src, os.R_OK):
         error_msg = f"Source path is not readable: {src}"
         logger.error(error_msg)
+        # Finalize the event ONLY for errors
         if event_id and event_exists(event_id):
             finalize_event(
                 event_id=event_id,
                 status="error",
-                event=error_msg,
+                event_message=error_msg,
                 backup_set_id=None,
                 runtime="00:00:00"
             )
@@ -113,11 +119,12 @@ def run_dryrun_backup(config, encrypt=False, sync=False, event_id=None, job_conf
     if not dest or not os.path.exists(dest):
         error_msg = f"Destination path does not exist: {dest}"
         logger.error(error_msg)
+        # Finalize the event ONLY for errors
         if event_id and event_exists(event_id):
             finalize_event(
                 event_id=event_id,
                 status="error",
-                event=error_msg,
+                event_message=error_msg,
                 backup_set_id=None,
                 runtime="00:00:00"
             )
@@ -126,29 +133,35 @@ def run_dryrun_backup(config, encrypt=False, sync=False, event_id=None, job_conf
     if not os.access(dest, os.W_OK):
         error_msg = f"Destination path is not writable: {dest}"
         logger.error(error_msg)
+        # Finalize the event ONLY for errors
         if event_id and event_exists(event_id):
             finalize_event(
                 event_id=event_id,
                 status="error",
-                event=error_msg,
+                event_message=error_msg,
                 backup_set_id=None,
                 runtime="00:00:00"
             )
         return None, event_id, None
 
     # Test S3 if sync is enabled
-    if sync and not check_s3_accessible(config, logger):
-        error_msg = "S3 bucket is not accessible or writable."
-        logger.error(error_msg)
+    if sync:
         if event_id and event_exists(event_id):
-            finalize_event(
-                event_id=event_id,
-                status="error",
-                event=error_msg,
-                backup_set_id=None,
-                runtime="00:00:00"
-            )
-        return None, event_id, None
+            update_event(event_id, event_message="Checking S3 bucket access")
+            
+        if not check_s3_accessible(config, logger):
+            error_msg = "S3 bucket is not accessible or writable."
+            logger.error(error_msg)
+            # Finalize the event ONLY for errors
+            if event_id and event_exists(event_id):
+                finalize_event(
+                    event_id=event_id,
+                    status="error",
+                    event_message=error_msg,
+                    backup_set_id=None,
+                    runtime="00:00:00"
+                )
+            return None, event_id, None
 
     # Path setup (for validation only - no directories created)
     machine_name = socket.gethostname()
@@ -161,6 +174,10 @@ def run_dryrun_backup(config, encrypt=False, sync=False, event_id=None, job_conf
     backup_set_dir = os.path.join(job_dst, f"backup_set_{backup_set_id_string}")
 
     logger.info(f"DRYRUN: Would create backup in: {backup_set_dir}")
+    
+    # Update event for exclude patterns
+    if event_id and event_exists(event_id):
+        update_event(event_id, event_message="Loading exclude patterns")
 
     # Exclude patterns: merge job-specific and common excludes if enabled
     exclude_patterns = []
@@ -216,47 +233,81 @@ def run_dryrun_backup(config, encrypt=False, sync=False, event_id=None, job_conf
     else:
         logger.warning(f"'{venv_pattern}' NOT found in exclusion patterns")
 
+    # Update event for scanning files
+    if event_id and event_exists(event_id):
+        update_event(event_id, event_message="Scanning for files to backup (dry run)")
+    
     # Get files that would be backed up
     files = get_all_files(src, exclude_patterns)
     logger.info(f"DRYRUN: Found {len(files)} files that would be archived.")
 
     if not files:
         logger.warning("DRYRUN: No files found to backup.")
+        # Don't finalize here - let the CLI handle it
         if event_id and event_exists(event_id):
-            finalize_event(
+            update_event(
                 event_id=event_id,
-                status="completed",
-                event="No files found for dryrun backup",
-                backup_set_id=backup_set_id_string,
-                runtime="00:00:00"
+                event_message="No files found for dryrun backup",
+                status="running"  # Keep it running so CLI can finalize it
             )
         return "skipped", event_id, backup_set_id_string
 
-    # Create database entries for the dryrun
+    # Get the backup job ID from the event
+    # In our schema, the event ID IS the backup job ID
+    backup_job_id = event_id
+    backup_set_id = None
+    
+    if backup_job_id:
+        logger.info(f"Using event_id as backup_job_id: {backup_job_id}")
+        # Get the backup set ID associated with this job
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            try:
+                cursor.execute('SELECT backup_set_id FROM backup_jobs WHERE id = ?', (backup_job_id,))
+                job_result = cursor.fetchone()
+                if job_result and job_result['backup_set_id']:
+                    backup_set_id = job_result['backup_set_id']
+                    logger.info(f"Using backup set ID {backup_set_id} from job {backup_job_id}")
+            except Exception as e:
+                logger.warning(f"Could not get backup set ID from backup job: {e}")
+
+    # Create database entries for the dryrun if we don't have them already
     try:
-        # Step 1: Create backup set in database
-        config_snapshot = json.dumps(config) if config else None
-        backup_set_id = get_or_create_backup_set(
-            job_name=sanitized_job_name,
-            set_name=backup_set_id_string,
-            config_settings=config_snapshot
-        )
+        # Update event for database creation
+        if event_id and event_exists(event_id):
+            update_event(event_id, event_message="Creating database entries (dry run)")
         
-        # Step 2: Create backup job in database
-        job_id = insert_backup_job(
-            backup_set_id=backup_set_id,
-            backup_type="dryrun",
-            encrypted=encrypt,
-            synced=sync,
-            event_message="Dryrun backup started"
-        )
-        
-        logger.info(f"DRYRUN: Created database entries - backup_set_id={backup_set_id}, job_id={job_id}")
+        # If we don't have a backup_job_id or backup_set_id from the event,
+        # we need to create them (should not happen with proper CLI event creation)
+        if not backup_job_id or not backup_set_id:
+            # Step 1: Create backup set in database
+            config_snapshot = json.dumps(config) if config else None
+            backup_set_id = get_or_create_backup_set(
+                job_name=sanitized_job_name,
+                set_name=backup_set_id_string,
+                config_settings=config_snapshot
+            )
+            
+            # Step 2: Create backup job in database
+            backup_job_id = insert_backup_job(
+                backup_set_id=backup_set_id,
+                backup_type="dryrun",
+                encrypted=encrypt,
+                synced=sync,
+                event_message="Dryrun backup started"
+            )
+            
+            logger.info(f"DRYRUN: Created database entries - backup_set_id={backup_set_id}, job_id={backup_job_id}")
+        else:
+            logger.info(f"DRYRUN: Using existing database entries - backup_set_id={backup_set_id}, job_id={backup_job_id}")
 
         # Step 3: Create file records for database
         total_size_bytes = 0
         file_records = []
         
+        if event_id and event_exists(event_id):
+            update_event(event_id, event_message="Processing file information (dry run)")
+            
         for file_path in files:
             try:
                 stat_info = os.stat(file_path)
@@ -280,11 +331,15 @@ def run_dryrun_backup(config, encrypt=False, sync=False, event_id=None, job_conf
         # Step 4: Insert file records into database
         if file_records:
             logger.info(f"DRYRUN: Inserting {len(file_records)} file records into database...")
-            insert_files(job_id, file_records)
             
-            # Step 5: Finalize the backup job
+            if event_id and event_exists(event_id):
+                update_event(event_id, event_message=f"Adding {len(file_records)} file records to database (dry run)")
+                
+            insert_files(backup_job_id, file_records)
+            
+            # Mark the backup job as completed in database
             finalize_backup_job(
-                job_id=job_id,
+                job_id=backup_job_id,
                 status="completed",
                 event_message="Dryrun backup completed successfully",
                 total_files=len(file_records),
@@ -295,7 +350,7 @@ def run_dryrun_backup(config, encrypt=False, sync=False, event_id=None, job_conf
         else:
             # No valid files
             finalize_backup_job(
-                job_id=job_id,
+                job_id=backup_job_id,
                 status="completed",
                 event_message="Dryrun completed with no valid files"
             )
@@ -310,13 +365,15 @@ def run_dryrun_backup(config, encrypt=False, sync=False, event_id=None, job_conf
         if sync:
             logger.info("DRYRUN: Would sync to S3")
 
-        # Update event status
+        # Important: Don't finalize the event here!
+        # Just update it with progress information
         if event_id and event_exists(event_id):
-            finalize_event(
+            # Set a descriptive message that will be properly hyperlinked 
+            # The CLI will finalize this with the backup_set_id
+            update_event(
                 event_id=event_id,
-                status="success",
-                event=f"Dryrun completed - {len(file_records)} files processed",
-                backup_set_id=backup_set_id_string
+                event_message=f"Dryrun Manifest ({len(file_records)} files)",
+                status="running"  # Keep it running so CLI can finalize it
             )
 
         logger.info(f"DRYRUN backup completed for {src}")
@@ -327,9 +384,9 @@ def run_dryrun_backup(config, encrypt=False, sync=False, event_id=None, job_conf
         
         # Try to mark job as failed if we got far enough to create it
         try:
-            if 'job_id' in locals():
+            if 'backup_job_id' in locals():
                 finalize_backup_job(
-                    job_id=job_id,
+                    job_id=backup_job_id,
                     status="failed",
                     error_message=str(e),
                     event_message=f"Dryrun backup failed: {e}"
@@ -337,11 +394,12 @@ def run_dryrun_backup(config, encrypt=False, sync=False, event_id=None, job_conf
         except Exception as db_e:
             logger.error(f"Failed to update database with error status: {db_e}")
         
+        # Finalize the event for errors ONLY
         if event_id and event_exists(event_id):
             finalize_event(
                 event_id=event_id,
                 status="error",
-                event=f"Dryrun backup failed: {e}",
+                event_message=f"Dryrun backup failed: {e}",
                 backup_set_id=backup_set_id_string if 'backup_set_id_string' in locals() else None
             )
         

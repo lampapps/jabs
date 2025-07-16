@@ -3,19 +3,8 @@ import json
 import socket
 from datetime import datetime
 
-from app.settings import EVENTS_FILE, VERSION
-
-def count_error_events(events_path):
-    try:
-        with open(events_path, "r", encoding="utf-8") as f:
-            events_data = json.load(f)
-            if isinstance(events_data, dict) and "data" in events_data:
-                events = events_data["data"]
-            else:
-                events = events_data
-            return sum(1 for e in events if e.get("status") == "error")
-    except Exception:
-        return 0
+from app.settings import VERSION
+from app.models.events import count_error_events
 
 def write_monitor_status(shared_monitor_dir, version, last_run, log_dir):
     if not shared_monitor_dir:
@@ -42,7 +31,8 @@ def write_monitor_status(shared_monitor_dir, version, last_run, log_dir):
             last_run_str = str(last_run)
             last_run_ts = None
 
-    error_event_count = count_error_events(EVENTS_FILE)
+    # Get error count from database instead of file
+    error_event_count = count_error_events()
 
     status = {
         "hostname": machine_name,

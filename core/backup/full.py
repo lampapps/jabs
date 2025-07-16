@@ -5,25 +5,26 @@ import time
 import yaml
 from datetime import datetime
 from app.utils.logger import setup_logger, timestamp, ensure_dir
-from app.utils.manifest import write_manifest_files, extract_tar_info
-from app.utils.event_logger import update_event, finalize_event, event_exists
+from app.services.manifest import write_manifest_files, extract_tar_info
+from app.models.events import create_event, update_event, finalize_event, delete_event, event_exists
 from app.settings import LOCK_DIR, RESTORE_SCRIPT_SRC
 from core.encrypt import encrypt_tarballs
 from .utils import get_all_files, create_tar_archives, should_exclude
 from .common import rotate_backups
 
-# Import database functions
-from app.models.manifest_db import (
-    get_or_create_backup_set,
-    insert_backup_job,
-    finalize_backup_job,
-    insert_files
-)
+from app.models.db_core import get_db_connection
+from app.models.backup_sets import get_or_create_backup_set, get_backup_set_by_job_and_set
+from app.models.backup_jobs import insert_backup_job, finalize_backup_job, get_backup_job, get_last_backup_job, get_last_full_backup_job
+from app.models.backup_files import insert_files, get_files_for_backup_set, get_files_for_last_full_backup
 
 def run_full_backup(config, encrypt=False, sync=False, event_id=None, job_config_path=None, global_config=None):
     job_name = config.get("job_name", "unknown_job")
     logger = setup_logger(job_name)
     logger.info(f"Starting FULL backup job '{job_name}' with provided config.")
+
+    # Update the event if we have one
+    if event_id and event_exists(event_id):
+        update_event(event_id, event_message=f"Initializing full backup for {job_name}")
 
     # Debug common exclude settings
     use_common_exclude = config.get("use_common_exclude", False)
@@ -40,7 +41,7 @@ def run_full_backup(config, encrypt=False, sync=False, event_id=None, job_config
             finalize_event(
                 event_id=event_id,
                 status="error",
-                event=error_msg,
+                event_message=error_msg,
                 backup_set_id=None,
                 runtime="00:00:00"
             )
@@ -91,46 +92,35 @@ def run_full_backup(config, encrypt=False, sync=False, event_id=None, job_config
     if legacy_excludes:
         logger.info(f"Added {len(legacy_excludes)} legacy exclude patterns")
         
-    # Log all patterns for debugging
+    # Log all patterns for debug
     logger.info(f"Total exclude patterns: {len(exclude_patterns)}")
     for i, pattern in enumerate(exclude_patterns):
         logger.info(f"  Pattern {i+1}: '{pattern}'")
 
-    # Special directory exclusion check
-    logger.info("Checking for Pictures/ and venv/ directories in exclusion patterns:")
-    pictures_pattern = "Pictures/"
-    venv_pattern = "venv/"
-    
-    if pictures_pattern in exclude_patterns:
-        logger.info(f"Found '{pictures_pattern}' in exclusion patterns")
-    else:
-        logger.warning(f"'{pictures_pattern}' NOT found in exclusion patterns")
-        
-    if venv_pattern in exclude_patterns:
-        logger.info(f"Found '{venv_pattern}' in exclusion patterns")
-    else:
-        logger.warning(f"'{venv_pattern}' NOT found in exclusion patterns")
-
     max_tarball_size_mb = config.get("max_tarball_size", 1024)
 
-    # Check if we already have a job_id from the event_id
+    # Get the backup job ID from the event
+    # In our schema, the event ID IS the backup job ID
+    backup_job_id = event_id
     backup_set_id = None
-    job_id = None
     
-    if event_id:
-        job_id = event_id
-        # Update the event with progress
-        update_event(event_id, event="Processing files for full backup")
-        
+    if backup_job_id:
+        logger.info(f"Using event_id as backup_job_id: {backup_job_id}")
         # Get the backup set ID associated with this job
-        from app.models.manifest_db import get_backup_job
-        job = get_backup_job(job_id)
-        if job:
-            backup_set_id = job['backup_set_id']
-            logger.info(f"Using existing job_id={job_id} with backup_set_id={backup_set_id}")
-    
-    # Only create database entries if we don't have a job_id yet
-    if not job_id:
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            try:
+                cursor.execute('SELECT backup_set_id FROM backup_jobs WHERE id = ?', (backup_job_id,))
+                job_result = cursor.fetchone()
+                if job_result and job_result['backup_set_id']:
+                    backup_set_id = job_result['backup_set_id']
+                    logger.info(f"Using backup set ID {backup_set_id} from job {backup_job_id}")
+            except Exception as e:
+                logger.warning(f"Could not get backup set ID from backup job: {e}")
+
+    # If we don't have a backup job ID, check if we need to create database entries
+    # (This is a fallback and should not be needed if CLI creates them properly)
+    if not backup_job_id:
         try:
             # Step 1: Create or get the backup set
             config_snapshot = str(config) if config else None
@@ -141,7 +131,7 @@ def run_full_backup(config, encrypt=False, sync=False, event_id=None, job_config
             )
             
             # Step 2: Create a new backup job
-            job_id = insert_backup_job(
+            backup_job_id = insert_backup_job(
                 backup_set_id=backup_set_id,
                 backup_type="full",
                 encrypted=encrypt,
@@ -149,7 +139,7 @@ def run_full_backup(config, encrypt=False, sync=False, event_id=None, job_config
                 event_message="Starting full backup"
             )
             
-            logger.info(f"Created database entries: backup_set_id={backup_set_id}, job_id={job_id}")
+            logger.info(f"Created database entries: backup_set_id={backup_set_id}, backup_job_id={backup_job_id}")
 
         except Exception as e:
             error_msg = f"Failed to create database entries: {e}"
@@ -158,21 +148,27 @@ def run_full_backup(config, encrypt=False, sync=False, event_id=None, job_config
                 finalize_event(
                     event_id=event_id,
                     status="error",
-                    event=error_msg,
+                    event_message=error_msg,
                     backup_set_id=None,
                     runtime="00:00:00"
                 )
             return None, event_id, None
-    else:
-        logger.info(f"Using existing job_id={job_id} from event_id")
 
     try:
+        # Update the event to show we're collecting files
+        if event_id and event_exists(event_id):
+            update_event(event_id, event_message=f"Scanning source directory with {len(exclude_patterns)} exclude patterns")
+        
         logger.info(f"Collecting files with {len(exclude_patterns)} exclude patterns")
+        
+        # Make sure we're not expecting special case handling for directories
+        # Let the should_exclude function handle all exclusions
         files = get_all_files(src, exclude_patterns)
         logger.info(f"Collected {len(files)} files after applying exclusion patterns")
         
         # Update the event with progress
-        update_event(job_id, event=f"Creating tar archives for {len(files)} files")
+        if event_id and event_exists(event_id):
+            update_event(event_id, event_message=f"Creating tar archives for {len(files)} files")
         
         tarball_paths = create_tar_archives(
             files, backup_set_dir, max_tarball_size_mb, logger, "full", config
@@ -184,7 +180,8 @@ def run_full_backup(config, encrypt=False, sync=False, event_id=None, job_config
         total_size_bytes = 0
         
         # Update the event with progress
-        update_event(job_id, event="Extracting file information from tarballs")
+        if event_id and event_exists(event_id):
+            update_event(event_id, event_message="Extracting file information from tarballs")
         
         # Extract file info from all tarballs
         for tar_path in tarball_paths:
@@ -193,21 +190,26 @@ def run_full_backup(config, encrypt=False, sync=False, event_id=None, job_config
             total_files += len(tar_info)
             total_size_bytes += sum(f.get('size', 0) for f in tar_info)
 
-        # Step 3: Insert file records into the database
+        # Insert file records into the database
         if new_tar_info:
+            if event_id and event_exists(event_id):
+                update_event(event_id, event_message=f"Updating database with {len(new_tar_info)} files")
             logger.info(f"Inserting {len(new_tar_info)} files into database...")
-            insert_files(job_id, new_tar_info)
+            insert_files(backup_job_id, new_tar_info)
             logger.info(f"Database updated with {total_files} files, {total_size_bytes} bytes")
 
-        # Step 4: Generate manifest HTML (now reads from database)
+        # Generate manifest HTML (now reads from database)
         if tarball_paths:
             logger.info("Writing manifest files...")
-            json_manifest_path, html_manifest_path = write_manifest_files(
+            if event_id and event_exists(event_id):
+                update_event(event_id, event_message="Generating manifest files")
+                
+            html_manifest_path = write_manifest_files(
                 job_config_path=job_config_path,
                 job_name=sanitized_job_name,
                 backup_set_id=backup_set_id_string,
                 backup_set_path=backup_set_dir,
-                new_tar_info=new_tar_info,  # Still passed for compatibility
+                new_tar_info=new_tar_info,
                 mode="full"
             )
             logger.info(f"HTML Manifest written to: {html_manifest_path}")
@@ -216,28 +218,26 @@ def run_full_backup(config, encrypt=False, sync=False, event_id=None, job_config
             total_files = 0
             total_size_bytes = 0
 
+        # Handle encryption if enabled
         if encrypt and tarball_paths:
+            if event_id and event_exists(event_id):
+                update_event(event_id, event_message="Encrypting backup files")
             tarball_paths = encrypt_tarballs(tarball_paths, config, logger)
+            if event_id and event_exists(event_id):
+                update_event(event_id, event_message="Encryption completed")
 
-        if sync:
-            update_event(job_id, event="Starting sync to S3")
-            from core.sync_s3 import sync_to_s3
-            sync_to_s3(backup_set_dir, config, job_id)  # Use job_id here instead of event_id
+        # Important: Don't finalize the event here!
+        # Just update it with progress information
+        if event_id and event_exists(event_id):
+            update_event(
+                event_id=event_id,
+                event_message="Full backup completed successfully",
+                status="running"  # Keep it running so CLI can finalize it
+            )
 
-        # Step 5: Finalize the backup job in the database
-        finalize_backup_job(
-            job_id=job_id,
-            status="completed",
-            event_message="Full backup completed successfully",
-            total_files=total_files,
-            total_size_bytes=total_size_bytes
-        )
-        
-        logger.info(f"Backup job finalized in database with {total_files} files")
-
-        # Write last_full.txt
-        with open(os.path.join(job_dst, "last_full.txt"), "w", encoding="utf-8") as f:
-            f.write(backup_set_id_string)
+        # Write last_full.txt debug
+        #with open(os.path.join(job_dst, "last_full.txt"), "w", encoding="utf-8") as f:
+        #    f.write(backup_set_id_string)
 
         # --- RESOLVE keep_sets ---
         keep_sets = config.get("keep_sets", None)
@@ -256,27 +256,17 @@ def run_full_backup(config, encrypt=False, sync=False, event_id=None, job_config
             logger.warning(f"Could not copy restore.py to backup set: {e}")
 
         logger.info(f"FULL backup completed for {src}")
-        return backup_set_dir, job_id, backup_set_id_string
+        return backup_set_dir, event_id, backup_set_id_string
 
     except Exception as e:
         logger.error(f"An error occurred during the full backup process: {e}", exc_info=True)
         
-        # Mark the job as failed in the database
-        try:
-            finalize_backup_job(
-                job_id=job_id,
-                status="failed",
-                error_message=str(e),
-                event_message=f"Backup failed: {e}"
-            )
-        except Exception as db_e:
-            logger.error(f"Failed to update database with error status: {db_e}")
-        
+        # Finalize the event ONLY for errors
         if event_id and event_exists(event_id):
             finalize_event(
                 event_id=event_id,
                 status="error",
-                event=f"Backup failed: {e}",
+                event_message=f"Backup failed: {e}",
                 backup_set_id=None
             )
         raise

@@ -14,11 +14,11 @@ import botocore
 from flask import Blueprint, render_template, abort, current_app
 from markupsafe import Markup
 
-from app.settings import BASE_DIR, MANIFEST_BASE, GLOBAL_CONFIG_PATH, HOME_DIR, CONFIG_DIR
-from app.utils.manifest import get_tarball_summary, get_merged_cleaned_yaml_config
+from app.settings import BASE_DIR, GLOBAL_CONFIG_PATH, HOME_DIR, CONFIG_DIR
+from app.services.manifest import get_tarball_summary, get_merged_cleaned_yaml_config
 from app.utils.dashboard_helpers import find_config_path_by_job_name, load_config, ensure_minimum_scheduler_events
 from app.utils.logger import sizeof_fmt
-from app.models.manifest_db import get_manifest_with_files
+from app.services.manifest import get_manifest_with_files
 
 dashboard_bp = Blueprint('dashboard', 'dashboard')
 
@@ -237,17 +237,21 @@ def change_log():
 @dashboard_bp.route('/manifest/<string:job_name>/<string:backup_set_id>')
 def view_manifest(job_name, backup_set_id):
     """Render the manifest view for a specific job and backup set (from SQLite)."""
+    # Get the original job name (with spaces) from the URL parameter
+    original_job_name = job_name
+    
+    # Sanitize the job name for filesystem paths only
     sanitized_job = "".join(
         c if c.isalnum() or c in ("-", "_") else "_" for c in job_name
     )
 
-    # --- Fetch manifest from DB using new schema ---
-    # Pass job_name (sanitized) and backup_set_id separately
-    manifest_data = get_manifest_with_files(sanitized_job, backup_set_id)
+    # Use original job name for database lookup
+    manifest_data = get_manifest_with_files(original_job_name, backup_set_id)
     if not manifest_data:
-        abort(404, description="Manifest not found in database.")
+        abort(404, description=f"Manifest not found in database for job '{original_job_name}' and backup set '{backup_set_id}'.")
 
-    job_config_path = find_config_path_by_job_name(job_name)
+    # Use original job name for config lookup
+    job_config_path = find_config_path_by_job_name(original_job_name)
     tarball_summary_list = []
     
     with open(GLOBAL_CONFIG_PATH, encoding="utf-8") as f:
@@ -258,10 +262,11 @@ def view_manifest(job_name, backup_set_id):
         job_config = load_config(job_config_path)
         destination = job_config.get('destination') or global_config.get('destination')
         if destination:
+            # Use sanitized_job for filesystem paths
             backup_set_path_on_dst = os.path.join(
                 destination,
                 socket.gethostname(),
-                sanitized_job,
+                sanitized_job,  # Use sanitized version for file paths
                 f"backup_set_{backup_set_id}"
             )
             tarball_summary_list = get_tarball_summary(backup_set_path_on_dst)
@@ -327,7 +332,7 @@ def view_manifest(job_name, backup_set_id):
         backup_set_id=backup_set_id,  # For compatibility
         backup_type=manifest_data.get("backup_type", "unknown"),
         status=manifest_data.get("status", "unknown"),
-        event=manifest_data.get("event", ""),
+        event_message=manifest_data.get("event", ""),
         manifest_timestamp=manifest_timestamp,
         started_at=manifest_data.get("started_at"),
         completed_at=manifest_data.get("completed_at"),

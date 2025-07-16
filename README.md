@@ -268,8 +268,7 @@ jabs/
     |   |    │   ├── ... (other tarballs)
     |   |    │   ├── restore.py    
     |   |    │   └── manifest_YYYYMMDD_HHMMSS.html
-    |   |    ├── ... (other backup_sets)
-    |   |    └── last_full.txt
+    |   |    └── ... (other backup_sets)
     |   └── ... (other jobs on same machine_name)
     └── ...
 ```

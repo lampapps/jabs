@@ -5,24 +5,25 @@ import socket
 import re
 import fnmatch
 from app.utils.logger import setup_logger, ensure_dir
-from app.utils.manifest import write_manifest_files, extract_tar_info
-from app.utils.event_logger import update_event, finalize_event, event_exists
+from app.services.manifest import write_manifest_files, extract_tar_info
+from app.models.events import create_event, update_event, finalize_event, delete_event, event_exists
 from core.encrypt import encrypt_tarballs
 from .utils import create_tar_archives, should_exclude
-from app.models.manifest_db import (
-    get_or_create_backup_set,
-    get_last_backup_job,
-    get_files_for_backup_set,
-    insert_backup_job,
-    finalize_backup_job,
-    insert_files
-)
+
+from app.models.db_core import get_db_connection
+from app.models.backup_sets import get_or_create_backup_set, get_backup_set_by_job_and_set
+from app.models.backup_jobs import insert_backup_job, finalize_backup_job, get_backup_job, get_last_backup_job, get_last_full_backup_job
+from app.models.backup_files import insert_files, get_files_for_backup_set, get_files_for_last_full_backup
 
 def run_incremental_backup(config, encrypt=False, sync=False, event_id=None, job_config_path=None, global_config=None):
     job_name = config.get("job_name", "unknown_job")
     logger = setup_logger(job_name)
     logger.info(f"Starting INCREMENTAL backup job '{job_name}' with provided config.")
 
+    # Update event with our current status
+    if event_id and event_exists(event_id):
+        update_event(event_id, event_message=f"Initializing incremental backup for {job_name}")
+    
     # Debug common exclude settings
     use_common_exclude = config.get("use_common_exclude", False)
     logger.info(f"use_common_exclude setting: {use_common_exclude}")
@@ -34,16 +35,21 @@ def run_incremental_backup(config, encrypt=False, sync=False, event_id=None, job
     if not src or not os.path.exists(src):
         error_msg = f"Source path does not exist: {src}"
         logger.error(error_msg)
+        # Finalize the event ONLY for errors
         if event_id and event_exists(event_id):
             finalize_event(
-                event_id=event_id,
+                event_id=event_id,  # Use the passed event_id
                 status="error",
-                event=error_msg,
+                event_message=error_msg,
                 backup_set_id=None,
                 runtime="00:00:00"
             )
         return None, event_id, None
 
+    # Update event for next stage
+    if event_id and event_exists(event_id):
+        update_event(event_id, event_message=f"Setting up backup paths and loading exclude patterns")
+    
     # Path setup 
     machine_name = socket.gethostname()
     sanitized_job_name = "".join(c if c.isalnum() or c in ("-", "_") else "_" for c in job_name)
@@ -86,7 +92,7 @@ def run_incremental_backup(config, encrypt=False, sync=False, event_id=None, job
     if legacy_excludes:
         logger.info(f"Added {len(legacy_excludes)} legacy exclude patterns")
         
-    # Log all patterns for debugging
+    # Log all patterns for debug
     logger.info(f"Total exclude patterns: {len(exclude_patterns)}")
     for i, pattern in enumerate(exclude_patterns):
         logger.info(f"  Pattern {i+1}: '{pattern}'")
@@ -98,12 +104,11 @@ def run_incremental_backup(config, encrypt=False, sync=False, event_id=None, job
     last_backup_job = get_last_backup_job(job_name=sanitized_job_name, completed_only=True)
     if not last_backup_job:
         logger.warning("No previous backup job found in database, running full backup instead.")
-        # Update the event to indicate fallback to full backup
+        # Update the event to show we're changing to full backup
         if event_id and event_exists(event_id):
             update_event(
                 event_id=event_id,
-                status="info",
-                event="No previous backup job found; running full backup instead of incremental.",
+                event_message="No previous backup job found; running full backup instead of incremental.",
                 backup_type="full"
             )
         from .full import run_full_backup
@@ -154,18 +159,15 @@ def run_incremental_backup(config, encrypt=False, sync=False, event_id=None, job
     files = get_new_or_modified_files_from_data(src, manifest_data, exclude_patterns=exclude_patterns)
     if not files:
         logger.info("No files changed or added since last backup. Skipping incremental backup.")
+        # We don't finalize here - let the CLI handle it
         return "skipped", event_id, None
 
-    logger.info(f"Found {len(files)} new or modified files. Adding incremental job to backup set: {target_backup_set_name}")
+    # Update event for starting the backup
+    if event_id and event_exists(event_id):
+        update_event(event_id, event_message=f"Found {len(files)} new or modified files, creating tarballs")
 
-    # Create a new incremental backup job within the existing backup set
-    backup_job_id = insert_backup_job(
-        backup_set_id=backup_set_id,
-        backup_type="incremental",
-        encrypted=encrypt,
-        synced=sync,
-        event_message="Incremental backup started"
-    )
+    # Use the event_id passed from CLI instead of creating a new backup job
+    backup_job_id = event_id
 
     try:
         # Create tarballs for the new/changed files in the existing backup set directory
@@ -190,27 +192,27 @@ def run_incremental_backup(config, encrypt=False, sync=False, event_id=None, job
 
         # Insert the files into the database for this backup job
         if tarball_paths:
-            logger.info(f"Inserting {len(new_tar_info)} files into database for backup job {backup_job_id}")
-            insert_files(backup_job_id, new_tar_info)
-            
-            # Calculate totals for job completion
+            # Calculate totals first
             total_files = len(new_tar_info)
             total_size_bytes = sum(f.get('size', 0) for f in new_tar_info)
             
-            # Mark the backup job as completed
-            finalize_backup_job(
-                job_id=backup_job_id,
-                status="completed",
-                event_message="Incremental backup completed successfully",
-                total_files=total_files,
-                total_size_bytes=total_size_bytes
-            )
+            logger.info(f"Inserting {total_files} files into database for backup job {backup_job_id}")
+            insert_files(backup_job_id, new_tar_info)
+            
+            # Update event with progress
+            if event_id and event_exists(event_id):
+                update_event(
+                    event_id=event_id,
+                    event_message=f"Backed up {total_files} files ({total_size_bytes} bytes)"
+                )
             
             logger.info(f"Incremental backup job completed: {total_files} files, {total_size_bytes} bytes")
             
             # Generate updated HTML manifest for the backup set
-            logger.info("Updating manifest files...")
-            json_manifest_path, html_manifest_path = write_manifest_files(
+            if event_id and event_exists(event_id):
+                update_event(event_id, event_message="Generating manifest files")
+                
+            html_manifest_path = write_manifest_files(
                 job_config_path=job_config_path,
                 job_name=sanitized_job_name,
                 backup_set_id=target_backup_set_name,
@@ -218,52 +220,43 @@ def run_incremental_backup(config, encrypt=False, sync=False, event_id=None, job
                 new_tar_info=new_tar_info,  # Still passed for compatibility
                 mode="incremental"
             )
-            logger.info(f"JSON Manifest written to: {json_manifest_path}")
             logger.info(f"HTML Manifest written to: {html_manifest_path}")
             
         else:
-            logger.warning("No tarballs created, marking job as completed with no files.")
-            finalize_backup_job(
-                job_id=backup_job_id,
-                status="completed",
-                event_message="No files to backup"
+            logger.warning("No tarballs created")
+            if event_id and event_exists(event_id):
+                update_event(event_id, event_message="No files to backup")
+
+        # Important: Don't finalize the event here!
+        # Just update it with progress information
+        if event_id and event_exists(event_id):
+            update_event(
+                event_id=event_id,
+                event_message="Incremental backup completed successfully",
+                status="running"  # Keep it running so CLI can finalize it
             )
 
+        # Handle encryption if enabled
         if encrypt and tarball_paths:
+            if event_id and event_exists(event_id):
+                update_event(event_id, event_message="Encrypting backup files")
             tarball_paths = encrypt_tarballs(tarball_paths, config, logger)
+            if event_id and event_exists(event_id):
+                update_event(event_id, event_message="Encryption completed")
 
-        if sync:
-            from core.sync_s3 import sync_to_s3
-            sync_to_s3(target_backup_set_dir, config, event_id)
-            
-            # Update the job to mark it as synced
-            if tarball_paths:
-                import time
-                from app.models.manifest_db import get_db_connection
-                with get_db_connection() as conn:
-                    c = conn.cursor()
-                    c.execute("UPDATE backup_jobs SET synced = 1 WHERE id = ?", (backup_job_id,))
-                    conn.commit()
-
-        logger.info("INCREMENTAL backup completed for %s", src)
+        logger.info(f"INCREMENTAL backup completed for {src}")
+        # Return the event_id that was passed to us
         return target_backup_set_dir, event_id, target_backup_set_name
 
     except Exception as e:
         logger.error(f"Error during incremental backup: {e}", exc_info=True)
         
-        # Mark the backup job as failed
-        finalize_backup_job(
-            job_id=backup_job_id,
-            status="failed",
-            event_message="Incremental backup failed",
-            error_message=str(e)
-        )
-        
+        # Finalize the event for errors ONLY
         if event_id and event_exists(event_id):
             finalize_event(
                 event_id=event_id,
                 status="error",
-                event=f"Incremental backup failed: {e}",
+                event_message=f"Incremental backup failed: {e}",
                 backup_set_id=target_backup_set_name,
                 runtime="00:00:00"
             )
@@ -294,22 +287,7 @@ def get_new_or_modified_files_from_data(src, manifest_data, exclude_patterns=Non
     new_or_modified = []
     dirs_excluded = 0
     files_excluded = 0
-    
-    # Special directory exclusion check
-    logger.info("Checking for Pictures/ and venv/ directories in exclusion patterns:")
-    pictures_pattern = "Pictures/"
-    venv_pattern = "venv/"
-    
-    if pictures_pattern in exclude_patterns:
-        logger.info(f"Found '{pictures_pattern}' in exclusion patterns")
-    else:
-        logger.warning(f"'{pictures_pattern}' NOT found in exclusion patterns")
         
-    if venv_pattern in exclude_patterns:
-        logger.info(f"Found '{venv_pattern}' in exclusion patterns")
-    else:
-        logger.warning(f"'{venv_pattern}' NOT found in exclusion patterns")
-
     for root, dirs, files in os.walk(src):
         # Process directories to exclude before walking them
         i = 0
@@ -318,16 +296,8 @@ def get_new_or_modified_files_from_data(src, manifest_data, exclude_patterns=Non
             rel_dir = os.path.relpath(dir_path, src)
             dir_name = os.path.basename(dir_path)
             
-            # Special case for critical directories
-            if dir_name == "Pictures" or dir_name == "venv":
-                logger.info(f"EXPLICIT EXCLUSION: '{rel_dir}/' (special case for {dir_name})")
-                dirs.pop(i)
-                dirs_excluded += 1
-                continue
-                
-            # General exclusion check
             if should_exclude(dir_path, exclude_patterns, src):
-                logger.info(f"EXCLUDING directory: {rel_dir}/")
+                logger.info(f"EXCLUDING directory: '{rel_dir}/' (matched exclude pattern)")
                 dirs.pop(i)
                 dirs_excluded += 1
             else:

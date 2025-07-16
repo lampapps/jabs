@@ -107,7 +107,7 @@
         <!-- Run Job Modal -->
         <div class="modal fade" id="runJobModal-{{ config.file_name|replace('.', '-') }}" tabindex="-1" aria-labelledby="runJobLabel-{{ config.file_name|replace('.', '-') }}" aria-hidden="true">
           <div class="modal-dialog">
-            <form method="post" action="{{ url_for('jobs.run_job', filename=config.file_name) }}" class="modal-content">
+            <form method="post" action="{{ url_for('jobs.trigger_backup_job', filename=config.file_name) }}" class="modal-content">
               <div class="modal-header">
                 <h5 class="modal-title" id="runJobLabel-{{ config.file_name|replace('.', '-') }}">Run {{ config.file_name }}</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>

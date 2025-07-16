@@ -27,15 +27,25 @@ $(document).ready(function () {
                 data: 'event',
                 title: 'Event/Manifest',
                 render: function (data, type, row) { // 'data' is now the 'event' text
-                    // Check if job_name and set_name are present in the row object
-                    if (row.job_name && row.set_name) {
-                        // Construct the correct manifest URL using row.set_name instead of backup_set_id
+                    // Check if this is a backup type that has a manifest
+                    const hasManifest = ['full', 'incremental', 'differential', 'diff', 'dryrun'].includes(row.backup_type?.toLowerCase());
+                    
+                    // Check for failed status - failed jobs shouldn't have manifest links
+                    // Add "skipped" to the list of statuses that don't get links
+                    const skipLink = row.status?.toLowerCase() === 'error' || 
+                                     row.status?.toLowerCase() === 'failed' ||
+                                     row.status?.toLowerCase() === 'running' ||
+                                     row.status?.toLowerCase() === 'skipped';
+                    
+                    // Only create links for backup types that have manifests AND didn't fail or get skipped
+                    if (row.job_name && row.set_name && hasManifest && !skipLink) {
+                        // Construct the correct manifest URL using row.set_name
                         const manifestUrl = `/manifest/${encodeURIComponent(row.job_name)}/${encodeURIComponent(row.set_name)}`;
                         // Use the event text (passed as 'data') or job name as link text
                         const linkText = data || row.job_name || 'View Manifest';
                         return `<a href="${manifestUrl}">${linkText}</a>`;
                     } else {
-                        // If no set_name/job_name, just display the event text (passed as 'data') 
+                        // For other event types (restore, error, skipped) or failed jobs, just display the event text
                         return data || ''; // Use 'data' which is row.event
                     }
                 },

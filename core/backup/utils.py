@@ -25,22 +25,12 @@ def get_all_files(src, exclude_patterns):
         i = 0
         while i < len(dirs):
             dir_path = os.path.join(root, dirs[i])
-            # Critical: Force directory path to end with slash for matching
-            dir_path_slash = dir_path
             
-            # Print all directory paths for debugging
+            # Get relative path for logging
             rel_dir = os.path.relpath(dir_path, src)
             logger.debug(f"Checking directory: {rel_dir}")
             
-            # Explicit check for Pictures and venv
-            dir_name = os.path.basename(dir_path)
-            if dir_name == "Pictures" or dir_name == "venv":
-                logger.info(f"EXCLUDING directory by name: {rel_dir} (special case)")
-                dirs.pop(i)
-                excluded_dirs.append(rel_dir)
-                continue
-            
-            # Check if directory should be excluded
+            # Check if directory should be excluded using the patterns
             if should_exclude(dir_path, exclude_patterns, src):
                 logger.info(f"EXCLUDING directory: {rel_dir}")
                 dirs.pop(i)  # Remove from dirs to prevent traversal
@@ -233,13 +223,5 @@ def should_exclude(path, exclude_patterns, src=None):
                     parent_path = '/'.join(path_parts[:i+1])
                     logger.info(f"EXCLUDED: '{rel_path}' contains directory component '{pattern}/' at '{parent_path}'")
                     return True
-    
-    # Special case checks for common directory names
-    # This is a safeguard for specific directories we know should be excluded
-    if is_dir:
-        dir_name = os.path.basename(path.rstrip('/'))
-        if dir_name == "Pictures" or dir_name == "venv":
-            logger.info(f"EXCLUDED: '{rel_path}' is a specifically excluded directory name (Pictures or venv)")
-            return True
     
     return False

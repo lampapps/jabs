@@ -13,7 +13,6 @@
 - add cross platform locking with portalocker
 - incremental did not honor job specific excludes, specidicly Videos
 - incremental did not updates events when reverted to full backup due to no full backup found
-- check if last_full.txt is still needed.
 
 ## v0.7.3
 

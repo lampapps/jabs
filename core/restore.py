@@ -8,13 +8,12 @@ import time
 from typing import List, Dict, Any, Optional
 from app.utils.logger import setup_logger
 from app.utils.restore_status import set_restore_status
-from app.utils.event_logger import initialize_event, update_event, finalize_event, event_exists
-from app.models.manifest_db import (
-    get_backup_set_by_job_and_set, 
-    get_files_for_backup_set,
-    get_jobs_for_backup_set,
-    list_backup_sets
-)
+from app.models.events import create_event, update_event, finalize_event, delete_event, event_exists
+
+from app.models.backup_sets import get_backup_set_by_job_and_set, list_backup_sets
+from app.models.backup_jobs import get_jobs_for_backup_set, insert_backup_job
+from app.models.backup_files import get_files_for_backup_set
+from app.models.db_core import get_db_connection
 
 def get_passphrase():
     """
@@ -291,14 +290,14 @@ def restore_files(
         # Initialize event if needed
         if not event_id:
             event_desc = f"Restoring {len(files)} files to: {dest}"
-            event_id = initialize_event(
+            event_id = create_event(
                 job_name=effective_job_name,
-                event=event_desc,
+                event_message=event_desc,
                 backup_type="restore",
                 encrypt=False,
                 sync=False
             )
-            update_event(event_id, event=event_desc, status="running")
+            update_event(event_id, event_message=event_desc, status="running")
 
         for i, file_info in enumerate(files):
             file_path = file_info["path"]
@@ -346,14 +345,14 @@ def restore_files(
             else:
                 status = "completed"
                 event_msg = f"Restore completed successfully: {len(restored)} files"
-            finalize_event(event_id, event=event_msg, runtime="-", status=status)
+            finalize_event(event_id, event_message=event_msg, runtime="-", status=status)
 
     except Exception as e:
         logger.error(f"Failed to get backup set info: {e}")
         errors.append({"file": "config", "error": str(e)})
         
         if event_id:
-            update_event(event_id, event=f"Restore failed: {str(e)}", status="error")
+            update_event(event_id, event_message=f"Restore failed: {str(e)}", status="error")
     finally:
         # Always cleanup restore status using the original job name
         logger.info(f"Cleaning up restore status for job '{original_job_name}', backup_set '{backup_set_id}'")

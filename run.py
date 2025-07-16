@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 from app.settings import LOG_DIR
 from app.utils.logger import ensure_dir
 from app import create_app
-from app.models.manifest_db import init_db
+from app.models.db_core import init_db
 
 env_path = os.path.join(os.path.dirname(__file__), ".env")
 if not os.path.exists(env_path):

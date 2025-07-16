@@ -17,13 +17,16 @@ from flask import (
 )
 
 from app.settings import (
-    BASE_DIR, LOG_DIR, EVENTS_FILE, GLOBAL_CONFIG_PATH, HOME_DIR, MAX_LOG_LINES, SCHEDULER_EVENTS_PATH, VERSION, SCHEDULER_STATUS_FILE
+    BASE_DIR, LOG_DIR, GLOBAL_CONFIG_PATH, HOME_DIR, MAX_LOG_LINES, SCHEDULER_EVENTS_PATH, VERSION, SCHEDULER_STATUS_FILE
 )
 from core import restore
 from app.utils.restore_status import check_restore_status
-from app.utils.event_logger import load_events  # Updated from load_events_locked
+from app.models.events import get_all_events, count_error_events
 from app.utils.poll_targets import poll_targets
-from app.models.manifest_db import get_backup_set_by_job_and_set, delete_backup_set
+
+from app.models.backup_sets import get_backup_set_by_job_and_set, delete_backup_set
+from app.services.manifest import get_manifest_with_files
+from app.models.db_core import get_db_connection
 
 api_bp = Blueprint('api', __name__)
 
@@ -47,14 +50,12 @@ def restore_status(job_name, backup_set_id):
 @api_bp.route("/api/events")
 def get_events():
     """Return all events from the database."""
-    from app.models.manifest_db import get_all_events
     events = get_all_events()
     return jsonify(events)
 
 @api_bp.route('/data/dashboard/events.json')
 def serve_events():
     """Serve the events from the database in JSON format."""
-    from app.models.manifest_db import get_all_events
     return jsonify(get_all_events())
 
 @api_bp.route('/api/disk_usage')
@@ -95,7 +96,6 @@ def get_disk_usage():
 def get_s3_usage():
     """Return S3 bucket usage statistics for configured buckets."""
     # Check for AWS credentials before proceeding
-    import boto3
     session = boto3.Session()
     credentials = session.get_credentials()
     if credentials is None or not credentials.access_key or not credentials.secret_key:
@@ -191,17 +191,19 @@ def trim_logs():
 @api_bp.route('/api/manifest/<string:job_name>/<string:backup_set_id>/json')
 def api_manifest_json(job_name, backup_set_id):
     """Return the manifest JSON for a specific job and backup set from SQLite database."""
-    from app.models.manifest_db import get_manifest_with_files
-    from datetime import datetime
     
+    # Keep the original job name for database lookup
+    original_job_name = job_name
+    
+    # Sanitize the job name for any file path operations (if needed)
     sanitized_job = "".join(
         c if c.isalnum() or c in ("-", "_") else "_" for c in job_name
     )
     
-    # Get manifest data from database using the new schema
-    manifest_data = get_manifest_with_files(sanitized_job, backup_set_id)
+    # Get manifest data from database using the original job name
+    manifest_data = get_manifest_with_files(original_job_name, backup_set_id)
     if not manifest_data:
-        return jsonify({"error": "Manifest not found"}), 404
+        return jsonify({"error": f"Manifest not found for job '{original_job_name}' and backup set '{backup_set_id}'"}), 404
     
     try:
         # Format the data for the JavaScript DataTable
@@ -404,7 +406,6 @@ def delete_events():
     
     # Get the events data for reference before deletion
     events_data = []
-    from app.models.manifest_db import get_db_connection
     with get_db_connection() as conn:
         c = conn.cursor()
         placeholders = ",".join("?" for _ in ids)
@@ -458,7 +459,8 @@ def delete_events():
     
     return jsonify({
         "success": True, 
-        "deleted": deleted_count
+        "deleted": deleted_count,
+        "message": f"Successfully deleted {deleted_count} event(s)."
     })
 
 @api_bp.route("/data/dashboard/scheduler_events.json")
@@ -499,21 +501,8 @@ def heartbeat():
             last_run = None
             last_run_str = None
 
-    # Count events with status == "error"
-    error_event_count = 0
-    events_path = EVENTS_FILE
-    if os.path.exists(events_path):
-        try:
-            with open(events_path, "r", encoding="utf-8") as f:
-                events_data = json.load(f)
-                # If events_data is a dict with "data" key, use that, else assume it's a list
-                if isinstance(events_data, dict) and "data" in events_data:
-                    events = events_data["data"]
-                else:
-                    events = events_data
-                error_event_count = sum(1 for e in events if e.get("status") == "error")
-        except Exception:
-            error_event_count = 0
+    # Count events with status == "error" from database
+    error_event_count = count_error_events()
 
     return jsonify({
         "hostname": socket.gethostname(),

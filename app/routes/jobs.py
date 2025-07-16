@@ -84,7 +84,7 @@ def jobs_view():
     )
 
 @jobs_bp.route("/jobs/run/<filename>", methods=["POST"])
-def run_job(filename):
+def trigger_backup_job(filename):
     """Run a backup job."""
     if (
         not filename.endswith(".yaml")

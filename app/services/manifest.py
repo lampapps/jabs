@@ -1,23 +1,73 @@
-"""Utilities for handling backup manifest files, summaries, and YAML config merging."""
+"""
+Service for handling backup manifest data and generation.
+"""
 
+from datetime import datetime
 import os
 import re
 import glob
 import json
 import tarfile
 import copy
-import time
-from datetime import datetime
-from collections import defaultdict
-
 import yaml
 from jinja2 import Environment, FileSystemLoader, TemplateError
+from typing import Dict, List, Optional, Any, Union, Tuple
+from collections import defaultdict
 
 from app.utils.logger import ensure_dir, sizeof_fmt
-from app.settings import MANIFEST_BASE, GLOBAL_CONFIG_PATH
+from app.settings import GLOBAL_CONFIG_PATH
+
+from app.models.backup_sets import get_backup_set_by_job_and_set
+from app.models.backup_jobs import get_jobs_for_backup_set
+from app.models.backup_files import get_files_for_backup_set
 
 
-def merge_configs(global_config, job_config):
+# Existing function from services/manifest.py
+def get_manifest_with_files(job_name: str, backup_set_id: str) -> Optional[Dict[str, Any]]:
+    """Get manifest data with files for a backup set (compatibility function for routes)."""
+    # The backup_set_id here is actually the set_name from the URL
+    backup_set = get_backup_set_by_job_and_set(job_name, backup_set_id)
+    if not backup_set:
+        return None
+    
+    # Get the most recent completed job for this backup set
+    jobs = get_jobs_for_backup_set(backup_set['id'])
+    completed_jobs = [j for j in jobs if j['status'] == 'completed']
+    if not completed_jobs:
+        return None
+    
+    # Get the most recent completed job
+    latest_job = max(completed_jobs, key=lambda j: j['started_at'])
+    
+    # Get all files for the backup set
+    files = get_files_for_backup_set(backup_set['id'])
+    
+    # Format timestamps
+    def format_timestamp(timestamp):
+        if timestamp:
+            try:
+                dt = datetime.fromtimestamp(timestamp)
+                return dt.isoformat()
+            except (ValueError, TypeError):
+                return None
+        return None
+    
+    return {
+        'job_name': backup_set['job_name'],
+        'set_name': backup_set['set_name'],
+        'backup_type': latest_job['backup_type'],
+        'status': latest_job['status'],
+        'event': latest_job['event_message'] if latest_job['event_message'] else '',
+        'timestamp': format_timestamp(latest_job['completed_at']),
+        'started_at': format_timestamp(latest_job['started_at']),
+        'completed_at': format_timestamp(latest_job['completed_at']),
+        'files': files
+    }
+
+
+# Migrated functions from utils/manifest.py
+
+def merge_configs(global_config: Dict, job_config: Dict) -> Dict:
     """
     Recursively merge two configuration dictionaries, with job_config taking precedence.
     """
@@ -29,7 +79,8 @@ def merge_configs(global_config, job_config):
             merged[key] = value
     return merged
 
-def extract_tar_info(tar_path, encryption_enabled=False):
+
+def extract_tar_info(tar_path: str, encryption_enabled: bool = False) -> List[Dict]:
     """
     Extract file info from a tar archive for manifest purposes.
     Returns a list of file info dictionaries.
@@ -53,12 +104,30 @@ def extract_tar_info(tar_path, encryption_enabled=False):
         print(f"Error reading tar file {tar_path}: {e}")
     return files_info
 
-def build_tarball_summary_from_manifest(files_list):
+
+def parse_size_to_bytes(size_str: str) -> int:
+    """
+    Convert a human-readable size string (e.g., '1.2 MB') to bytes as an integer.
+    """
+    size_str = size_str.strip()
+    units = {
+        "B": 1, "KB": 1024, "KIB": 1024, "MB": 1024**2, "MIB": 1024**2,
+        "GB": 1024**3, "GIB": 1024**3, "TB": 1024**4, "TIB": 1024**4
+    }
+    match = re.match(r"([\d.]+)\s*([KMGT]?i?B)", size_str, re.I)
+    if not match:
+        try:
+            return int(size_str)
+        except ValueError:
+            return 0
+    value, unit = match.groups()
+    return int(float(value) * units[unit.upper()])
+
+
+def build_tarball_summary_from_manifest(files_list: List[Dict]) -> List[Dict]:
     """
     Build a summary of tarballs from a list of file info dictionaries (from manifest).
     Sums sizes and extracts timestamps for each tarball.
-    :param files_list: List of file info dicts (from manifest).
-    :return: List of dicts summarizing each tarball.
     """
     tarballs = defaultdict(lambda: {"size_bytes": 0, "timestamp_str": "00000000_000000"})
     timestamp_pattern = re.compile(r'_(\d{8}_\d{6})\.tar\.gz')
@@ -89,41 +158,15 @@ def build_tarball_summary_from_manifest(files_list):
         })
     return sorted(summary, key=lambda item: item['timestamp_str'], reverse=True)
 
-def parse_size_to_bytes(size_str):
-    """
-    Convert a human-readable size string (e.g., '1.2 MB') to bytes as an integer.
-    :param size_str: Size string.
-    :return: Size in bytes (int).
-    """
-    size_str = size_str.strip()
-    units = {
-        "B": 1, "KB": 1024, "KIB": 1024, "MB": 1024**2, "MIB": 1024**2,
-        "GB": 1024**3, "GIB": 1024**3, "TB": 1024**4, "TIB": 1024**4
-    }
-    match = re.match(r"([\d.]+)\s*([KMGT]?i?B)", size_str, re.I)
-    if not match:
-        try:
-            return int(size_str)
-        except ValueError:
-            return 0
-    value, unit = match.groups()
-    return int(float(value) * units[unit.upper()])
 
 def write_manifest_files(
-    job_config_path, job_name, backup_set_id, backup_set_path, new_tar_info, mode="full"
-):
+    job_config_path: str, job_name: str, backup_set_id: str,
+    backup_set_path: str, new_tar_info: List[Dict], mode: str = "full"
+) -> Optional[str]:
     """
     Write manifest files (HTML only) for a backup set, using SQLite for manifest storage.
     This function is now mainly for HTML generation since job/file management is handled
     in the backup logic itself.
-    
-    :param job_config_path: Path to the job config YAML.
-    :param job_name: Name of the backup job.
-    :param backup_set_id: Backup set identifier (set_name).
-    :param backup_set_path: Path to the backup set directory.
-    :param new_tar_info: List of file info dicts for new tarballs (not used in new schema).
-    :param mode: "full", "incremental", or "differential" (for compatibility).
-    :return: Tuple (None, html_path) for compatibility.
     """
     # Load and merge configs for display
     try:
@@ -134,15 +177,12 @@ def write_manifest_files(
         merged_config = merge_configs(global_config, job_config_dict)
     except (OSError, yaml.YAMLError) as e:
         merged_config = {"error": f"Could not load config: {e}"}
-
-    # Get backup set data from the new schema
-    from app.models.manifest_db import get_backup_set_by_job_and_set, get_files_for_backup_set
     
     backup_set_row = get_backup_set_by_job_and_set(job_name, backup_set_id)
     if not backup_set_row:
         # This shouldn't happen in the new flow, but handle gracefully
         print(f"Warning: Backup set not found for {job_name}/{backup_set_id}")
-        return None, None
+        return None
 
     # Retrieve all files for this backup set from DB for HTML generation
     # This gets files from ALL jobs in the backup set (full + incrementals)
@@ -202,28 +242,21 @@ def write_manifest_files(
             used_config=merged_config
         ))
 
-    # Return None for json_path (no longer written), html_path for compatibility
-    return None, html_path
+    # Return only the html_path since json_path is no longer needed
+    return html_path
+
 
 def render_html_manifest(
-    job_name,
-    backup_set_id,
-    job_config_path,
-    all_files,
-    timestamp,
-    tarball_summary,
-    used_config=None
-):
+    job_name: str,
+    backup_set_id: str,
+    job_config_path: str,
+    all_files: List[Dict],
+    timestamp: Optional[str],
+    tarball_summary: List[Dict],
+    used_config: Optional[Dict] = None
+) -> str:
     """
     Render the HTML manifest for a backup set using Jinja2 templates.
-    :param job_name: Name of the backup job.
-    :param backup_set_id: Backup set identifier.
-    :param job_config_path: Path to the job config YAML.
-    :param all_files: List of file info dicts.
-    :param timestamp: Last file modification timestamp.
-    :param tarball_summary: Tarball summary list.
-    :param used_config: The merged config dict.
-    :return: Rendered HTML string.
     """
     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     template_path = os.path.join(base_dir, "templates", "manifest_archived.html")
@@ -279,11 +312,10 @@ def render_html_manifest(
     except TemplateError as e:
         return f"<html><body>Error rendering manifest: {e}</body></html>"
 
-def _remove_yaml_comments(yaml_string):
+
+def _remove_yaml_comments(yaml_string: str) -> str:
     """
     Remove comments from a YAML string.
-    :param yaml_string: The raw YAML string.
-    :return: YAML string with comments removed.
     """
     lines = yaml_string.splitlines()
     cleaned_lines = []
@@ -298,12 +330,11 @@ def _remove_yaml_comments(yaml_string):
         result += '\n'
     return result.rstrip() + '\n' if result.strip() else ''
 
-def get_merged_cleaned_yaml_config(job_config_path):
+
+def get_merged_cleaned_yaml_config(job_config_path: str) -> str:
     """
     Load, clean, and merge the job and global YAML configs for display in the manifest.
     Removes comments and merges in global defaults for destination and aws if missing.
-    :param job_config_path: Path to the job config YAML.
-    :return: Cleaned and merged YAML string.
     """
     if not job_config_path or not os.path.exists(job_config_path):
         return f"# Error: Config file path invalid or not found: {job_config_path}"
@@ -335,18 +366,15 @@ def get_merged_cleaned_yaml_config(job_config_path):
     except (OSError, yaml.YAMLError) as e:
         return f"# Error reading config file {job_config_path}: {e}"
 
-def get_tarball_summary(backup_set_path, *, show_full_name=True):
+
+def get_tarball_summary(backup_set_path: str, *, show_full_name: bool = True) -> List[Dict]:
     """
     Build a summary of all tarball files in a backup set directory.
     Includes size, and timestamp for each tarball.
-    :param backup_set_path: Path to the backup set directory.
-    :param show_full_name: Whether to show the full tarball filename.
-    :return: List of dicts summarizing each tarball.
     """
-
     # Find all tarballs (both encrypted and unencrypted) in the backup set directory
     tarball_files = glob.glob(os.path.join(backup_set_path, '*.tar.gz')) + \
-                    glob.glob(os.path.join(backup_set_path, '*.tar.gz.gpg'))
+                  glob.glob(os.path.join(backup_set_path, '*.tar.gz.gpg'))
 
     # Regex to extract timestamp from tarball filename
     timestamp_pattern = re.compile(r'_(\d{8}_\d{6})\.tar\.gz')

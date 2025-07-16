@@ -1,12 +1,13 @@
 """Backup dispatcher module for JABS."""
 
+import os
 from .full import run_full_backup
 from .diff import run_diff_backup
 from .incremental import run_incremental_backup
 from .dryrun import run_dryrun_backup
 from .common import acquire_lock, release_lock
-import os
 from app.settings import LOCK_DIR
+from app.models.events import finalize_event, update_event
 
 def run_backup(config, backup_type, **kwargs):
     """Dispatches backup jobs to the appropriate backup type handler, with job-level locking."""
@@ -14,22 +15,28 @@ def run_backup(config, backup_type, **kwargs):
     event_id = kwargs.get("event_id")
     lock_path = os.path.join(LOCK_DIR, f"{job_name}.lock")
     lock_file = None
+    
+    # Update the event to show we're acquiring a lock
+    if event_id:
+        update_event(event_id, event_message=f"Acquiring lock for {job_name}")
+    
     try:
         lock_file = acquire_lock(lock_path)
     except RuntimeError as e:
-        # Finalize the event as skipped or error if event_id is present
-        from app.utils.event_logger import finalize_event
+        # Only finalize the event in case of lock errors
         if event_id:
             finalize_event(
                 event_id=event_id,
                 status="skipped",
-                event=f"Backup job '{job_name}' is already running or locked.",
+                event_message=f"Backup job '{job_name}' is already running or locked.",
                 backup_set_id=None,
                 runtime="00:00:00"
             )
         raise RuntimeError(f"Backup job '{job_name}' is already running or locked. {e}")
 
     try:
+        # Pass the event_id to the appropriate backup module
+        # Each module will UPDATE the event but NOT finalize it (except for errors)
         if backup_type == "full":
             return run_full_backup(config, **kwargs)
         if backup_type in ("diff", "differential"):

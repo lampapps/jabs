@@ -4,7 +4,7 @@ import os
 import subprocess
 import socket
 
-from app.utils.event_logger import finalize_event, event_exists
+from app.models.events import finalize_event, event_exists, update_event
 from app.utils.logger import setup_logger
 
 def sync_to_s3(backup_set_path, config, event_id=None):
@@ -84,13 +84,26 @@ def sync_to_s3(backup_set_path, config, event_id=None):
         logger.info(
             f"Syncing {backup_set_path} to {s3_path} with storage class {storage_class}..."
         )
-        subprocess.run(
+        result = subprocess.run(
             cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
         )
+        files_synced = len(result.stdout.splitlines())
+
         logger.info(
             f"Sync to AWS S3 completed successfully for backup set: {backup_set_path}"
         )
         logger.info("Sync and cleanup completed successfully.")
+
+        # Update event with success message
+        if event_id and event_exists(event_id):
+            update_event(
+                event_id=event_id,
+                event_message=f"S3 sync completed: {files_synced} files uploaded to {bucket}/{prefix}",
+                status="running"  # Keep it as running so CLI can finalize
+            )
+
+        # Return without finalizing - let CLI do that
+        return True
 
     except Exception as e:
         logger.error(f"An error occurred during the sync process: {e}")
@@ -98,6 +111,6 @@ def sync_to_s3(backup_set_path, config, event_id=None):
             finalize_event(
                 event_id=event_id,
                 status="error",
-                event="Sync to S3 failed"
+                event_message="Sync to S3 failed"
             )
         raise RuntimeError(f"Sync failed for job '{job_name}': {e}") from e

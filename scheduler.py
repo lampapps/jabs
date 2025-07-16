@@ -10,7 +10,7 @@ import yaml
 from croniter import croniter
 
 from app.utils.logger import setup_logger, trim_all_logs
-from app.utils.emailer import send_email_digest
+from app.services.emailer import send_email_digest
 from app.utils.monitor_status import write_monitor_status
 from app.settings import CONFIG_DIR, LOCK_DIR, LOG_DIR, CLI_SCRIPT, PYTHON_EXECUTABLE, SCHEDULER_STATUS_FILE, SCHEDULE_TOLERANCE, VERSION
 from app.utils.scheduler_events import append_scheduler_event

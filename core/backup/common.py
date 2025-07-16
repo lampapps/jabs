@@ -7,7 +7,7 @@ import glob
 import socket
 import subprocess
 
-from app.utils.event_logger import remove_event_by_backup_set_id
+from app.models.events import remove_events_by_backup_set_id
 
 def acquire_lock(lock_path):
     """Acquire an exclusive lock on the given file path."""
@@ -45,7 +45,7 @@ def rotate_backups(job_dst, keep_sets, logger, config=None):
                     logger.info(f"Deleted JSON file: {manifest_file}")
                 else:
                     logger.warning(f"JSON file not found for backup set: {backup_set_id}")
-                remove_event_by_backup_set_id(backup_set_id, logger)
+                remove_events_by_backup_set_id(backup_set_id)
                 if config:
                     aws_config = config.get("aws", {})
                     bucket = aws_config.get("bucket")

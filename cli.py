@@ -1,5 +1,4 @@
 #!/venv/bin/python3
-# /cli.py
 """JABS CLI: Run backup jobs with options for encryption and cloud sync."""
 
 import argparse
@@ -7,12 +6,13 @@ import logging
 import os
 import yaml
 from dotenv import load_dotenv
-from app.utils.event_logger import (
-    initialize_event, update_event, finalize_event, get_event_status, event_exists
+from app.models.events import (
+    create_event, update_event, finalize_event, get_event_status, event_exists
 )
 from app.utils.logger import setup_logger
 from app.settings import GLOBAL_CONFIG_PATH
 from core.sync_s3 import sync_to_s3
+from core.backup import run_backup
 
 # Set the working directory to the project root
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
@@ -24,7 +24,6 @@ load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 PASSPHRASE = os.getenv("JABS_ENCRYPT_PASSPHRASE")
 
 try:
-    from core.backup import run_backup
 
     def merge_dicts(global_dict, job_dict):
         """Merge two dicts, with job_dict taking precedence."""
@@ -52,14 +51,15 @@ try:
         config["aws"] = merge_dicts(global_config.get("aws"), config.get("aws"))
         config["encryption"] = merge_dicts(global_config.get("encryption"), config.get("encryption"))
 
-        # Fallback assignment for flat values
-        if "destination" not in config or not config.get("destination"):
-            config["destination"] = global_config.get("destination")
-
-        # Merge all missing flat values from global config
+        # Merge all missing flat values from global config (including destination)
         for key, value in global_config.items():
+            # Skip keys that are already processed as nested dicts (aws, encryption)
+            if key in ["aws", "encryption"]:
+                continue
+                
+            # Apply global config values if the key is missing or None in job config
             if key not in config or config[key] is None:
-                if not isinstance(value, dict):
+                if not isinstance(value, dict):  # Only merge flat values
                     config[key] = value
 
         # Determine effective encrypt value: CLI overrides config
@@ -73,22 +73,25 @@ try:
         logger = setup_logger(job_name)
 
         # Initialize the event and capture the event_id
-        event_id = initialize_event(
+        event_id = create_event(
             job_name=job_name,
-            event="Backup job started",
+            event_message=f"Starting {backup_type} backup",
             backup_type=backup_type,
             encrypt=encrypt_effective,
             sync=sync_effective
         )
 
         try:
-            logger.info("Starting %s backup", backup_type.upper())
-            latest_backup_set, returned_event_id, backup_set_id_str = run_backup(
+            logger.info(f"Starting {backup_type.upper()} backup")
+            
+            # Run the backup operation
+            # The core modules will UPDATE this event with progress messages
+            latest_backup_set, _, backup_set_id_str = run_backup(
                 config,
                 backup_type,
                 encrypt=encrypt_effective,
                 sync=sync_effective,
-                event_id=event_id,
+                event_id=event_id,  # Pass our event_id to be updated, not finalized
                 job_config_path=config_path
             )
 
@@ -96,46 +99,47 @@ try:
             if backup_type in ["diff", "differential", "incremental"] and latest_backup_set == "skipped":
                 logger.info("No files modified. Backup skipped.")
                 finalize_event(
-                    event_id=returned_event_id,
+                    event_id=event_id,  # Always use our original event_id
                     status="skipped",
-                    event="No files modified. Backup skipped.",
+                    event_message="No files modified. Backup skipped.",
                     backup_set_id=None,
                     runtime="00:00:00"
                 )
                 return
 
+            # Handle S3 sync if requested
             if sync_effective and latest_backup_set:
                 logger.info("Starting sync to S3")
                 update_event(
-                    event_id=returned_event_id,
-                    event="Sync to S3 started",
+                    event_id=event_id,  # Always use our original event_id
+                    event_message="Sync to S3 started",
                     status="running"
                 )
-                sync_to_s3(latest_backup_set, config, returned_event_id)
+                sync_to_s3(latest_backup_set, config, event_id)  # Pass our event_id
 
-            # Only finalize as success if backup_set_id_str is not None and event is not already finalized
-            if backup_set_id_str is not None and event_exists(returned_event_id):
-                current_status = get_event_status(returned_event_id)
+            # Now finalize the event as successful
+            if backup_set_id_str is not None and event_exists(event_id):
+                current_status = get_event_status(event_id)
                 if current_status not in ("error", "skipped", "success"):
-                    logger.info("Completed backup successfully")
-                    final_event = f"Backup Set ID: {backup_set_id_str}"
+                    logger.info("Backup job completed successfully")
+                    final_message = f"Backup Set ID: {backup_set_id_str}"
                     finalize_event(
-                        event_id=returned_event_id,
+                        event_id=event_id,  # Always use our original event_id
                         status="success",
-                        event=final_event,
+                        event_message=final_message,
                         backup_set_id=backup_set_id_str
                     )
 
         except (OSError, yaml.YAMLError, ValueError) as e:
-            logger.error("Backup failed: %s", e, exc_info=True)
-            # Only finalize if event still exists and not already finalized
+            logger.error(f"Backup failed: {e}", exc_info=True)
+            # Only finalize if event still exists and is not already finalized
             if event_exists(event_id):
                 current_status = get_event_status(event_id)
                 if current_status not in ("error", "skipped", "success"):
                     finalize_event(
                         event_id=event_id,
                         status="error",
-                        event=f"Backup failed: {e}",
+                        event_message=f"Backup failed: {e}",
                         backup_set_id=None
                     )
             raise
@@ -159,7 +163,7 @@ try:
             elif args.incremental:
                 backup_type = "incremental"
             elif args.dry_run:
-                backup_type = "dry_run"
+                backup_type = "dryrun"  # Changed from "dry_run" to "dryrun" to match dashboard.js
             else:
                 parser.error("You must specify one of --full, --diff, --incremental, or --dry_run")
             run_job(args.config, backup_type, encrypt=args.encrypt, sync=args.sync)

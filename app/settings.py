@@ -24,8 +24,6 @@ GLOBAL_CONFIG_PATH = os.path.join(CONFIG_DIR, "global.yaml")
 
 # --- Data Configuration ---
 DATA_DIR = os.path.join(BASE_DIR, 'data')
-MANIFEST_BASE = os.path.join(DATA_DIR, 'manifests')
-EVENTS_FILE = os.path.join(DATA_DIR, 'dashboard', 'events.json')
 SCHEDULER_EVENTS_PATH = os.path.join(DATA_DIR, "dashboard", "scheduler_events.json")
 DB_PATH = os.path.join(DATA_DIR, "jabs.sqlite")
 

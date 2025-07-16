@@ -4,23 +4,24 @@ import json
 import socket
 import re
 from app.utils.logger import setup_logger, ensure_dir, timestamp
-from app.utils.manifest import write_manifest_files, extract_tar_info
-from app.utils.event_logger import update_event, finalize_event, event_exists
+from app.services.manifest import write_manifest_files, extract_tar_info
+from app.models.events import create_event, update_event, finalize_event, delete_event, event_exists
 from core.encrypt import encrypt_tarballs
 from .utils import create_tar_archives, should_exclude
-from app.models.manifest_db import (
-    get_backup_set_by_job_and_set,  # Use this instead of get_or_create
-    get_last_full_backup_job,
-    get_files_for_last_full_backup,
-    insert_backup_job,
-    finalize_backup_job,
-    insert_files
-)
+
+from app.models.db_core import get_db_connection
+from app.models.backup_sets import get_or_create_backup_set, get_backup_set_by_job_and_set
+from app.models.backup_jobs import insert_backup_job, finalize_backup_job, get_backup_job, get_last_backup_job, get_last_full_backup_job
+from app.models.backup_files import insert_files, get_files_for_backup_set, get_files_for_last_full_backup
 
 def run_diff_backup(config, encrypt=False, sync=False, event_id=None, job_config_path=None, global_config=None):
     job_name = config.get("job_name", "unknown_job")
     logger = setup_logger(job_name)
     logger.info(f"Starting DIFFERENTIAL backup job '{job_name}' with provided config.")
+
+    # Update event with our current status
+    if event_id and event_exists(event_id):
+        update_event(event_id, event_message=f"Initializing differential backup for {job_name}")
 
     # Debug common exclude settings
     use_common_exclude = config.get("use_common_exclude", False)
@@ -33,15 +34,20 @@ def run_diff_backup(config, encrypt=False, sync=False, event_id=None, job_config
     if not src or not os.path.exists(src):
         error_msg = f"Source path does not exist: {src}"
         logger.error(error_msg)
+        # Finalize the event ONLY for errors
         if event_id and event_exists(event_id):
             finalize_event(
-                event_id=event_id,
+                event_id=event_id,  # Use the passed event_id
                 status="error",
-                event=error_msg,
+                event_message=error_msg,
                 backup_set_id=None,
                 runtime="00:00:00"
             )
         return None, event_id, None
+
+    # Update event for next stage
+    if event_id and event_exists(event_id):
+        update_event(event_id, event_message=f"Setting up backup paths and loading exclude patterns")
 
     # Path setup 
     machine_name = socket.gethostname()
@@ -92,11 +98,22 @@ def run_diff_backup(config, encrypt=False, sync=False, event_id=None, job_config
 
     max_tarball_size_mb = config.get("max_tarball_size", 1024)
 
+    # Update event for next stage
+    if event_id and event_exists(event_id):
+        update_event(event_id, event_message=f"Looking up previous full backup")
+
     # Get the LAST FULL backup job from the database
     # Differential backups compare against the last full backup only (not incrementals)
     last_full_backup_job = get_last_full_backup_job(job_name=sanitized_job_name)
     if not last_full_backup_job:
         logger.warning("No previous full backup job found in database, running full backup instead.")
+        # Update the event to show we're changing to full backup
+        if event_id and event_exists(event_id):
+            update_event(
+                event_id=event_id,
+                event_message="No previous full backup job found; running full backup instead of differential.",
+                backup_type="full"
+            )
         from .full import run_full_backup
         return run_full_backup(config, encrypt=encrypt, sync=sync, event_id=event_id, job_config_path=job_config_path, global_config=global_config)
 
@@ -111,8 +128,21 @@ def run_diff_backup(config, encrypt=False, sync=False, event_id=None, job_config
     
     # Ensure the target backup set directory exists
     if not os.path.exists(target_backup_set_dir):
-        logger.error(f"Target backup set directory not found: {target_backup_set_dir}")
+        error_msg = f"Target backup set directory not found: {target_backup_set_dir}"
+        logger.error(error_msg)
+        # Finalize the event ONLY for errors
+        if event_id and event_exists(event_id):
+            finalize_event(
+                event_id=event_id,
+                status="error",
+                event_message=error_msg,
+                backup_set_id=None
+            )
         return None, event_id, None
+
+    # Update event with comparison status
+    if event_id and event_exists(event_id):
+        update_event(event_id, event_message=f"Comparing against last full backup in set: {backup_set_name}")
 
     # Get files from the last FULL backup for comparison
     logger.info(f"Comparing against last full backup in set: {backup_set_name}")
@@ -136,27 +166,32 @@ def run_diff_backup(config, encrypt=False, sync=False, event_id=None, job_config
     files = get_new_or_modified_files_from_data(src, manifest_data, exclude_patterns=exclude_patterns)
     if not files:
         logger.info("No files changed or added since last full backup. Skipping differential backup.")
+        # We don't finalize here - let the CLI handle it
         return "skipped", event_id, None
 
-    logger.info(f"Found {len(files)} new or modified files since last full backup. Adding differential job to backup set: {target_backup_set_name}")
+    # Update event for starting the backup
+    if event_id and event_exists(event_id):
+        update_event(event_id, event_message=f"Found {len(files)} new or modified files, creating tarballs")
 
     # Get the existing backup set (DO NOT create a new one)
     backup_set_row = get_backup_set_by_job_and_set(sanitized_job_name, target_backup_set_name)
     if not backup_set_row:
-        logger.error(f"Backup set not found: {sanitized_job_name}/{target_backup_set_name}")
+        error_msg = f"Backup set not found: {sanitized_job_name}/{target_backup_set_name}"
+        logger.error(error_msg)
+        # Finalize the event ONLY for errors
+        if event_id and event_exists(event_id):
+            finalize_event(
+                event_id=event_id,
+                status="error",
+                event_message=error_msg,
+                backup_set_id=None
+            )
         return None, event_id, None
     
     backup_set_id = backup_set_row['id']
     logger.info(f"Using existing backup set ID: {backup_set_id}")
 
-    # Create a new differential backup job within the existing backup set
-    backup_job_id = insert_backup_job(
-        backup_set_id=backup_set_id,
-        backup_type="differential",
-        encrypted=encrypt,
-        synced=sync,
-        event_message="Differential backup started"
-    )
+    # We don't create a backup job here - the CLI has already done this
 
     try:
         # Create tarballs for the new/changed files in the existing backup set directory
@@ -181,27 +216,67 @@ def run_diff_backup(config, encrypt=False, sync=False, event_id=None, job_config
 
         # Insert the files into the database for this backup job
         if tarball_paths:
-            logger.info(f"Inserting {len(new_tar_info)} files into database for backup job {backup_job_id}")
-            insert_files(backup_job_id, new_tar_info)
+            # We need to get the backup job ID from the event
+            # The CLI created the event and the associated backup job
+            backup_job_id = None
             
-            # Calculate totals for job completion
-            total_files = len(new_tar_info)
-            total_size_bytes = sum(f.get('size', 0) for f in new_tar_info)
+            # Use context manager for database connection
+            with get_db_connection() as conn:
+                cursor = conn.cursor()
+                try:
+                    cursor.execute('SELECT backup_job_id FROM events WHERE id = ?', (event_id,))
+                    result = cursor.fetchone()
+                    if result and result['backup_job_id']:
+                        backup_job_id = result['backup_job_id']
+                        logger.info(f"Using backup job ID {backup_job_id} from event {event_id}")
+                    else:
+                        # Get the most recent backup job for this backup set
+                        cursor.execute(
+                            'SELECT id FROM backup_jobs WHERE backup_set_id = ? ORDER BY created_at DESC LIMIT 1',
+                            (backup_set_id,)
+                        )
+                        result = cursor.fetchone()
+                        if result:
+                            backup_job_id = result['id']
+                            logger.info(f"Using most recent backup job ID {backup_job_id} for backup set {backup_set_id}")
+                        else:
+                            logger.warning(f"Could not find a backup job for backup set {backup_set_id}")
+                            # Create a backup job as fallback
+                            backup_job_id = insert_backup_job(
+                                backup_set_id=backup_set_id,
+                                backup_type="differential",
+                                encrypted=encrypt,
+                                synced=sync,
+                                event_message="Differential backup started"
+                            )
+                            logger.info(f"Created backup job ID {backup_job_id} as fallback")
+                except Exception as e:
+                    logger.warning(f"Error retrieving or creating backup job: {e}")
+
+            if backup_job_id:
+                logger.info(f"Inserting {len(new_tar_info)} files into database for backup job {backup_job_id}")
+                insert_files(backup_job_id, new_tar_info)
+                
+                # Update event with progress
+                if event_id and event_exists(event_id):
+                    update_event(
+                        event_id=event_id,
+                        event_message=f"Backed up {len(new_tar_info)} files ({sum(f.get('size', 0) for f in new_tar_info)} bytes)"
+                    )
+                
+                # Calculate totals for job completion
+                total_files = len(new_tar_info)
+                total_size_bytes = sum(f.get('size', 0) for f in new_tar_info)
+                
+                # NOTE: We don't finalize the backup job here - the CLI will do it
+                
+                logger.info(f"Differential backup job completed: {total_files} files, {total_size_bytes} bytes")
             
-            # Mark the backup job as completed
-            finalize_backup_job(
-                job_id=backup_job_id,
-                status="completed",
-                event_message="Differential backup completed successfully",
-                total_files=total_files,
-                total_size_bytes=total_size_bytes
-            )
-            
-            logger.info(f"Differential backup job completed: {total_files} files, {total_size_bytes} bytes")
-            
-            # Generate updated HTML manifest for the backup set (includes all jobs)
-            logger.info("Updating manifest files...")
-            json_manifest_path, html_manifest_path = write_manifest_files(
+            # Generate updated HTML manifest for the backup set
+            if event_id and event_exists(event_id):
+                update_event(event_id, event_message="Generating manifest files")
+                
+            html_manifest_path = write_manifest_files(
                 job_config_path=job_config_path,
                 job_name=sanitized_job_name,
                 backup_set_id=target_backup_set_name,
@@ -209,52 +284,43 @@ def run_diff_backup(config, encrypt=False, sync=False, event_id=None, job_config
                 new_tar_info=new_tar_info,  # Still passed for compatibility
                 mode="differential"
             )
-            logger.info(f"JSON Manifest written to: {json_manifest_path}")
             logger.info(f"HTML Manifest written to: {html_manifest_path}")
             
         else:
-            logger.warning("No tarballs created, marking job as completed with no files.")
-            finalize_backup_job(
-                job_id=backup_job_id,
-                status="completed",
-                event_message="No files to backup"
+            logger.warning("No tarballs created")
+            if event_id and event_exists(event_id):
+                update_event(event_id, event_message="No files to backup")
+
+        # Important: Don't finalize the event here!
+        # Just update it with progress information
+        if event_id and event_exists(event_id):
+            update_event(
+                event_id=event_id,
+                event_message="Differential backup completed successfully",
+                status="running"  # Keep it running so CLI can finalize it
             )
 
+        # Handle encryption if enabled
         if encrypt and tarball_paths:
+            if event_id and event_exists(event_id):
+                update_event(event_id, event_message="Encrypting backup files")
             tarball_paths = encrypt_tarballs(tarball_paths, config, logger)
+            if event_id and event_exists(event_id):
+                update_event(event_id, event_message="Encryption completed")
 
-        if sync:
-            from core.sync_s3 import sync_to_s3
-            sync_to_s3(target_backup_set_dir, config, event_id)
-            
-            # Update the job to mark it as synced
-            if tarball_paths:
-                import time
-                from app.models.manifest_db import get_db_connection
-                with get_db_connection() as conn:
-                    c = conn.cursor()
-                    c.execute("UPDATE backup_jobs SET synced = 1 WHERE id = ?", (backup_job_id,))
-                    conn.commit()
-
-        logger.info("DIFFERENTIAL backup completed for %s", src)
+        logger.info(f"DIFFERENTIAL backup completed for {src}")
+        # Return the event_id that was passed to us
         return target_backup_set_dir, event_id, target_backup_set_name
 
     except Exception as e:
         logger.error(f"Error during differential backup: {e}", exc_info=True)
         
-        # Mark the backup job as failed
-        finalize_backup_job(
-            job_id=backup_job_id,
-            status="failed",
-            event_message="Differential backup failed",
-            error_message=str(e)
-        )
-        
+        # Finalize the event for errors ONLY
         if event_id and event_exists(event_id):
             finalize_event(
                 event_id=event_id,
                 status="error",
-                event=f"Differential backup failed: {e}",
+                event_message=f"Differential backup failed: {e}",
                 backup_set_id=target_backup_set_name,
                 runtime="00:00:00"
             )
