@@ -9,7 +9,7 @@ import requests
 import yaml
 from flask import Blueprint, render_template
 
-from app.settings import CONFIG_DIR
+from app.settings import CONFIG_DIR, ENV_MODE
 from app.utils.poll_targets import poll_targets
 
 
@@ -93,5 +93,6 @@ def monitor():
         problems=problems,
         hostname=socket.gethostname(),
         monitor_yaml_path=monitor_yaml_path,
+        env_mode=ENV_MODE,
         now=datetime.now(timezone.utc).timestamp(),
     )

@@ -2,16 +2,18 @@
 
 import os
 import re
-import subprocess
-import sys
-import tempfile
 import pathlib
 import yaml
 import socket
+import threading
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from werkzeug.utils import secure_filename
 from cron_descriptor import get_description
-from app.settings import LOCK_DIR, BASE_DIR, JOBS_DIR, GLOBAL_CONFIG_PATH
+from app.settings import LOCK_DIR, JOBS_DIR, GLOBAL_CONFIG_PATH, ENV_MODE
+from app.utils.logger import setup_logger
+
+# Import the run_job function directly
+from cli import run_job
 
 jobs_bp = Blueprint('jobs', __name__)
 
@@ -80,12 +82,17 @@ def jobs_view():
         configs=jobs,
         templates=templates,
         global_config=global_config,
+        env_mode=ENV_MODE,
         hostname=socket.gethostname()
     )
 
 @jobs_bp.route("/jobs/run/<filename>", methods=["POST"])
 def trigger_backup_job(filename):
-    """Run a backup job."""
+    """Run a backup job directly using cli.py's run_job function."""
+    # Setup logger
+    logger = setup_logger("flask_jobs", "server.log")
+    
+    # Validate the filename
     if (
         not filename.endswith(".yaml")
         or "/" in filename
@@ -94,56 +101,81 @@ def trigger_backup_job(filename):
         flash("Invalid job file.", "danger")
         return redirect(url_for("jobs.jobs_view"))
 
+    # Construct the full config path
     config_path = os.path.join(JOBS_DIR, filename)
     if not os.path.exists(config_path):
         flash("Config file does not exist.", "danger")
         return redirect(url_for("jobs.jobs_view"))
 
+    # Load the config to get the job name
     with open(config_path, encoding="utf-8") as f:
         config = yaml.safe_load(f)
+    
     job_name = config.get("job_name", filename.replace(".yaml", ""))
+    
+    # Check if job is already locked/running
+    # Using the same logic for lock path as in cli.py
+    safe_job_name = "".join(c if c.isalnum() or c in ("-", "_") else "_" for c in job_name)
+    lock_path = os.path.join(LOCK_DIR, f"{safe_job_name}.lock")
+    
+    if os.path.exists(lock_path):
+        # Job is already running, show a flash message
+        logger.warning(f"Attempted to start job '{job_name}' but it's already running")
+        flash(f"Backup job '{job_name}' is already running. Please wait for it to complete.", "warning")
+        return redirect(url_for("jobs.jobs_view"))
 
+    # Get backup type from form
+    backup_type = request.form.get("backup_type", "full").lower()
+    if backup_type not in ("full", "diff", "incremental", "dry_run"):
+        flash("Invalid backup type.", "danger")
+        return redirect(url_for("jobs.jobs_view"))
+        
+    # Convert backup type to the format expected by cli.py
+    if backup_type == "diff":
+        backup_type = "differential"
+    elif backup_type == "dry_run":
+        backup_type = "dryrun"
+
+    # Check if sync is requested
+    sync = request.form.get("sync", "0") == "1"
+    
+    # Get encryption option - use config from job or global config
+    encrypt = False
     aws_enabled = None
+    if config.get("encryption") and "enabled" in config["encryption"]:
+        encrypt = config["encryption"]["enabled"]
+    else:
+        with open(GLOBAL_CONFIG_PATH, encoding="utf-8") as gf:
+            global_config = yaml.safe_load(gf)
+        encrypt = global_config.get("encryption", {}).get("enabled", False)
+    
+    # Check AWS sync option as well
     if config.get("aws") and "enabled" in config["aws"]:
         aws_enabled = config["aws"]["enabled"]
     else:
         with open(GLOBAL_CONFIG_PATH, encoding="utf-8") as gf:
             global_config = yaml.safe_load(gf)
         aws_enabled = global_config.get("aws", {}).get("enabled", False)
-
-    backup_type = request.form.get("backup_type", "full").lower()
-    if backup_type not in ("full", "diff", "incremental", "dry_run"):
-        flash("Invalid backup type.", "danger")
-        return redirect(url_for("jobs.jobs_view"))
-
-    sync = request.form.get("sync", "0")
-    cli_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../cli.py'))
-    args = [sys.executable, cli_path, "--config", config_path]
-    if backup_type == "full":
-        args.append("--full")
-    elif backup_type == "diff":
-        args.append("--diff")
-    elif backup_type == "incremental":
-        args.append("--incremental")
-    elif backup_type == "dry_run":
-        args.append("--dry_run")
-    if sync == "1" and aws_enabled:
-        args.append("--sync")
+    
+    # Only use sync if both requested and enabled
+    sync = sync and aws_enabled
 
     try:
-        temp_dir = tempfile.gettempdir()
-        stdout_log = os.path.join(temp_dir, "backup_stdout.log")
-        stderr_log = os.path.join(temp_dir, "backup_stderr.log")
-        with open(stdout_log, 'w', encoding="utf-8") as out, open(stderr_log, 'w', encoding="utf-8") as err:
-            subprocess.Popen(
-                args,
-                stdout=out,
-                stderr=err,
-                start_new_session=True,
-                cwd=BASE_DIR
-            )
-        flash(f"{backup_type.replace('_', ' ').capitalize()} backup for {job_name} has been started.", "success")
-    except (OSError, subprocess.SubprocessError) as e:
+        logger.info(f"Starting {backup_type} backup for job '{job_name}' via web interface")
+        
+        # Start the job in a separate thread to avoid blocking the web server
+        thread = threading.Thread(
+            target=run_job,
+            args=(config_path, backup_type, encrypt, sync),
+            daemon=True
+        )
+        thread.start()
+        
+        # Show success message
+        backup_type_display = backup_type.replace('_', ' ').title()
+        flash(f"{backup_type_display} backup for {job_name} has been started.", "success")
+    except Exception as e:
+        logger.error(f"Failed to start backup job '{job_name}': {e}", exc_info=True)
         flash(f"Failed to start backup: {e}", "danger")
 
     return redirect(url_for("jobs.jobs_view"))

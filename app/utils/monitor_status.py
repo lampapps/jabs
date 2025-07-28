@@ -3,7 +3,7 @@ import json
 import socket
 from datetime import datetime
 
-from app.settings import VERSION
+from app.settings import VERSION, ENV_MODE
 from app.models.events import count_error_events
 
 def write_monitor_status(shared_monitor_dir, version, last_run, log_dir):
@@ -13,6 +13,10 @@ def write_monitor_status(shared_monitor_dir, version, last_run, log_dir):
     monitor_dir = os.path.join(shared_monitor_dir, "monitor")
     os.makedirs(monitor_dir, exist_ok=True)
     machine_name = socket.gethostname()
+
+    # Prepend "dev_" if ENV_MODE is 'development'
+    if ENV_MODE == "development":
+        machine_name = f"dev_{machine_name}"
 
     # Gather heartbeat data
     last_run_ts = None

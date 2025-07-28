@@ -6,19 +6,14 @@ import socket
 from datetime import datetime, timezone
 
 import requests
-import markdown
 import yaml
 from cron_descriptor import get_description
-import boto3
-import botocore
-from flask import Blueprint, render_template, abort, current_app
+from flask import Blueprint, render_template, current_app
 from markupsafe import Markup
+import mistune
 
-from app.settings import BASE_DIR, GLOBAL_CONFIG_PATH, HOME_DIR, CONFIG_DIR
-from app.services.manifest import get_tarball_summary, get_merged_cleaned_yaml_config
-from app.utils.dashboard_helpers import find_config_path_by_job_name, load_config, ensure_minimum_scheduler_events
-from app.utils.logger import sizeof_fmt
-from app.services.manifest import get_manifest_with_files
+from app.settings import BASE_DIR, CONFIG_DIR, ENV_MODE
+from app.utils.dashboard_helpers import ensure_minimum_scheduler_events
 
 dashboard_bp = Blueprint('dashboard', 'dashboard')
 
@@ -29,60 +24,6 @@ def load_storage_config(config_path):
     drives = config.get("drives", [])
     s3_buckets = config.get("s3_buckets", [])
     return drives, s3_buckets
-
-def build_local_tree(path):
-    """Recursively build a tree structure for local directories and files."""
-    node = {"name": os.path.basename(path) or path, "type": "directory", "children": []}
-    try:
-        for entry in os.scandir(path):
-            if entry.is_dir(follow_symlinks=False):
-                node["children"].append(build_local_tree(entry.path))
-            else:
-                node["children"].append({"name": entry.name, "type": "file"})
-    except (OSError, PermissionError):
-        pass  # Permission errors, etc.
-    return node
-
-def build_s3_tree(bucket_name, prefix="", s3_client=None):
-    """Recursively build a tree structure for an S3 bucket."""
-    if s3_client is None:
-        s3_client = boto3.client("s3")
-    node = {
-        "name": bucket_name if not prefix else prefix.rstrip('/'),
-        "type": "folder",
-        "children": []
-    }
-    paginator = s3_client.get_paginator('list_objects_v2')
-    try:
-        for page in paginator.paginate(Bucket=bucket_name, Prefix=prefix, Delimiter='/'):
-            for cp in page.get('CommonPrefixes', []):
-                node["children"].append(build_s3_tree(bucket_name, cp['Prefix'], s3_client))
-            for obj in page.get('Contents', []):
-                if obj['Key'] != prefix:
-                    node["children"].append({
-                        "name": os.path.basename(obj['Key']),
-                        "type": "file"
-                    })
-    except botocore.exceptions.ClientError as e:
-        error_code = e.response['Error']['Code']
-        if error_code == 'NoSuchBucket':
-            return {
-                "name": f"Error: S3 bucket '{bucket_name}' does not exist.",
-                "type": "error",
-                "children": []
-            }
-        return {
-            "name": f"S3 error: {str(e)}",
-            "type": "error",
-            "children": []
-        }
-    except botocore.exceptions.BotoCoreError as e:
-        return {
-            "name": f"S3 error: {str(e)}",
-            "type": "error",
-            "children": []
-        }
-    return node
 
 @dashboard_bp.route("/")
 def dashboard():
@@ -203,7 +144,8 @@ def dashboard():
         hostname=socket.gethostname(),
         targets=targets,
         problems=problems,
-        api_statuses=api_statuses
+        api_statuses=api_statuses,
+        env_mode=ENV_MODE
     )
 
 @dashboard_bp.route("/documentation")
@@ -215,10 +157,9 @@ def documentation():
     else:
         with open(readme_path, "r", encoding="utf-8") as f:
             md_content = f.read()
-        content = Markup(
-            markdown.markdown(md_content, extensions=["fenced_code", "tables"])
-        )
-    return render_template("documentation.html", content=content, hostname=socket.gethostname())
+        markdown_renderer = mistune.create_markdown(renderer=mistune.HTMLRenderer())
+        content = Markup(markdown_renderer(md_content))
+    return render_template("documentation.html", content=content, env_mode=ENV_MODE,hostname=socket.gethostname())
 
 @dashboard_bp.route("/change_log")
 def change_log():
@@ -229,183 +170,22 @@ def change_log():
     else:
         with open(changelog_path, "r", encoding="utf-8") as f:
             md_content = f.read()
-        content = Markup(
-            markdown.markdown(md_content, extensions=["fenced_code", "tables"])
-        )
-    return render_template("change_log.html", content=content, hostname=socket.gethostname())
+        markdown_renderer = mistune.create_markdown(renderer=mistune.HTMLRenderer())
+        content = Markup(markdown_renderer(md_content))
+    return render_template("change_log.html", content=content, env_mode=ENV_MODE, hostname=socket.gethostname())
 
-@dashboard_bp.route('/manifest/<string:job_name>/<string:backup_set_id>')
-def view_manifest(job_name, backup_set_id):
-    """Render the manifest view for a specific job and backup set (from SQLite)."""
-    # Get the original job name (with spaces) from the URL parameter
-    original_job_name = job_name
-    
-    # Sanitize the job name for filesystem paths only
-    sanitized_job = "".join(
-        c if c.isalnum() or c in ("-", "_") else "_" for c in job_name
-    )
-
-    # Use original job name for database lookup
-    manifest_data = get_manifest_with_files(original_job_name, backup_set_id)
-    if not manifest_data:
-        abort(404, description=f"Manifest not found in database for job '{original_job_name}' and backup set '{backup_set_id}'.")
-
-    # Use original job name for config lookup
-    job_config_path = find_config_path_by_job_name(original_job_name)
-    tarball_summary_list = []
-    
-    with open(GLOBAL_CONFIG_PATH, encoding="utf-8") as f:
-        global_config = yaml.safe_load(f)
-    
-    destination = None
-    if job_config_path:
-        job_config = load_config(job_config_path)
-        destination = job_config.get('destination') or global_config.get('destination')
-        if destination:
-            # Use sanitized_job for filesystem paths
-            backup_set_path_on_dst = os.path.join(
-                destination,
-                socket.gethostname(),
-                sanitized_job,  # Use sanitized version for file paths
-                f"backup_set_{backup_set_id}"
-            )
-            tarball_summary_list = get_tarball_summary(backup_set_path_on_dst)
-    
-    cleaned_config = (
-        get_merged_cleaned_yaml_config(job_config_path)
-        if job_config_path else "Config file not found."
-    )
-
-    # Format timestamp for display
-    manifest_timestamp = manifest_data.get("timestamp", "N/A")
-    if manifest_timestamp != "N/A":
-        try:
-            dt_object = datetime.fromisoformat(manifest_timestamp)
-            manifest_timestamp = dt_object.strftime("%A, %B %d, %Y at %I:%M %p")
-        except ValueError:
-            pass
-
-    # Extract data from the new schema
-    all_files = manifest_data.get("files", [])
-    
-    # Calculate total size from database files - expecting numeric bytes
-    total_size_bytes = sum(f.get("size", 0) for f in all_files if isinstance(f.get("size", 0), (int, float)))
-    total_size_human = sizeof_fmt(total_size_bytes)
-    
-    # Get config settings from database or fallback to actual config files
-    used_config = {}
-    if manifest_data.get("config_settings"):
-        try:
-            used_config = json.loads(manifest_data["config_settings"])
-        except (json.JSONDecodeError, TypeError):
-            # Database config is invalid, fall back to actual config files
-            pass
-    
-    # If database config is empty or invalid, load from actual config files
-    if not used_config and job_config_path:
-        try:
-            # Load global config first
-            with open(GLOBAL_CONFIG_PATH, 'r', encoding='utf-8') as f:
-                global_config = yaml.safe_load(f)
-            
-            # Load job config
-            job_config = load_config(job_config_path)
-            
-            # Merge configs (job overrides global)
-            used_config = global_config.copy()
-            used_config.update(job_config)
-            
-        except Exception as e:
-            print(f"Warning: Could not load config files: {e}")
-            used_config = {}
-    
-    # Ensure we have at least basic fallback values
-    if not used_config.get('source'):
-        used_config['source'] = '/unknown'
-    if not used_config.get('destination'):
-        used_config['destination'] = '/tmp/backup'
-
-    return render_template(
-        'manifest.html',
-        job_name=manifest_data.get("job_name", job_name),
-        set_name=manifest_data.get("set_name", backup_set_id),  # New: separate set_name
-        backup_set_id=backup_set_id,  # For compatibility
-        backup_type=manifest_data.get("backup_type", "unknown"),
-        status=manifest_data.get("status", "unknown"),
-        event_message=manifest_data.get("event", ""),
-        manifest_timestamp=manifest_timestamp,
-        started_at=manifest_data.get("started_at"),
-        completed_at=manifest_data.get("completed_at"),
-        config_content=cleaned_config,
-        all_files=all_files,
-        tarball_summary=tarball_summary_list,
-        total_size_bytes=total_size_bytes,
-        total_size_human=total_size_human,
-        used_config=used_config,
-        HOME_DIR=HOME_DIR,
-        hostname=socket.gethostname()
-    )
-
-@dashboard_bp.route('/repository')
-def repository():
-    """Render the storage tree view for local and S3 storage."""
-    config_path = os.path.join(
-        os.path.dirname(current_app.root_path), 'config', 'global.yaml'
-    )
-    with open(config_path, "r", encoding="utf-8") as f:
-        config = yaml.safe_load(f)
-    destination = config.get("destination")
-    aws_cfg = config.get("aws", {})
-    bucket = aws_cfg.get("bucket")
-    local_trees = []
-    if destination:
-        local_trees.append({
-            "label": destination,
-            "tree": build_local_tree(destination)
-        })
-    s3_trees = []
-    if bucket:
-        s3_client = boto3.client("s3")
-        try:
-            s3_trees.append({
-                "label": bucket,
-                "tree": build_s3_tree(bucket, s3_client=s3_client)
-            })
-        except botocore.exceptions.ClientError as e:
-            error_code = e.response['Error']['Code']
-            if error_code == 'NoSuchBucket':
-                s3_trees.append({
-                    "label": bucket,
-                    "tree": {
-                        "name": f"Error: S3 bucket '{bucket}' does not exist.",
-                        "type": "error",
-                        "children": []
-                    }
-                })
-            else:
-                s3_trees.append({
-                    "label": bucket,
-                    "tree": {
-                        "name": f"S3 error: {str(e)}",
-                        "type": "error",
-                        "children": []
-                    }
-                })
-        except botocore.exceptions.BotoCoreError as e:
-            s3_trees.append({
-                "label": bucket,
-                "tree": {
-                    "name": f"S3 error: {str(e)}",
-                    "type": "error",
-                    "children": []
-                }
-            })
-    return render_template(
-        "repository.html",
-        local_tree_json=json.dumps(local_trees),
-        s3_tree_json=json.dumps(s3_trees),
-        hostname=socket.gethostname()
-    )
+@dashboard_bp.route("/license")
+def license():
+    """Render the documentation page from LICENSE.md."""
+    license_path = os.path.join(BASE_DIR, "LICENSE.md")
+    if not os.path.exists(license_path):
+        content = "<LICENSE.md not found.</p>"
+    else:
+        with open(license_path, "r", encoding="utf-8") as f:
+            md_content = f.read()
+        markdown_renderer = mistune.create_markdown(renderer=mistune.HTMLRenderer())
+        content = Markup(markdown_renderer(md_content))
+    return render_template("license.html", content=content, env_mode=ENV_MODE,hostname=socket.gethostname())
 
 @dashboard_bp.route("/scheduler")
 def scheduler():
@@ -418,6 +198,7 @@ def scheduler():
         "scheduler.html",
         venv_python=venv_python,
         scheduler_py=scheduler_py,
+        env_mode=ENV_MODE,
         hostname=socket.gethostname()
     )
 

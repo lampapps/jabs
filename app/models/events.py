@@ -1,9 +1,13 @@
 import socket
-import sqlite3
 import time
+import json
 from datetime import datetime
-from typing import Dict, List, Optional, Any, Union, Tuple
+from typing import Dict, List, Optional, Any, Union
 from app.models.db_core import get_db_connection
+from app.models.scheduler_events import append_scheduler_event
+from app.models.backup_sets import get_or_create_backup_set
+from app.models.backup_jobs import insert_backup_job, get_last_full_backup_job
+from app.utils.logger import setup_logger
 
 def create_events_view(conn=None):
     """Create a view for events based on backup_jobs table"""
@@ -148,9 +152,13 @@ def create_event(job_name: str,
     Returns:
         The ID of the newly created event/job
     """
-    from app.models.backup_sets import get_or_create_backup_set
-    from app.models.backup_jobs import insert_backup_job, get_last_full_backup_job
-    import json
+    # Setup logging
+    logger = setup_logger(job_name)
+    
+    # # Debug the config object
+    # logger.info(f"DEBUG: create_event: config type: {type(config)}")
+    # logger.info(f"DEBUG: create_event: config empty? {not bool(config)}")
+    # logger.info(f"DEBUG: create_event: config keys: {list(config.keys()) if isinstance(config, dict) and config else 'None'}")
     
     backup_set_id = None
     
@@ -160,18 +168,33 @@ def create_event(job_name: str,
         last_full_job = get_last_full_backup_job(job_name)
         if last_full_job:
             backup_set_id = last_full_job['backup_set_id']
+            logger.debug(f"events.py: Reusing backup set {backup_set_id} from last full backup")
     
     # If no existing backup set or this is a full/dryrun backup, create a new one
     if not backup_set_id:
         # Generate a set name based on timestamp
         set_name = datetime.now().strftime("%Y%m%d_%H%M%S")
         
+        # Prepare config_settings if config is available
+        config_json = None
+        if isinstance(config, dict) and config:
+            try:
+                config_json = json.dumps(config)
+                logger.debug(f"Prepared config JSON for backup set, length: {len(config_json)}")
+                # Correctly debug the JSON string, not trying to treat it as a dict
+                logger.debug(f"DEBUG: create_event: config_json preview: {config_json[:100]}...")
+            except Exception as e:
+                logger.error(f"Error serializing config to JSON: {e}")
+        else:
+            logger.warning("Config is empty or not a dictionary in create_event()")
+        
         # Get or create a backup set
         backup_set_id = get_or_create_backup_set(
             job_name=job_name, 
             set_name=set_name,
-            config_settings=json.dumps(config) if config else None
+            config_settings=config_json
         )
+        logger.debug(f"Created backup set {backup_set_id} with config_settings: {'Yes' if config_json else 'No'}")
     
     # Insert a new backup job
     job_id = insert_backup_job(
@@ -181,6 +204,7 @@ def create_event(job_name: str,
         synced=sync,
         event_message=event_message
     )
+    logger.debug(f"events.py: Created backup job {job_id} for backup set {backup_set_id}")
     
     return job_id
 
@@ -258,7 +282,7 @@ def finalize_event(event_id: int,
         
     # Map status to database status
     job_status = {
-        "error": "failed",
+        "error": "error",
         "success": "completed",
         "skipped": "skipped"
     }.get(status, status)
@@ -275,6 +299,19 @@ def finalize_event(event_id: int,
             except (ValueError, TypeError):
                 pass
     
+    # If runtime wasn't provided or couldn't be parsed, calculate it from start time
+    if runtime_seconds is None:
+        # Get the start time of the job from the database
+        with get_db_connection() as conn:
+            c = conn.cursor()
+            c.execute("SELECT started_at FROM backup_jobs WHERE id = ?", (event_id,))
+            row = c.fetchone()
+            if row and row[0]:
+                started_at = row[0]
+                # Calculate runtime as current time - start time
+                runtime_seconds = int(time.time() - started_at)
+                print(f"Calculated runtime for job {event_id}: {runtime_seconds} seconds")
+    
     # If no error message provided but status is error, use event message
     if error_message is None and job_status == "failed":
         error_message = event_message
@@ -283,19 +320,20 @@ def finalize_event(event_id: int,
     from app.models.backup_jobs import finalize_backup_job
     
     # Let finalize_backup_job handle the database update
-    finalize_backup_job(
+    result = finalize_backup_job(
         job_id=event_id,
         status=job_status,
         event_message=event_message,
         error_message=error_message,
         total_files=total_files,
-        total_size_bytes=total_size_bytes
+        total_size_bytes=total_size_bytes,
+        runtime_seconds=runtime_seconds  # Pass the calculated runtime
     )
     
     # Send notifications if needed
     send_event_notification(event_id, status, backup_set_id)
     
-    return True
+    return result
 
 def send_event_notification(event_id: int, status: str, backup_set_id: Optional[str] = None) -> None:
     """
@@ -371,8 +409,6 @@ def send_event_notification(event_id: int, status: str, backup_set_id: Optional[
         
     # Record scheduler event if needed
     if event_type in ["backup_complete", "error"]:
-        from app.utils.scheduler_events import append_scheduler_event
-        # Fix: update parameters to match what append_scheduler_event expects
         current_datetime = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         append_scheduler_event(
             datetime=current_datetime,
@@ -381,16 +417,22 @@ def send_event_notification(event_id: int, status: str, backup_set_id: Optional[
             status=status
         )
 
-def remove_events_by_backup_set_id(backup_set_id: int) -> bool:
-    """
-    Remove events by deleting their underlying backup jobs.
-    Returns True if any events were removed.
-    """
-    with get_db_connection() as conn:
-        c = conn.cursor()
-        c.execute("DELETE FROM backup_jobs WHERE backup_set_id = ?", (backup_set_id,))
-        conn.commit()
-        return c.rowcount > 0
+# def remove_events_by_backup_set_id(backup_set_id: int) -> bool:
+#     """
+#     DEPRECATED: Use delete_backup_set() instead for proper cleanup.
+    
+#     Remove events by deleting their underlying backup jobs.
+#     Returns True if any events were removed.
+#     """
+#     import logging
+#     logger = logging.getLogger("app")
+#     logger.warning("remove_events_by_backup_set_id is deprecated. Use delete_backup_set() instead for proper cleanup.")
+    
+#     with get_db_connection() as conn:
+#         c = conn.cursor()
+#         c.execute("DELETE FROM backup_jobs WHERE backup_set_id = ?", (backup_set_id,))
+#         conn.commit()
+#         return c.rowcount > 0
 
 def delete_event(event_id: int) -> bool:
     """
@@ -451,3 +493,14 @@ def count_error_events() -> int:
         Number of events with error status
     """
     return get_event_count_by_status('error')
+
+def get_backup_job_id_for_event(event_id: int) -> int:
+    """Get the backup job ID associated with an event."""
+    with get_db_connection() as conn:
+        c = conn.cursor()
+        c.execute("""
+            SELECT job_id FROM events
+            WHERE id = ?
+        """, (event_id,))
+        row = c.fetchone()
+        return row['job_id'] if row else None

@@ -3,7 +3,6 @@
 import os
 import re
 import glob
-import json
 import shutil
 import time
 import math
@@ -13,20 +12,22 @@ import socket
 from datetime import datetime
 
 from flask import (
-    Blueprint, jsonify, send_from_directory, request, render_template, flash, url_for
+    Blueprint, jsonify, request, render_template, flash, url_for
 )
 
 from app.settings import (
-    BASE_DIR, LOG_DIR, GLOBAL_CONFIG_PATH, HOME_DIR, MAX_LOG_LINES, SCHEDULER_EVENTS_PATH, VERSION, SCHEDULER_STATUS_FILE
+    BASE_DIR, LOG_DIR, GLOBAL_CONFIG_PATH, HOME_DIR, MAX_LOG_LINES, VERSION, SCHEDULER_STATUS_FILE
 )
+from app.utils.logger import sizeof_fmt  # Import canonical sizeof_fmt function
 from core import restore
 from app.utils.restore_status import check_restore_status
 from app.models.events import get_all_events, count_error_events
 from app.utils.poll_targets import poll_targets
 
-from app.models.backup_sets import get_backup_set_by_job_and_set, delete_backup_set
+from app.models.backup_sets import delete_backup_set
 from app.services.manifest import get_manifest_with_files
 from app.models.db_core import get_db_connection
+from app.models.scheduler_events import get_scheduler_events
 
 api_bp = Blueprint('api', __name__)
 
@@ -221,13 +222,7 @@ def api_manifest_json(job_name, backup_set_id):
             # Format size for display
             size_display = file_data.get('size', 0)
             if isinstance(size_display, (int, float)):
-                # Convert bytes to human readable format
-                def sizeof_fmt(num, suffix='B'):
-                    for unit in ['','K','M','G','T','P','E','Z']:
-                        if abs(num) < 1024.0:
-                            return f"{num:3.1f}{unit}{suffix}"
-                        num /= 1024.0
-                    return f"{num:.1f}Y{suffix}"
+                # Use the canonical sizeof_fmt from app.utils.logger
                 size_display = sizeof_fmt(size_display)
             
             files_for_table.append({
@@ -345,7 +340,7 @@ def restore_full():
     else:
         flash("Full restore completed.", "success")
     return jsonify({
-        "redirect": url_for('dashboard.view_manifest', job_name=job_name, backup_set_id=backup_set_id)
+        "redirect": url_for('manifest.view_manifest', job_name=job_name, backup_set_id=backup_set_id)
     })
 
 @api_bp.route('/api/restore/files', methods=['POST'])
@@ -380,18 +375,8 @@ def restore_files():
     else:
         flash("Selected files restored.", "success")
     return jsonify({
-        "redirect": url_for('dashboard.view_manifest', job_name=job_name, backup_set_id=backup_set_id)
+        "redirect": url_for('manifest.view_manifest', job_name=job_name, backup_set_id=backup_set_id)
     })
-
-@api_bp.route('/manifest/<string:job_name>/<string:backup_set_id>')
-def manifest_page(job_name, backup_set_id):
-    """Render the manifest page for a specific job and backup set."""
-    return render_template(
-        "manifest.html",
-        job_name=job_name,
-        backup_set_id=backup_set_id,
-        HOME_DIR=HOME_DIR
-    )
 
 @api_bp.route("/api/events/delete", methods=["POST"])
 def delete_events():
@@ -464,16 +449,10 @@ def delete_events():
     })
 
 @api_bp.route("/data/dashboard/scheduler_events.json")
-def get_scheduler_events():
+def get_scheduler_events_api():
     """Return the scheduler events as JSON for the dashboard mini chart."""
-    path = SCHEDULER_EVENTS_PATH
-    if not os.path.exists(path):
-        return jsonify([])
-    with open(path, "r", encoding="utf-8") as f:
-        try:
-            return jsonify(json.load(f))
-        except json.JSONDecodeError:
-            return jsonify([])
+    events = get_scheduler_events()
+    return jsonify(events)
 
 @api_bp.route("/api/monitor_status")
 def monitor_status():

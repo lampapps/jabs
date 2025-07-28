@@ -5,19 +5,20 @@ import re
 import socket
 from collections import Counter
 from flask import Blueprint, render_template
-from app.settings import LOG_DIR, MAX_LOG_LINES
+from app.settings import LOG_DIR, MAX_LOG_LINES, ENV_MODE
 
 logs_bp = Blueprint('logs', __name__)
 
 def get_log_stats(content):
-    """Return a dict with counts of INFO, WARNING, ERROR, and other lines in the log content."""
+    """Return a dict with counts of INFO, WARNING, ERROR, DEBUG, and other lines in the log content."""
     lines = content.splitlines()
     total = len(lines)
     info = sum(1 for l in lines if 'INFO' in l)
     warning = sum(1 for l in lines if 'WARNING' in l)
     error = sum(1 for l in lines if 'ERROR' in l)
-    other = total - info - warning - error
-    return {'total': total, 'info': info, 'warning': warning, 'error': error, 'other': other}
+    debug = sum(1 for l in lines if 'DEBUG' in l)
+    other = total - info - warning - error - debug
+    return {'total': total, 'info': info, 'warning': warning, 'error': error, 'debug': debug, 'other': other}
 
 def parse_response_codes(log_path):
     """Parse HTTP response codes from a log file and return their counts."""
@@ -51,12 +52,13 @@ def logs_view():
             except OSError:
                 logs_list.append(
                     (fname, "Could not read log.",
-                     {'total': 0, 'info': 0, 'warning': 0, 'error': 0, 'other': 0},
+                     {'total': 0, 'info': 0, 'warning': 0, 'error': 0, 'debug': 0, 'other': 0},
                      None, "")
                 )
     return render_template(
         "logs.html",
         logs=logs_list,
         MAX_LOG_LINES=MAX_LOG_LINES,
+        env_mode=ENV_MODE,
         hostname=socket.gethostname()
     )

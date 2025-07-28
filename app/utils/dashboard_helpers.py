@@ -2,8 +2,8 @@
 
 import os
 import yaml
-import json
-from app.settings import JOBS_DIR, SCHEDULER_EVENTS_PATH
+from app.settings import JOBS_DIR, MAX_SCHEDULER_EVENTS
+from app.models.scheduler_events import get_scheduler_events, append_scheduler_event
 
 def find_config_path_by_job_name(target_job_name):
     """Find the path to a job config file by its job_name."""
@@ -39,32 +39,22 @@ def load_config(config_path):
     
 def ensure_minimum_scheduler_events():
     """
-    If the scheduler_events.json file has less than 300 events,
-    prepend 300 blank events to the beginning.
-    Ensures the file exists.
+    Ensure the scheduler_events table has at least MAX_SCHEDULER_EVENTS events.
+    If not, prepend blank events to the table.
     """
-    # Ensure the directory exists
-    os.makedirs(os.path.dirname(SCHEDULER_EVENTS_PATH), exist_ok=True)
-
-    # Ensure the file exists
-    if not os.path.exists(SCHEDULER_EVENTS_PATH):
-        with open(SCHEDULER_EVENTS_PATH, "w", encoding="utf-8") as f:
-            json.dump([], f, indent=2)
-
-    # Load events
-    with open(SCHEDULER_EVENTS_PATH, "r", encoding="utf-8") as f:
-        try:
-            events = json.load(f)
-        except json.JSONDecodeError:
-            events = []
-
-    if len(events) < 300:
+    events = get_scheduler_events(limit=MAX_SCHEDULER_EVENTS)
+    num_events = len(events)
+    if num_events < MAX_SCHEDULER_EVENTS:
         blank_event = {
             "datetime": "",
             "job_name": "No jobs",
             "backup_type": "null",
             "status": "none"
         }
-        events = [blank_event.copy() for _ in range(300)] + events
-        with open(SCHEDULER_EVENTS_PATH, "w", encoding="utf-8") as f:
-            json.dump(events, f, indent=2)
+        for _ in range(MAX_SCHEDULER_EVENTS - num_events):
+            append_scheduler_event(
+                blank_event["datetime"],
+                blank_event["job_name"],
+                blank_event["backup_type"],
+                blank_event["status"]
+            )

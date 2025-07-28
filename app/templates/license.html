@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}License{% endblock %}
+{% block top_scripts %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.8.1/github-markdown-light.min.css" id="md-light">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.8.1/github-markdown-dark.min.css" id="md-dark" disabled>
+{% endblock %}
+{% block content %}
+<div class="container mt-4 mb-4">
+    <div class="mb-4">
+        <h2 class="mt-4">License</h2>
+        <div class="mb-2">
+            <span class="fs-6">LICENSE.md</span>
+        </div>
+    </div>
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="markdown-body bg-body text-body">
+                {{ content|safe }}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/global.js') }}"></script>
+<script>
+function setMarkdownTheme(isDark) {
+    document.getElementById('md-light').disabled = isDark;
+    document.getElementById('md-dark').disabled = !isDark;
+}
+
+// Detect Bootstrap 5 dark mode (using .bg-dark or .text-bg-dark on body or a parent)
+function detectBootstrapDarkMode() {
+    // You may need to adjust this selector based on your layout
+    return document.body.classList.contains('bg-dark') || document.body.classList.contains('text-bg-dark');
+}
+
+// Initial set
+setMarkdownTheme(detectBootstrapDarkMode());
+
+// Optional: If you have a theme switcher, call setMarkdownTheme accordingly
+</script>
+{% endblock %}

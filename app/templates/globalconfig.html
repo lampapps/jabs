@@ -54,6 +54,9 @@
                                     <li>Region: <code>{{ global_config.aws.region or 'Not set' }}</code></li>
                                     <li>Bucket: <code>{{ global_config.aws.bucket or 'Not set' }}</code></li>
                                     <li>Storage Class: <code>{{ global_config.aws.storage_class or 'Not set' }}</code></li>
+                                    <li>Access Key: 
+                                        <a href="{{ url_for('security.security') }}">Security Settings</a>
+                                    </li>
                                 </ul>
                             </li>
                             <li><b>Encryption:</b>
@@ -67,7 +70,9 @@
                                         {% endif %}
                                     </li>
                                     <li>Method: <code>{{ global_config.encryption.method or 'Not set' }}</code></li>
-                                    <li>Passphrase Env: <code>{{ global_config.encryption.passphrase_env or 'Not set' }}</code></li>
+                                    <li>Passphrase: 
+                                        <a href="{{ url_for('security.security') }}">Security Settings</a>
+                                    </li>
                                 </ul>
                             </li>
                         </ul>
@@ -94,7 +99,7 @@
                             <li>SMTP Port: <code>{{ global_config.email.smtp_port or 'Not set' }}</code></li>
                             <li>
                               SMTP Credentials:
-                              <a href="{{ url_for('security.security') }}">Edit Security Settings</a>
+                              <a href="{{ url_for('security.security') }}">Security Settings</a>
                             </li>
                             <li>To Addresses:
                                 <ul>

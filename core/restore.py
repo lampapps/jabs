@@ -4,16 +4,13 @@ import os
 import tarfile
 import json
 import subprocess
-import time
 from typing import List, Dict, Any, Optional
 from app.utils.logger import setup_logger
 from app.utils.restore_status import set_restore_status
-from app.models.events import create_event, update_event, finalize_event, delete_event, event_exists
 
 from app.models.backup_sets import get_backup_set_by_job_and_set, list_backup_sets
-from app.models.backup_jobs import get_jobs_for_backup_set, insert_backup_job
+from app.models.backup_jobs import get_jobs_for_backup_set
 from app.models.backup_files import get_files_for_backup_set
-from app.models.db_core import get_db_connection
 
 def get_passphrase():
     """
@@ -34,16 +31,16 @@ def get_manifest_from_db(job_name: str, backup_set_id: str, logger) -> Dict[str,
     
     # Debug: List all backup sets to see what's available
     all_sets = list_backup_sets(job_name=None, limit=50)
-    logger.info(f"Debug: Found {len(all_sets)} backup sets in database:")
+    logger.debug(f"Found {len(all_sets)} backup sets in database:")
     for backup_set in all_sets:
-        logger.info(f"  - Job: '{backup_set['job_name']}', Set: '{backup_set['set_name']}'")
-    
+        logger.debug(f"  - Job: '{backup_set['job_name']}', Set: '{backup_set['set_name']}'")
+
     # Try to find backup set
     backup_set = get_backup_set_by_job_and_set(job_name, backup_set_id)
     if not backup_set:
         # Try with sanitized job name (how backup jobs typically store names)
         sanitized_job = "".join(c if c.isalnum() or c in ("-", "_") else "_" for c in job_name)
-        logger.info(f"Backup set not found with original job name '{job_name}', trying sanitized: '{sanitized_job}'")
+        logger.debug(f"Backup set not found with original job name '{job_name}', trying sanitized: '{sanitized_job}'")
         backup_set = get_backup_set_by_job_and_set(sanitized_job, backup_set_id)
         
         if not backup_set:
@@ -58,7 +55,7 @@ def get_manifest_from_db(job_name: str, backup_set_id: str, logger) -> Dict[str,
     
     # Get all files for this backup set
     files = get_files_for_backup_set(backup_set['id'])
-    logger.info(f"Loaded manifest with {len(files)} files from database.")
+    logger.debug(f"Loaded manifest with {len(files)} files from database.")
     
     # Parse config from backup set
     config = {}
@@ -122,7 +119,7 @@ def extract_file_from_tarball(tarball_path: str, member_path: str, target_path: 
     :param logger: Logger instance for logging.
     :return: (success: bool, error_message: str or None)
     """
-    logger.info(f"Extracting '{member_path}' from '{tarball_path}' to '{target_path}'")
+    logger.debug(f"Extracting '{member_path}' from '{tarball_path}' to '{target_path}'")
     
     # Check if tarball file exists
     if not os.path.exists(tarball_path):
@@ -202,10 +199,10 @@ def restore_files(
     if logger is None:
         logger = setup_logger(job_name, log_file="restore.log")
     
-    logger.info(f"PASSPHRASE loaded: {'YES' if get_passphrase() else 'NO'}")
-    logger.info(f"Starting simplified restore for job '{job_name}', backup_set_id '{backup_set_id}'")
-    logger.info(f"Files requested for restore: {files}")
-    
+    logger.debug(f"PASSPHRASE loaded: {'YES' if get_passphrase() else 'NO'}")
+    logger.debug(f"Starting simplified restore for job '{job_name}', backup_set_id '{backup_set_id}'")
+    logger.debug(f"Files requested for restore: {files}")
+
     # Track both original and effective job names for cleanup
     original_job_name = job_name
     effective_job_name = job_name
@@ -278,26 +275,14 @@ def restore_files(
             config['destination'] = '/tmp/backup'
         if 'source' not in config:
             config['source'] = '/tmp/jabs_restore'
-        
-        logger.info(f"Using config - destination: {config['destination']}, source: {config.get('source', 'not set')}")
-        
+
+        logger.debug(f"Using config - destination: {config['destination']}, source: {config.get('source', 'not set')}")
+
         # Set default restore destination if not provided
         if not dest and 'source' in config:
             dest = config['source']
         elif not dest:
             dest = "/tmp/jabs_restore"  # fallback
-
-        # Initialize event if needed
-        if not event_id:
-            event_desc = f"Restoring {len(files)} files to: {dest}"
-            event_id = create_event(
-                job_name=effective_job_name,
-                event_message=event_desc,
-                backup_type="restore",
-                encrypt=False,
-                sync=False
-            )
-            update_event(event_id, event_message=event_desc, status="running")
 
         for i, file_info in enumerate(files):
             file_path = file_info["path"]
@@ -336,23 +321,11 @@ def restore_files(
                 logger.error(f"Failed to restore {file_path}: {error}")
                 
         logger.info(f"Restore complete. Restored: {len(restored)}, Errors: {len(errors)}")
-        
-        # Update event
-        if event_id:
-            if errors:
-                status = "error"
-                event_msg = f"Restore completed with errors: {len(restored)} restored, {len(errors)} failed"
-            else:
-                status = "completed"
-                event_msg = f"Restore completed successfully: {len(restored)} files"
-            finalize_event(event_id, event_message=event_msg, runtime="-", status=status)
 
     except Exception as e:
         logger.error(f"Failed to get backup set info: {e}")
         errors.append({"file": "config", "error": str(e)})
         
-        if event_id:
-            update_event(event_id, event_message=f"Restore failed: {str(e)}", status="error")
     finally:
         # Always cleanup restore status using the original job name
         logger.info(f"Cleaning up restore status for job '{original_job_name}', backup_set '{backup_set_id}'")
@@ -395,10 +368,10 @@ def restore_full(job_name: str, backup_set_id: str, dest: Optional[str] = None, 
             return {"restored": [], "errors": [{"file": "backup_set", "error": error_msg}]}
         
         # Get all files for this backup set (we need them to determine latest versions)
-        logger.info("Loading file list from database for version resolution...")
+        logger.debug("Loading file list from database for version resolution...")
         all_files = get_files_for_backup_set(backup_set['id'])
-        logger.info(f"Loaded {len(all_files)} files from database")
-        
+        logger.debug(f"Loaded {len(all_files)} files from database")
+
         # Get jobs in the backup set
         jobs = get_jobs_for_backup_set(backup_set['id'])
         completed_jobs = [j for j in jobs if j['status'] == 'completed']
@@ -446,5 +419,4 @@ def restore_full(job_name: str, backup_set_id: str, dest: Optional[str] = None, 
             logger.info("Successfully cleaned up restore status")
         except Exception as cleanup_error:
             logger.error(f"Failed to cleanup restore status: {cleanup_error}")
-        
-    logger.info("Full restore function complete")
+    

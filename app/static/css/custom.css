@@ -80,9 +80,9 @@ thead th, tfoot th {
 }
 
 #scheduledJobsMiniChart-card {
-    height: 60px !important;
-    max-height: 60px !important;
-    min-height: 60px !important;
+    height: 79px !important;
+    max-height: 79px !important;
+    min-height: 79px !important;
     overflow: hidden;
 }
 #scheduledJobsMiniChart {

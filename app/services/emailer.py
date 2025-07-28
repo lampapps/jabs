@@ -2,7 +2,6 @@
 
 import os
 import smtplib
-import json
 import threading
 import socket
 from datetime import datetime
@@ -10,13 +9,15 @@ from email.mime.text import MIMEText
 from dotenv import load_dotenv
 from collections import Counter
 
-from app.settings import EMAIL_CONFIG, EMAIL_DIGEST_FILE
+from app.settings import EMAIL_CONFIG, ENV_PATH, ENV_MODE
 from app.utils.logger import setup_logger
+from app.models.email_digests import queue_email_digest, get_email_digest_queue, clear_email_digest_queue
 
 # Set up a dedicated logger for email notifications
 email_logger = setup_logger("email", log_file="email.log")
 
-load_dotenv()
+# Use the ENV_PATH from settings
+load_dotenv(ENV_PATH)
 
 EMAIL_DIGEST_LOCK = threading.Lock()
 
@@ -32,8 +33,8 @@ def _send_email(subject, body, html=False):
     If html is True, send as HTML email.
     """
     username, password = _get_smtp_credentials()
-    app_env = os.environ.get("APP_ENV", "").lower()
-    if app_env == "development":
+    env_mode = ENV_MODE
+    if env_mode == "development":
         subject = f"[DEV] {subject}"
     if not username:
         email_logger.error("No SMTP username found in environment variable JABS_SMTP_USERNAME.")
@@ -65,36 +66,21 @@ def _send_email(subject, body, html=False):
         return False
 
 def _queue_email(subject, body, html=False, event_type=None):
-    """Queue an email for later digest sending."""
-    with EMAIL_DIGEST_LOCK:
-        if os.path.exists(EMAIL_DIGEST_FILE):
-            with open(EMAIL_DIGEST_FILE, "r", encoding="utf-8") as f:
-                queue = json.load(f)
-        else:
-            queue = []
-        queue.append({
-            "timestamp": datetime.now().isoformat(),
-            "subject": subject,
-            "body": body,
-            "html": html,
-            "event_type": event_type,
-        })
-        with open(EMAIL_DIGEST_FILE, "w", encoding="utf-8") as f:
-            json.dump(queue, f, indent=2)
+    """Queue an email for later digest sending using the database."""
+    # No need for a lock when using the database
+    queue_email_digest(subject, body, html, event_type)
 
 def send_email_digest():
     """Send all queued emails as a single digest and clear the queue."""
     with EMAIL_DIGEST_LOCK:
-        if not os.path.exists(EMAIL_DIGEST_FILE):
-            email_logger.info("No queued emails to send in digest.")
-            return False
-        with open(EMAIL_DIGEST_FILE, "r", encoding="utf-8") as f:
-            queue = json.load(f)
+        queue = get_email_digest_queue()
         if not queue:
+            email_logger.info("No queued emails to send in digest.")
             return False
 
         # --- Build summary of event types ---
-        event_types = [item.get("event_type", "unknown") for item in queue]
+        event_types = [item.get("event_type") for item in queue]
+        event_types = [et for et in event_types if et]  # Filter out None values
         counts = Counter(event_types)
         summary_lines = [
             "Digest Summary:",
@@ -128,7 +114,8 @@ def send_email_digest():
             )
         success = _send_email(digest_subject, digest_body, html=False)
         if success:
-            os.remove(EMAIL_DIGEST_FILE)
+            # Clear the queue in the database
+            clear_email_digest_queue()
         return success
 
 def process_email_event(event_type, subject, body, html=False):
@@ -152,7 +139,7 @@ def process_email_event(event_type, subject, body, html=False):
         return False
     if mode == "digest":
         _queue_email(subject, body, html, event_type=event_type)
-        email_logger.info(f"Queued email for digest: '{subject}' (type: {event_type})")
+        email_logger.debug(f"Queued email for digest: '{subject}' (type: {event_type})")
         return True
     # If mode is immediate, send and also queue
     sent = _send_email(subject, body, html)

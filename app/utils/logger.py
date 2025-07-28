@@ -4,7 +4,7 @@ import logging
 import os
 import glob
 from datetime import datetime
-from app.settings import LOG_DIR, MAX_LOG_LINES
+from app.settings import LOG_DIR, MAX_LOG_LINES, ENV_MODE
 
 class JobNameFormatter(logging.Formatter):
     """Custom formatter to include the job name in every log message."""
@@ -30,7 +30,11 @@ def setup_logger(job_name, log_file="backup.log"):
         os.makedirs(log_dir, exist_ok=True)
 
     logger = logging.getLogger(job_name)
-    logger.setLevel(logging.INFO)
+    # Set log level based on ENV_MODE
+    if ENV_MODE == 'development':
+        logger.setLevel(logging.DEBUG)
+    else:
+        logger.setLevel(logging.INFO)
 
     # Avoid adding duplicate handlers
     if not logger.handlers:

@@ -1,6 +1,5 @@
 from datetime import datetime
-from typing import Dict, List, Optional, Any
-from app.models.db_core import get_db_connection
+from typing import Dict, Optional, Any
 from app.models.backup_sets import get_backup_set_by_job_and_set
 from app.models.backup_jobs import get_jobs_for_backup_set
 from app.models.backup_files import get_files_for_backup_set
@@ -50,48 +49,3 @@ def get_backup_set_with_jobs(job_name: str, set_name: str) -> Optional[Dict[str,
             'updated_at': updated_timestamp
         }
     }
-
-def get_dashboard_summary(job_name: Optional[str] = None) -> List[Dict[str, Any]]:
-    """Get summary data for dashboard."""
-    with get_db_connection() as conn:
-        c = conn.cursor()
-        
-        if job_name:
-            query = """
-                SELECT 
-                    bs.job_name,
-                    bs.set_name,
-                    bs.created_at,
-                    bs.updated_at,
-                    COUNT(bj.id) as total_jobs,
-                    COUNT(CASE WHEN bj.status = 'completed' THEN 1 END) as completed_jobs,
-                    SUM(bj.total_files) as total_files,
-                    SUM(bj.total_size_bytes) as total_size_bytes,
-                    MAX(bj.completed_at) as last_completed
-                FROM backup_sets bs
-                LEFT JOIN backup_jobs bj ON bs.id = bj.backup_set_id
-                WHERE bs.job_name = ?
-                GROUP BY bs.id
-                ORDER BY bs.updated_at DESC
-            """
-            c.execute(query, (job_name,))
-        else:
-            query = """
-                SELECT 
-                    bs.job_name,
-                    bs.set_name,
-                    bs.created_at,
-                    bs.updated_at,
-                    COUNT(bj.id) as total_jobs,
-                    COUNT(CASE WHEN bj.status = 'completed' THEN 1 END) as completed_jobs,
-                    SUM(bj.total_files) as total_files,
-                    SUM(bj.total_size_bytes) as total_size_bytes,
-                    MAX(bj.completed_at) as last_completed
-                FROM backup_sets bs
-                LEFT JOIN backup_jobs bj ON bs.id = bj.backup_set_id
-                GROUP BY bs.id
-                ORDER BY bs.updated_at DESC
-            """
-            c.execute(query)
-            
-        return [dict(row) for row in c.fetchall()]

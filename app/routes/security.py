@@ -4,14 +4,14 @@ import os
 import socket
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from dotenv import set_key, load_dotenv
+from app.settings import ENV_PATH, ENV_MODE
 
 security_bp = Blueprint('security', __name__)
 
 @security_bp.route("/security", endpoint="security")
 def show_security():
     """Display the security settings page."""
-    env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), ".env")
-    load_dotenv(env_path)
+    load_dotenv(ENV_PATH)
     current_passphrase = bool(os.environ.get("JABS_ENCRYPT_PASSPHRASE"))
     current_smtp_password = bool(os.environ.get("JABS_SMTP_PASSWORD"))
     current_smtp_username = os.environ.get("JABS_SMTP_USERNAME", "")
@@ -20,6 +20,7 @@ def show_security():
         current_passphrase=current_passphrase,
         current_smtp_password=current_smtp_password,
         current_smtp_username=current_smtp_username,
+        env_mode=ENV_MODE,
         hostname=socket.gethostname()
     )
 
@@ -30,9 +31,8 @@ def set_passphrase():
     if not passphrase:
         flash("Passphrase cannot be empty.", "danger")
         return redirect(url_for("security.security"))
-    env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), ".env")
-    load_dotenv(env_path)
-    set_key(env_path, "JABS_ENCRYPT_PASSPHRASE", passphrase)
+    load_dotenv(ENV_PATH)
+    set_key(ENV_PATH, "JABS_ENCRYPT_PASSPHRASE", passphrase)
     flash("Encryption passphrase updated.", "success")
     return redirect(url_for("security.security"))
 
@@ -44,9 +44,8 @@ def set_smtp_credentials():
     if not smtp_username or not smtp_password:
         flash("SMTP username and password cannot be empty.", "danger")
         return redirect(url_for("security.security"))
-    env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), ".env")
-    load_dotenv(env_path)
-    set_key(env_path, "JABS_SMTP_USERNAME", smtp_username)
-    set_key(env_path, "JABS_SMTP_PASSWORD", smtp_password)
+    load_dotenv(ENV_PATH)
+    set_key(ENV_PATH, "JABS_SMTP_USERNAME", smtp_username)
+    set_key(ENV_PATH, "JABS_SMTP_PASSWORD", smtp_password)
     flash("SMTP credentials updated.", "success")
     return redirect(url_for("security.security"))

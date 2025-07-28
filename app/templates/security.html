@@ -49,7 +49,7 @@
             <form method="post" action="{{ url_for('security.set_smtp_credentials') }}">
                 <div class="card h-100">
                     <div class="card-header d-flex justify-content-between align-items-center">
-                        <span><i class="fa fa-envelope me-2"></i> SMTP Credentials</span>
+                        <span><i class="fa fa-key me-2"></i> SMTP Credentials</span>
                         <span class="badge bg-secondary">.env</span>
                     </div>
                     <div class="card-body">
@@ -97,6 +97,47 @@
                 </div>
             </form>
         </div>
+    </div>
+
+    <div class="row mt-4">
+      <div class="col-12 col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="fa fa-key me-2"></i> AWS Access Key Setup</span>
+                <span class="badge bg-secondary">.env</span>
+            </div>
+          <div class="card-body">
+            <h5 class="card-title">Configure AWS Credentials</h5>
+            <p class="card-text">
+              To enable S3 sync, you must have AWS CLI installed and provide AWS credentials. You can do this in two ways:
+            </p>
+            <ol>
+              <li>
+                <b>Via AWS CLI:</b>
+                <br>
+                Run <code>aws configure</code> in your terminal and follow the prompts to set your <b>Access Key ID</b> and <b>Secret Access Key</b>.
+              </li>
+              <li>
+                <b>Via .env file:</b>
+                <br>
+                Add the following lines to your <code>.env</code> file:
+<pre>
+AWS_ACCESS_KEY_ID=your_access_key_id
+AWS_SECRET_ACCESS_KEY=your_secret_access_key
+</pre>
+                <span class="text-muted small">
+                    <i class="fa fa-info-circle"></i>
+                    This option must be used if you run the scheduler using root privileges, as the AWS CLI will not have access to the user's credentials.
+                </span>
+              </li>
+            </ol>
+            <p class="text-muted small">
+              <i class="fa fa-info-circle"></i>
+              For best security, never share your AWS credentials. Use IAM roles with limited permissions if possible.
+            </p>
+          </div>
+        </div>
+      </div>
     </div>
 </div>
 {% endblock %}

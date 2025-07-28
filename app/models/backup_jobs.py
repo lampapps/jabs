@@ -1,6 +1,6 @@
 import time
 import sqlite3
-from typing import List, Dict, Optional, Any
+from typing import List, Optional
 from app.models.db_core import get_db_connection
 
 def insert_backup_job(
@@ -33,19 +33,28 @@ def finalize_backup_job(
     event_message: str = None,
     error_message: str = None,
     total_files: int = 0,
-    total_size_bytes: int = 0
+    total_size_bytes: int = 0,
+    runtime_seconds: Optional[int] = None
 ):
     """Update backup job when completed."""
     if completed_at is None:
         completed_at = time.time()
         
-    # Calculate runtime
+    # Calculate runtime if not explicitly provided
+    if runtime_seconds is None:
+        with get_db_connection() as conn:
+            c = conn.cursor()
+            c.execute("SELECT started_at FROM backup_jobs WHERE id = ?", (job_id,))
+            row = c.fetchone()
+            runtime_seconds = int(completed_at - row['started_at']) if row else 0
+            
+    # Ensure runtime is at least 1 second if job completed successfully
+    # This prevents "00:00:00" display for very short successful jobs
+    if status == "completed" and runtime_seconds == 0:
+        runtime_seconds = 1
+        
     with get_db_connection() as conn:
         c = conn.cursor()
-        c.execute("SELECT started_at FROM backup_jobs WHERE id = ?", (job_id,))
-        row = c.fetchone()
-        runtime_seconds = int(completed_at - row['started_at']) if row else 0
-        
         c.execute("""
             UPDATE backup_jobs 
             SET completed_at = ?, status = ?, event_message = ?, error_message = ?, 
@@ -54,6 +63,7 @@ def finalize_backup_job(
         """, (completed_at, status, event_message, error_message, runtime_seconds, 
               total_files, total_size_bytes, job_id))
         conn.commit()
+        return c.rowcount > 0
 
 def get_backup_job(job_id: int) -> Optional[sqlite3.Row]:
     """Get a backup job by ID."""
@@ -78,14 +88,15 @@ def get_last_backup_job(
     backup_type: Optional[str] = None,
     completed_only: bool = True
 ) -> Optional[sqlite3.Row]:
-    """Get the most recent backup job for a job name."""
+    """Get the most recent backup job for a job name, ignoring restore jobs."""
     with get_db_connection() as conn:
         c = conn.cursor()
         query = """
-            SELECT bj.*, bs.job_name, bs.set_name 
+            SELECT bj.*, bs.job_name, bs.set_name, bs.id as backup_set_id
             FROM backup_jobs bj
             JOIN backup_sets bs ON bj.backup_set_id = bs.id
             WHERE bs.job_name = ?
+              AND bj.backup_type != 'restore'
         """
         params = [job_name]
         
@@ -103,3 +114,11 @@ def get_last_backup_job(
 def get_last_full_backup_job(job_name: str) -> Optional[sqlite3.Row]:
     """Get the most recent completed full backup job for a job name."""
     return get_last_backup_job(job_name, backup_type="full", completed_only=True)
+
+def update_job_sync_status(job_id: int, synced: bool):
+    """Update the synced status of a backup job."""
+    with get_db_connection() as conn:
+        c = conn.cursor()
+        c.execute("UPDATE backup_jobs SET synced = ? WHERE id = ?", (synced, job_id))
+        conn.commit()
+        return c.rowcount > 0

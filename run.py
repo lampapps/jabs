@@ -5,21 +5,37 @@ import secrets
 import logging
 import socket
 from dotenv import load_dotenv
-from app.settings import LOG_DIR
+from app.settings import LOG_DIR, ENV_PATH
 from app.utils.logger import ensure_dir
 from app import create_app
 from app.models.db_core import init_db
 
-env_path = os.path.join(os.path.dirname(__file__), ".env")
+env_path = ENV_PATH
 if not os.path.exists(env_path):
     with open(env_path, "w", encoding="utf-8") as f:
         pass  # Create an empty .env file
 
-# Load .env file (by default, looks in current directory)
-load_dotenv(env_path)
+# Load .env file
+load_dotenv(ENV_PATH)
 
 # Get the passphrase
 PASSPHRASE = os.getenv("JABS_ENCRYPT_PASSPHRASE")
+
+# Check for AWS credentials
+AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
+AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
+
+# Set AWS credentials as environment variables if they exist in .env
+# This makes them available to the AWS CLI when run by any user (including root)
+if AWS_ACCESS_KEY_ID:
+    os.environ["AWS_ACCESS_KEY_ID"] = AWS_ACCESS_KEY_ID
+if AWS_SECRET_ACCESS_KEY:
+    os.environ["AWS_SECRET_ACCESS_KEY"] = AWS_SECRET_ACCESS_KEY
+
+# Get AWS profile from environment
+AWS_PROFILE = os.getenv("AWS_PROFILE")
+if AWS_PROFILE:
+    os.environ["AWS_PROFILE"] = AWS_PROFILE
 
 # Generate a random secret key if not set
 if "JABS_SECRET_KEY" not in os.environ:
@@ -95,7 +111,16 @@ if __name__ == "__main__":
         # Wrap your app with the access log middleware
         app_with_access_log = AccessLogMiddleware(app)
 
-        serve(app_with_access_log, host="0.0.0.0", port=5000)
+        try:
+            serve(app_with_access_log, host="0.0.0.0", port=5000)
+        except OSError as e:
+            if hasattr(e, 'errno') and e.errno == 98:
+                print("ERROR: Server is already running on port 5000.")
+                print("Stop the existing server or use a different port.")
+                exit(1)
+            else:
+                raise
+
     except ImportError:
         print("Waitress is not installed. Falling back to Flask's built-in server.")
 
@@ -111,4 +136,12 @@ if __name__ == "__main__":
         print("\nTo stop the server, press Ctrl+C in this terminal.")
         print("="*60 + "\n")
 
-        app.run(host="0.0.0.0", port=5000, debug=True)
+        try:
+            app.run(host="0.0.0.0", port=5000, debug=True)
+        except OSError as e:
+            if hasattr(e, 'errno') and e.errno == 98:
+                print("ERROR: Server is already running on port 5000.")
+                print("Stop the existing server or use a different port.")
+                exit(1)
+            else:
+                raise

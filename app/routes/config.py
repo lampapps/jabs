@@ -6,7 +6,7 @@ import socket
 from flask import Blueprint, render_template, request, redirect, url_for, abort, flash
 from dotenv import load_dotenv
 from cron_descriptor import get_description
-from app.settings import JOBS_DIR, GLOBAL_CONFIG_PATH
+from app.settings import JOBS_DIR, GLOBAL_CONFIG_PATH, ENV_PATH, ENV_MODE
 
 config_bp = Blueprint('config', __name__)
 
@@ -15,8 +15,7 @@ def show_global_config():
     """Display the global configuration."""
     with open(GLOBAL_CONFIG_PATH, encoding="utf-8") as f:
         global_config = yaml.safe_load(f)
-    env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), ".env")
-    load_dotenv(env_path)
+    load_dotenv(ENV_PATH)
     current_passphrase = bool(os.environ.get("JABS_ENCRYPT_PASSPHRASE"))
 
     digest_cron = global_config.get("email", {}).get("digest_email_schedule")
@@ -44,6 +43,7 @@ def show_global_config():
         digest_cron_human=digest_cron_human,
         common_exclude_raw=common_exclude_raw,
         common_exclude_error=common_exclude_error,
+        env_mode=ENV_MODE,
         hostname=socket.gethostname()
     )
 
@@ -60,7 +60,6 @@ def save_global():
     flash("Global configuration saved.", "success")
     return redirect(url_for("config.config"))
 
-# Example Flask route
 @config_bp.route('/edit/<filename>', methods=['GET', 'POST'])
 def edit_config(filename):
     """Edit a configuration file."""
@@ -88,6 +87,7 @@ def edit_config(filename):
         raw_data=loaded_yaml,
         cancel_url=cancel_url,
         error=error_message,
+        env_mode=ENV_MODE,
         hostname=socket.gethostname()
     )
 

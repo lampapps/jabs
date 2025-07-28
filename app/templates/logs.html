@@ -13,7 +13,7 @@
 {% block content %}
 <div class="container-fluid my-4">
     <div class="d-flex justify-content-between align-items-center mb-4" style="max-width: 1300px; margin-left: auto; margin-right: auto;">
-        <h1 class="mb-0">Logs</h1>
+        <h2 class="mb-0">Logs</h2>
         <button id="trimLogsButton" class="btn btn-danger btn-sm">
             <i class="fa fa-scissors"></i> Trim All Logs
         </button>
@@ -70,10 +70,13 @@
                             <span class="badge bg-secondary">Lines: {{ stats.total }}</span>
                             <span class="badge bg-success">Info: {{ stats.info }}</span>
                             <span class="badge bg-warning text-dark">Warning: {{ stats.warning }}</span>
-                            <span class="badge bg-danger">Error: {{ stats.error }}</span>
+                            {% if stats.debug > 0 %}
+                            <span class="badge bg-primary">Debug: {{ stats.debug }}</span>
+                            {% endif %}
                             {% if stats.other > 0 %}
                             <span class="badge bg-dark">Other: {{ stats.other }}</span>
                             {% endif %}
+                            <span class="badge bg-danger">Error: {{ stats.error }}</span>
                         {% endif %}
                     </div>
 <pre class="bg-light text-dark p-2 rounded"

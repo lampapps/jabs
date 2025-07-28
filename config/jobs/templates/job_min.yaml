@@ -4,8 +4,8 @@ job_name: "Example Name"  # The name of the backup job (used for logging and org
 source: "/path/to/source" # The source directory to back up
 
 schedules:
-  - cron: "0 2 * * 7"    # Runs at 2:00 AM, every Sunday
-    type: "full"         # full or diff
+  - cron: "0 2 * * 0"    # Runs at 2:00 AM, every Sunday
+    type: "full"         # full, diff, or incremental
     enabled: false       # true or false
 
   - cron: "0 2 * * 1-6"  # Runs at 2:00 AM, Monday to Saturday
@@ -17,3 +17,6 @@ schedules:
   #enabled: false          # true or false, false can be overridden by CLI
 #aws:
   #enabled: false          # true or false, false can be overridden by CLI
+
+# exclude:
+#  - "Pictures/"

@@ -149,7 +149,9 @@
         <div class="col-12">
             <!-- Backup/Restore mini chart -->
             <div class="card mb-3" id="scheduledJobsMiniChart-card">
-                <canvas id="scheduledJobsMiniChart" class="p-1" height="60"></canvas>
+                <div class="py-2 px-3">
+                    <canvas id="scheduledJobsMiniChart"></canvas>
+                </div>
                 <div id="scheduledJobsMiniChart-nodata" class="text-muted small text-center py-2" style="display:none;">
                     No scheduler data yet.
                 </div>
@@ -159,7 +161,7 @@
             <div class="card mb-4">
                 <div class="card-header d-flex align-items-center justify-content-between">
                     <span>
-                        <i class="fa-regular fa-clock me-1"></i> Event Log
+                        <i class="fa-regular fa-clock me-1"></i> Backup Jobs
                     </span>
                     <button class="btn btn-danger btn-sm" id="delete-selected-btn" title="Delete selected events from the event log">
                         Delete Selected

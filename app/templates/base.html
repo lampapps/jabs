@@ -38,7 +38,7 @@
           <a class="navbar-brand ps-3" href="/">&#123; JABS &#125;</a>
           <!-- Mobile Icons (Visible on xs, sm screens) -->
           <span class="nav-item d-md-none ms-auto me-2" title="Scheduler Status">
-              {% include 'partials/development_env_banner.html' %}
+              {% include 'partials/development_mode_banner.html' %}
               <a href="{{ url_for('dashboard.scheduler') }}" title="Scheduler">
                   <i id="schedulerStatusIconMobile" class="fas fa-question-circle text-secondary fa-lg"></i>
               </a>
@@ -61,7 +61,7 @@
                 </a>
               </li>
               <li>
-                <a class="nav-link {% if request.endpoint == 'dashboard.repository' %}active{% endif %}" href="{{ url_for('dashboard.repository') }}">
+                <a class="nav-link {% if request.endpoint == 'repository.repository' %}active{% endif %}" href="{{ url_for('repository.repository') }}">
                   Repository
                 </a>
               </li>
@@ -119,6 +119,11 @@
                     </a>
                   </li>
                   <li>
+                    <a class="dropdown-item {% if request.endpoint == 'dashboard.license' %}active{% endif %}" href="{{ url_for('dashboard.license') }}">
+                      <i class="fas fa-file-contract me-1"></i> License
+                    </a>
+                  </li>
+                  <li>
                     <a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#aboutModal">
                       <i class="fas fa-info-circle me-1"></i> About
                     </a>
@@ -148,8 +153,8 @@
                 </li>
             </ul>
             <ul class="navbar-nav d-none d-md-flex ms-auto align-items-center me-3">
-                <!-- Desktop Icons -->
-                <li>{% include 'partials/development_env_banner.html' %}</li>
+                <!-- Nav Bar Icons Icons -->
+                <li>{% include 'partials/development_mode_banner.html' %}</li>
                 <li class="nav-item me-2" title="Scheduler Status">
                     <a href="{{ url_for('dashboard.scheduler') }}" title="Scheduler">
                         <span title="Scheduler Status">
@@ -203,7 +208,7 @@
             <div class="d-flex align-items-center justify-content-between small">
                 <div>
                     Open Source under the
-                    <a href="https://opensource.org/licenses/MIT" target="_blank" class="text-secondary">MIT License</a>
+                    <a href="{{ url_for('dashboard.license') }}" class="text-secondary">MIT License</a>
                 </div>
                 <div>
                     <a href="https://github.com/lampapps" target="_blank" class="text-secondary">
@@ -234,7 +239,7 @@
             <div class="mt-3">
               <small>
                 Open Source under the
-                <a href="https://opensource.org/licenses/MIT" target="_blank">MIT License</a>
+                <a href="{{ url_for('dashboard.license') }}">MIT License</a>
               </small>
             </div>
           </div>

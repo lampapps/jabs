@@ -13,9 +13,9 @@ def get_all_files(src, exclude_patterns):
     Uses the improved should_exclude function to properly handle directory patterns.
     """
     file_list = []
-    logger = setup_logger("backup")
-    logger.info(f"Starting file collection with {len(exclude_patterns)} exclusion patterns")
-    
+    logger = setup_logger("backup") #debug, need to add job name instead of backup
+    logger.debug(f"Starting file collection with {len(exclude_patterns)} exclusion patterns")
+
     # Collect all excluded directories for debugging
     excluded_dirs = []
     excluded_files = []
@@ -32,7 +32,7 @@ def get_all_files(src, exclude_patterns):
             
             # Check if directory should be excluded using the patterns
             if should_exclude(dir_path, exclude_patterns, src):
-                logger.info(f"EXCLUDING directory: {rel_dir}")
+                #logger.info(f"EXCLUDING directory: {rel_dir}")
                 dirs.pop(i)  # Remove from dirs to prevent traversal
                 excluded_dirs.append(rel_dir)
             else:
@@ -45,15 +45,15 @@ def get_all_files(src, exclude_patterns):
             
             # Check if file should be excluded
             if should_exclude(file_path, exclude_patterns, src):
-                logger.info(f"EXCLUDING file: {rel_file}")
+                #logger.info(f"EXCLUDING file: {rel_file}")
                 excluded_files.append(rel_file)
             else:
                 file_list.append(file_path)
     
-    logger.info(f"Excluded directories: {len(excluded_dirs)}")
-    logger.info(f"Excluded files: {len(excluded_files)}")
-    logger.info(f"Including files: {len(file_list)}")
-    
+    logger.debug(f"Excluded directories: {len(excluded_dirs)}")
+    logger.debug(f"Excluded files: {len(excluded_files)}")
+    logger.debug(f"Including files: {len(file_list)}")
+
     return file_list
 
 def get_new_or_modified_files(src, manifest_path, exclude_patterns=None):
@@ -125,7 +125,7 @@ def create_tar_archives(files, dest_tar_dir, max_tarball_size_mb, logger, backup
             continue
         if current_tar_size + file_size > max_tarball_size and current_tar_size > 0:
             tar.close()
-            logger.info(f"Tarball created: {current_tar_path} (size: {current_tar_size} bytes)")
+            logger.debug(f"Tarball created: {current_tar_path} (size: {current_tar_size} bytes)")
             tarball_index += 1
             current_tar_path = os.path.join(
                 dest_tar_dir, f"{backup_type}_part_{tarball_index}_{timestamp_str}.tar.gz"
@@ -137,7 +137,7 @@ def create_tar_archives(files, dest_tar_dir, max_tarball_size_mb, logger, backup
         current_tar_size += file_size
 
     tar.close()
-    logger.info(f"Tarball created: {current_tar_path} (size: {current_tar_size} bytes)")
+    logger.debug(f"Tarball created: {current_tar_path} (size: {current_tar_size} bytes)")
     return tarball_paths
 
 def find_latest_backup_set(job_dst):
@@ -183,22 +183,22 @@ def should_exclude(path, exclude_patterns, src=None):
             
         # Check if this path exactly matches the pattern
         if rel_path_norm.rstrip('/') == pattern:
-            logger.info(f"EXCLUDED: '{rel_path}' exactly matches pattern '{orig_pattern}'")
+            # logger.info(f"EXCLUDED: '{rel_path}' exactly matches pattern '{orig_pattern}'")
             return True
             
         # Check if this path starts with pattern/ (directory prefix match)
         if is_dir_pattern and rel_path_norm.startswith(f"{pattern}/"):
-            logger.info(f"EXCLUDED: '{rel_path}' is in directory '{orig_pattern}'")
+            # logger.info(f"EXCLUDED: '{rel_path}' is in directory '{orig_pattern}'")
             return True
             
         # Check for basename matches (filename only)
         if fnmatch.fnmatch(os.path.basename(path), pattern):
-            logger.info(f"EXCLUDED: '{rel_path}' basename matches '{orig_pattern}'")
+            # logger.info(f"EXCLUDED: '{rel_path}' basename matches '{orig_pattern}'")
             return True
             
         # Check for direct glob matches on the whole path
         if fnmatch.fnmatch(rel_path_norm, pattern):
-            logger.info(f"EXCLUDED: '{rel_path}' glob matches '{orig_pattern}'")
+            # logger.info(f"EXCLUDED: '{rel_path}' glob matches '{orig_pattern}'")
             return True
             
         # Handle ** wildcard patterns for matching any directory level
@@ -225,3 +225,61 @@ def should_exclude(path, exclude_patterns, src=None):
                     return True
     
     return False
+
+def get_merged_exclude_patterns(config, global_config=None, job_config_path=None, logger=None):
+    """
+    Get merged exclude patterns from common exclude file and job-specific patterns.
+    
+    Args:
+        config: Job configuration dictionary
+        global_config: Global configuration dictionary (optional)
+        job_config_path: Path to the job config file (needed to locate common_exclude.yaml)
+        logger: Logger instance for logging
+        
+    Returns:
+        List of merged exclude patterns
+    """
+    import yaml
+    exclude_patterns = []
+    
+    # First check if use_common_exclude is set in job config or inherited from global config
+    use_common = config.get("use_common_exclude", False)
+    if global_config:
+        use_common = config.get("use_common_exclude", global_config.get("use_common_exclude", False))
+    
+    # Log the use_common_exclude setting if logger is provided
+    if logger:
+        #logger.info(f"use_common_exclude setting: {use_common}") debug
+        if global_config and "use_common_exclude" in global_config:
+            logger.debug(f"Global use_common_exclude setting: {global_config.get('use_common_exclude')}")
+    
+    if use_common:
+        # Load common_exclude.yaml
+        common_exclude_path = os.path.join(os.path.dirname(job_config_path or ""), "..", "common_exclude.yaml")
+
+        try:
+            with open(common_exclude_path, "r", encoding="utf-8") as f:
+                common_excludes = yaml.safe_load(f)
+            if isinstance(common_excludes, dict):
+                exclude_patterns.extend(common_excludes.get("exclude", []))
+            elif isinstance(common_excludes, list):
+                exclude_patterns.extend(common_excludes)
+            if logger:
+                logger.debug(f"Loaded {len(exclude_patterns)} common exclude patterns")
+        except Exception as e:
+            if logger:
+                logger.warning(f"Could not load common_exclude.yaml: {e}")
+
+    # Add job-specific excludes
+    job_excludes = config.get("exclude", [])
+    exclude_patterns.extend(job_excludes)
+    if logger:
+        logger.debug(f"Added {len(job_excludes)} job-specific exclude patterns")
+
+    # Also add any legacy 'exclude_patterns' key. debug - is this needed?
+    legacy_excludes = config.get("exclude_patterns", [])
+    exclude_patterns.extend(legacy_excludes)
+    if legacy_excludes and logger:
+        logger.debug(f"Added {len(legacy_excludes)} legacy exclude patterns")
+    
+    return exclude_patterns

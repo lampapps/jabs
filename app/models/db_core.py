@@ -1,7 +1,5 @@
 import sqlite3
-import time
 import os
-from typing import List, Dict, Optional, Any, Tuple
 from app.settings import DB_PATH
 from contextlib import contextmanager
 
@@ -30,6 +28,8 @@ def init_db(db_path: str = DB_PATH):
         _create_backup_sets_table(c)
         _create_backup_jobs_table(c)
         _create_backup_files_table(c)
+        _create_scheduler_events_table(c)
+        _create_email_digests_table(c)
         _create_indexes(c)
         
         # Create the events view
@@ -88,6 +88,29 @@ def _create_backup_files_table(cursor):
         is_modified BOOLEAN DEFAULT 0,    -- True for modified files (incremental/diff)
         FOREIGN KEY (backup_job_id) REFERENCES backup_jobs(id) ON DELETE CASCADE
     );
+    """)
+
+def _create_scheduler_events_table(cursor):
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS scheduler_events (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        datetime TEXT NOT NULL,
+        job_name TEXT NOT NULL,
+        backup_type TEXT,
+        status TEXT NOT NULL
+    )
+    """)
+
+def _create_email_digests_table(cursor):
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS email_digests (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        timestamp TEXT NOT NULL,          -- ISO format timestamp
+        subject TEXT NOT NULL,
+        body TEXT NOT NULL,
+        html BOOLEAN DEFAULT 0,
+        event_type TEXT
+    )
     """)
 
 def _create_indexes(cursor):

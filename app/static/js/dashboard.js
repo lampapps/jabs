@@ -25,7 +25,7 @@ $(document).ready(function () {
             {
                 // This column will render the link to the manifest or just the event text
                 data: 'event',
-                title: 'Event/Manifest',
+                title: 'Event',
                 render: function (data, type, row) { // 'data' is now the 'event' text
                     // Check if this is a backup type that has a manifest
                     const hasManifest = ['full', 'incremental', 'differential', 'diff', 'dryrun'].includes(row.backup_type?.toLowerCase());
@@ -517,15 +517,8 @@ $(document).ready(function () {
         fetch("/data/dashboard/scheduler_events.json")
             .then(r => r.json())
             .then(data => {
-                if (!Array.isArray(data) || data.length === 0) {
-                    if (card) card.style.maxHeight = "60px";
-                    if (nodata) nodata.style.display = "";
-                    if (canvas) canvas.style.display = "none";
-                    return;
-                }
-                if (card) card.style.maxHeight = "";
-                if (nodata) nodata.style.display = "none";
-                if (canvas) canvas.style.display = "";
+                // Reverse the data so newest events are on the right
+                data = data.slice().reverse();
 
                 // Build bar colors: blue for "No jobs", red for error, green for success
                 const barColors = data.map(event => {

@@ -105,7 +105,6 @@
                     <div id="collapseTwo" class="accordion-collapse collapse" aria-labelledby="headingTwo" data-bs-parent="#backupArchivesAccordion">
                         <div class="accordion-body px-2 py-3">
                             <ul class="list-group list-group-flush shadow-sm rounded-3">
-                                {% block tarball_size %}
                                 <!-- Total Size Row: strong contrast for both themes -->
                                 <li class="list-group-item d-flex align-items-center justify-content-between bg-light-subtle border small">
                                     <span class="d-flex align-items-center">
@@ -128,7 +127,6 @@
                                         </span>
                                     </li>
                                 {% endfor %}
-                                {% endblock %}
                             </ul>
                             {% if tarball_summary|length == 0 %}
                                 <p class="text-center text-muted mt-3">No backup archives found or summary not available.</p>
@@ -161,7 +159,6 @@
                                         <li><b>AWS:</b>
                                             <ul>
                                                 <li>Enabled: <code>{{ used_config.get('aws', {}).get('enabled', 'Not set') }}</code></li>
-                                                <li>Profile: <code>{{ used_config.get('aws', {}).get('profile', 'Not set') }}</code></li>
                                                 <li>Region: <code>{{ used_config.get('aws', {}).get('region', 'Not set') }}</code></li>
                                                 <li>Bucket: <code>{{ used_config.get('aws', {}).get('bucket', 'Not set') }}</code></li>
                                                 <li>Storage Class: <code>{{ used_config.get('aws', {}).get('storage_class', 'Not set') }}</code></li>
@@ -194,7 +191,6 @@
             </div>
         </div>
     </div>
-    <!-- The rest of your page, e.g. the manifest table card, goes here -->
     <div class="card mb-4">
         <div class="card-header">
             All Files in Backup Set Relative to <code>{{ used_config.get('source', 'Not set') }}...</code>

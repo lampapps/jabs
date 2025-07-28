@@ -1,18 +1,8 @@
-<!-- markdownlint-disable MD024 -->
-# To do
+## To do
 
-- fix scheduler file not found in new installs
 - Periodic refresh badges and monitor.html
-- Edit external badges (cronitor) from inside flask
-- error in setup, needed to install apt install python3.12-venv
-- Repository is running away
-- destination path in global requires trailing slash '/'
-- error of missing "" in excludes in job.yaml were not caught
-- add excludes to job_min template and fix the required "example/" in the full version, it is missing ""
-- requirements.txt version were not compatable with pip or python on jim-imac, but they were on P3Tiny, errored when loading with python3.8 and pip 25.0.1
-- add cross platform locking with portalocker
-- incremental did not honor job specific excludes, specidicly Videos
-- incremental did not updates events when reverted to full backup due to no full backup found
+- enable monitoring true | false has no effect
+- store aws credentials in .env so root user has access to run jabs that sync
 
 ## v0.7.3
 
@@ -27,7 +17,6 @@
 
 - Error if AWS credentials are not set. Now gracefully returns prompt.
 - setup.sh to handle renaming example configuration files if needed
-- froze pip installs to current version in requirements.txt
 
 ## v0.7.1
 
