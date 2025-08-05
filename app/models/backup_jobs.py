@@ -1,3 +1,7 @@
+"""Database operations for backup job records in JABS.
+
+Provides functions to insert, update, finalize, and query backup job metadata.
+"""
 import time
 import sqlite3
 from typing import List, Optional
@@ -14,7 +18,7 @@ def insert_backup_job(
     """Insert a new backup job."""
     if started_at is None:
         started_at = time.time()
-        
+
     with get_db_connection() as conn:
         c = conn.cursor()
         c.execute("""
@@ -27,9 +31,9 @@ def insert_backup_job(
         return c.lastrowid
 
 def finalize_backup_job(
-    job_id: int, 
-    completed_at: float = None, 
-    status: str = "completed", 
+    job_id: int,
+    completed_at: float = None,
+    status: str = "completed",
     event_message: str = None,
     error_message: str = None,
     total_files: int = 0,
@@ -39,7 +43,7 @@ def finalize_backup_job(
     """Update backup job when completed."""
     if completed_at is None:
         completed_at = time.time()
-        
+
     # Calculate runtime if not explicitly provided
     if runtime_seconds is None:
         with get_db_connection() as conn:
@@ -47,12 +51,12 @@ def finalize_backup_job(
             c.execute("SELECT started_at FROM backup_jobs WHERE id = ?", (job_id,))
             row = c.fetchone()
             runtime_seconds = int(completed_at - row['started_at']) if row else 0
-            
+
     # Ensure runtime is at least 1 second if job completed successfully
     # This prevents "00:00:00" display for very short successful jobs
     if status == "completed" and runtime_seconds == 0:
         runtime_seconds = 1
-        
+
     with get_db_connection() as conn:
         c = conn.cursor()
         c.execute("""
@@ -60,7 +64,7 @@ def finalize_backup_job(
             SET completed_at = ?, status = ?, event_message = ?, error_message = ?, 
                 runtime_seconds = ?, total_files = ?, total_size_bytes = ?
             WHERE id = ?
-        """, (completed_at, status, event_message, error_message, runtime_seconds, 
+        """, (completed_at, status, event_message, error_message, runtime_seconds,
               total_files, total_size_bytes, job_id))
         conn.commit()
         return c.rowcount > 0
@@ -99,14 +103,14 @@ def get_last_backup_job(
               AND bj.backup_type != 'restore'
         """
         params = [job_name]
-        
+
         if backup_type:
             query += " AND bj.backup_type = ?"
             params.append(backup_type)
-            
+
         if completed_only:
             query += " AND bj.status = 'completed'"
-            
+
         query += " ORDER BY bj.started_at DESC LIMIT 1"
         c.execute(query, params)
         return c.fetchone()

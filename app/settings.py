@@ -2,9 +2,10 @@
 
 import os
 import sys
+from datetime import timedelta
 import yaml
 
-from datetime import timedelta
+
 
 VERSION = "v0.8.0 beta"
 
@@ -55,4 +56,3 @@ with open(GLOBAL_CONFIG_PATH, "r", encoding="utf-8") as f:
     GLOBAL_CONFIG = yaml.safe_load(f)
 
 EMAIL_CONFIG = GLOBAL_CONFIG.get("email", {})
-

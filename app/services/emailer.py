@@ -5,9 +5,10 @@ import smtplib
 import threading
 import socket
 from datetime import datetime
+from collections import Counter
 from email.mime.text import MIMEText
 from dotenv import load_dotenv
-from collections import Counter
+from dateutil.parser import parse as parse_dt
 
 from app.settings import EMAIL_CONFIG, ENV_PATH, ENV_MODE
 from app.utils.logger import setup_logger
@@ -90,7 +91,6 @@ def send_email_digest():
             summary_lines.append(f"  {event_type}: {count}")
 
         # --- Calculate time frame ---
-        from dateutil.parser import parse as parse_dt
         timestamps = [parse_dt(item["timestamp"]) for item in queue if "timestamp" in item]
         if timestamps:
             start_time = min(timestamps)

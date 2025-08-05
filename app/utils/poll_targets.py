@@ -1,6 +1,17 @@
+"""Utility for polling remote JABS targets and collecting heartbeat status."""
+
 import requests
 
 def poll_targets(targets):
+    """
+    Poll a list of targets for their heartbeat status.
+
+    Args:
+        targets (list): List of dicts with 'name' and 'url' keys.
+
+    Returns:
+        list: List of dicts with polling results for each target.
+    """
     results = []
     for t in targets:
         url = t['url']
@@ -10,7 +21,6 @@ def poll_targets(targets):
             url = url.rstrip('/') + '/api/heartbeat'
         try:
             resp = requests.get(url, timeout=5)
-            status_code = resp.status_code
             ok = False
             details = {}
             # Try to parse JABS heartbeat JSON
@@ -18,9 +28,9 @@ def poll_targets(targets):
                 data = resp.json()
                 ok = data.get('status') == 'ok'
                 details = data
-            except Exception:
+            except (ValueError, requests.exceptions.JSONDecodeError):
                 ok = False
-        except Exception as e:
+        except (requests.exceptions.RequestException, Exception) as e:
             ok = False
             details = {"error": str(e)}
         results.append({

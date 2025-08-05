@@ -1,8 +1,9 @@
 """Routes for configuration management in JABS."""
 
 import os
-import yaml
 import socket
+import yaml
+
 from flask import Blueprint, render_template, request, redirect, url_for, abort, flash
 from dotenv import load_dotenv
 from cron_descriptor import get_description
@@ -23,7 +24,7 @@ def show_global_config():
     if digest_cron:
         try:
             digest_cron_human = get_description(digest_cron)
-        except Exception:  
+        except Exception:
             digest_cron_human = "Invalid cron expression"
 
     # --- Add this block for common_exclude.yaml ---
@@ -120,4 +121,3 @@ def save_config(filename):
         f.write(new_content)
     flash("Configuration saved.", "success")
     return redirect(next_url)
-

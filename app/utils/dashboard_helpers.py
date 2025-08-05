@@ -36,7 +36,7 @@ def load_config(config_path):
     except Exception as e:  # pylint: disable=broad-except
         print(f"Error loading config file {config_path}: {e}")
         return None
-    
+
 def ensure_minimum_scheduler_events():
     """
     Ensure the scheduler_events table has at least MAX_SCHEDULER_EVENTS events.

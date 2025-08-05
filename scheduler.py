@@ -73,12 +73,12 @@ def should_trigger(cron_expr, now):
         cron = croniter(cron_expr, now)
         prev_run_time = cron.get_prev(datetime)
         next_run_time = cron.get_next(datetime)
-        
+
         # We need to check if now is close to the previous execution time
         # AND that it's not just the next scheduled time minus our window
         time_since_prev = now - prev_run_time
         time_until_next = next_run_time - now
-        
+
         # Only match if we're within tolerance of the previous time
         # AND we're closer to the previous time than the next time
         return (time_since_prev < SCHEDULE_TOLERANCE) and (time_since_prev < time_until_next), prev_run_time
@@ -136,7 +136,7 @@ def call_cli_run_job(config_path, backup_type, encrypt=False, sync=False):
         spec = importlib.util.spec_from_file_location("cli", CLI_SCRIPT)
         cli_module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(cli_module)
-        
+
         # Call the run_job function directly
         logger.info(f"Calling cli.run_job({config_path}, {backup_type}, encrypt={encrypt}, sync={sync})")
         result = cli_module.run_job(config_path, backup_type, encrypt=encrypt, sync=sync)
@@ -155,7 +155,7 @@ def main():
         logger.info("No configuration files found in %s", os.path.join(CONFIG_DIR, "jobs"))
         logger.info("--- Scheduler Check Finished ---")
         return
-    
+
     global_config = load_yaml_config(GLOBAL_CONFIG_PATH)
 
     # --- Check and start digest email in a separate thread if needed ---
@@ -172,34 +172,33 @@ def main():
         # Process each job config
         for config_path in config_files:
             job_name_from_file = os.path.splitext(os.path.basename(config_path))[0]
-            
+
             # Load the job config
             config = load_yaml_config(config_path)
             if not config:
                 logger.warning(f"Config file is empty or invalid: {config_path}")
                 continue
-            
+
             job_name = config.get("job_name", job_name_from_file)
             schedules = config.get('schedules', [])
             if not schedules:
                 logger.debug(f"No schedules defined in {config_path}")
                 continue
-            
+
             # Check if any schedule matches
             for schedule in schedules:
                 cron_expr = schedule.get('cron')
                 enabled = schedule.get('enabled', False)
                 backup_type = schedule.get('type', 'full')
-                
+
                 if not enabled or not cron_expr:
                     continue
-                    
-                matched_result = should_trigger(cron_expr, now)  # Get the tuple
-                matched, prev_run_time = matched_result  # Unpack the tuple
-                if matched:  # Now correctly checks the boolean value
+
+                matched, prev_run_time = should_trigger(cron_expr, now)
+                if matched:
                     # We have a match! Let's call the CLI directly
                     backup_type = backup_type.lower()
-                    
+
                     # Normalize backup type
                     if backup_type in ["diff", "differential"]:
                         backup_type = "differential"
@@ -207,21 +206,21 @@ def main():
                         backup_type = "incremental"
                     else:
                         backup_type = "full"
-                    
+
                     # Properly merge configs the same way the CLI does
                     # First, copy the nested dictionaries
                     merged_aws = merge_dicts(global_config.get("aws"), config.get("aws"))
                     merged_encryption = merge_dicts(global_config.get("encryption"), config.get("encryption"))
-                    
+
                     # Determine if encryption and sync should be enabled from the merged configs
                     encrypt_enabled = merged_encryption.get("enabled", False)
                     sync_enabled = merged_aws.get("enabled", False)
-                    
+
                     logger.info(
                         f"MATCH FOUND for job '{job_name}' (config: {os.path.basename(config_path)}): "
                         f"Schedule '{cron_expr}', type: {backup_type}, encrypt: {encrypt_enabled}, sync: {sync_enabled}" 
                     )
-                    
+
                     # Call cli.py's run_job function directly
                     try:
                         result = call_cli_run_job(
@@ -230,18 +229,18 @@ def main():
                             encrypt=encrypt_enabled, 
                             sync=sync_enabled
                         )
-                        
+
                         if result == "locked":
                             logger.info(f"Job '{job_name}' is already running or locked. Skipping.")
                             continue
-                            
+
                         triggered_jobs_count += 1
                         triggered_jobs_info.append({
                             "name": job_name, 
                             "backup_type": backup_type,
                             "error": False if result else True
                         })
-                            
+
                     except Exception as e:
                         logger.error(f"Error running job '{job_name}': {e}", exc_info=True)
                         triggered_jobs_info.append({
@@ -249,7 +248,7 @@ def main():
                             "backup_type": backup_type,
                             "error": True
                         })
-                    
+
                     # Only trigger one schedule per job per check
                     break
 
@@ -267,6 +266,7 @@ def main():
                 backup_type=None,
                 status="none"
             )
+        
         trim_all_logs()
         trim_scheduler_events()
 
@@ -278,13 +278,10 @@ def main():
                 shared_dir = monitor_cfg.get("shared_monitor_dir")
                 write_monitor_status(
                     shared_monitor_dir=shared_dir,
-                    version=VERSION,
-                    last_run=datetime.now().isoformat(),
-                    log_dir=LOG_DIR
+                    last_run=datetime.now().isoformat()
                 )
         except (OSError, IOError, yaml.YAMLError) as e:
             logger.error(f"Failed to write monitor status: {e}")
 
 if __name__ == "__main__":
     main()
-

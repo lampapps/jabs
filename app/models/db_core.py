@@ -1,10 +1,16 @@
+"""Core database utilities and schema management for JABS.
+
+Handles connection management, schema initialization, and table/index creation.
+"""
+
 import sqlite3
 import os
-from app.settings import DB_PATH
 from contextlib import contextmanager
+from app.settings import DB_PATH
 
 @contextmanager
 def get_db_connection(db_path: str = DB_PATH):
+    """Context manager for SQLite database connection with foreign key support."""
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     try:
@@ -17,13 +23,13 @@ def init_db(db_path: str = DB_PATH):
     """Initialize the database schema"""
     # Ensure the parent directory exists
     os.makedirs(os.path.dirname(db_path), exist_ok=True)
-    
+
     with get_db_connection(db_path) as conn:
         c = conn.cursor()
-        
+
         # Enable foreign key constraints
         c.execute("PRAGMA foreign_keys = ON")
-        
+
         # Create tables
         _create_backup_sets_table(c)
         _create_backup_jobs_table(c)
@@ -31,11 +37,10 @@ def init_db(db_path: str = DB_PATH):
         _create_scheduler_events_table(c)
         _create_email_digests_table(c)
         _create_indexes(c)
-        
-        # Create the events view
+
         from app.models.events import create_events_view
+        # Create the events view
         create_events_view(conn)
-        
         conn.commit()
 
 def _create_backup_sets_table(cursor):
@@ -49,6 +54,7 @@ def _create_backup_sets_table(cursor):
         description TEXT,
         is_active BOOLEAN DEFAULT 1,      -- Can mark old sets as inactive
         config_snapshot TEXT,             -- Config used when set was created
+        source_path TEXT,                 -- Source path for restoration purposes
         hostname TEXT,                    -- Added for events view
         UNIQUE(job_name, set_name)
     );

@@ -13,12 +13,13 @@ import re
 import glob
 import tarfile
 import copy
-import yaml
-from jinja2 import Environment, FileSystemLoader, TemplateError
-from typing import Dict, List, Optional, Any
-from collections import defaultdict
 import logging
 import json
+from typing import Dict, List, Optional, Any
+from collections import defaultdict
+
+import yaml
+from jinja2 import Environment, FileSystemLoader, TemplateError
 
 from app.utils.logger import sizeof_fmt
 from app.settings import GLOBAL_CONFIG_PATH
@@ -45,19 +46,19 @@ def get_manifest_with_files(job_name: str, backup_set_id: str) -> Optional[Dict[
     backup_set = get_backup_set_by_job_and_set(job_name, backup_set_id)
     if not backup_set:
         return None
-    
+
     # Get the most recent completed job for this backup set
     jobs = get_jobs_for_backup_set(backup_set['id'])
     completed_jobs = [j for j in jobs if j['status'] == 'completed']
     if not completed_jobs:
         return None
-    
+
     # Get the most recent completed job
     latest_job = max(completed_jobs, key=lambda j: j['started_at'])
-    
+
     # Get all files for the backup set
     files = get_files_for_backup_set(backup_set['id'])
-    
+
     # Format timestamps
     def format_timestamp(timestamp):
         if timestamp:
@@ -67,7 +68,7 @@ def get_manifest_with_files(job_name: str, backup_set_id: str) -> Optional[Dict[
             except (ValueError, TypeError):
                 return None
         return None
-    
+
     # Extract config_snapshot from backup_set using subscript notation
     config_snapshot = None
     try:
@@ -75,7 +76,7 @@ def get_manifest_with_files(job_name: str, backup_set_id: str) -> Optional[Dict[
             config_snapshot = backup_set['config_snapshot']
     except Exception as e:
         logger.error(f"Error accessing config_snapshot: {e}")
-    
+
     return {
         'job_name': backup_set['job_name'],
         'set_name': backup_set['set_name'],
@@ -89,15 +90,14 @@ def get_manifest_with_files(job_name: str, backup_set_id: str) -> Optional[Dict[
         'config_snapshot': config_snapshot  # Changed key name to match what routes/manifest.py expects
     }
 
-
 def merge_configs(global_config: Dict, job_config: Dict) -> Dict:
     """
     Recursively merge two configuration dictionaries, with job_config taking precedence.
-    
+
     Args:
         global_config: Global configuration dictionary
         job_config: Job-specific configuration dictionary
-        
+
     Returns:
         Merged configuration dictionary
     """
@@ -108,7 +108,6 @@ def merge_configs(global_config: Dict, job_config: Dict) -> Dict:
         else:
             merged[key] = value
     return merged
-
 
 def extract_tar_info(tar_path: str, encryption_enabled: bool = False) -> List[Dict]:
     """
@@ -140,14 +139,13 @@ def extract_tar_info(tar_path: str, encryption_enabled: bool = False) -> List[Di
         logger.error(f"Error reading tar file {tar_path}: {e}")
     return files_info
 
-
 def parse_size_to_bytes(size_str: str) -> int:
     """
     Convert a human-readable size string (e.g., '1.2 MB') to bytes as an integer.
-    
+
     Args:
         size_str: Human-readable size string
-        
+
     Returns:
         Size in bytes as an integer
     """
@@ -165,7 +163,6 @@ def parse_size_to_bytes(size_str: str) -> int:
     value, unit = match.groups()
     return int(float(value) * units[unit.upper()])
 
-
 def build_tarball_summary_from_manifest(files_list: List[Dict]) -> List[Dict]:
     """
     Build a summary of tarballs from a list of file info dictionaries from manifest.
@@ -178,23 +175,23 @@ def build_tarball_summary_from_manifest(files_list: List[Dict]) -> List[Dict]:
     """
     tarballs = defaultdict(lambda: {"size_bytes": 0, "timestamp_str": "00000000_000000"})
     timestamp_pattern = re.compile(r'_(\d{8}_\d{6})\.tar\.gz')
-    
+
     for f in files_list:
         tarball_name = f.get("tarball") or f.get("name")
         if not tarball_name:
             continue
-            
+
         match = timestamp_pattern.search(tarball_name)
         if match:
             tarballs[tarball_name]["timestamp_str"] = match.group(1)
-        
+
         # Handle size - expecting numeric bytes from database
         size_val = f.get("size", 0)
         if isinstance(size_val, (int, float)):
             tarballs[tarball_name]["size_bytes"] += size_val
         elif isinstance(size_val, str):
             tarballs[tarball_name]["size_bytes"] += parse_size_to_bytes(size_val)
-    
+
     summary = []
     for name, info in tarballs.items():
         summary.append({
@@ -205,15 +202,14 @@ def build_tarball_summary_from_manifest(files_list: List[Dict]) -> List[Dict]:
         })
     return sorted(summary, key=lambda item: item['timestamp_str'], reverse=True)
 
-
 def get_tarball_summary(backup_set_path: str, *, show_full_name: bool = True) -> List[Dict]:
     """
     Build a summary of all tarball files in a backup set directory.
-    
+
     Args:
         backup_set_path: Path to the backup set directory
         show_full_name: Whether to show the full tarball name
-        
+
     Returns:
         List of tarball summary dictionaries
     """
@@ -221,14 +217,14 @@ def get_tarball_summary(backup_set_path: str, *, show_full_name: bool = True) ->
     if not os.path.exists(backup_set_path):
         logger.warning(f"Backup set path does not exist: {backup_set_path}")
         return []
-    
+
     # Find all tarballs (both encrypted and unencrypted)
     tarball_pattern1 = os.path.join(backup_set_path, '*.tar.gz')
     tarball_pattern2 = os.path.join(backup_set_path, '*.tar.gz.gpg')
-    
+
     tarball_files = glob.glob(tarball_pattern1) + glob.glob(tarball_pattern2)
     logger.debug(f"Found {len(tarball_files)} tarball files in {backup_set_path}")
-    
+
     if not tarball_files:
         return []
 
@@ -240,11 +236,11 @@ def get_tarball_summary(backup_set_path: str, *, show_full_name: bool = True) ->
         base = os.path.basename(tar_path)
         tarball_name = base if show_full_name else base.rsplit('.', 2)[0]
         timestamp_str = '00000000_000000'
-        
+
         match = timestamp_pattern.search(base)
         if match:
             timestamp_str = match.group(1)
-            
+
         try:
             size_bytes = os.path.getsize(tar_path)
             summary.append({
@@ -261,10 +257,9 @@ def get_tarball_summary(backup_set_path: str, *, show_full_name: bool = True) ->
                 "size_bytes": 0,
                 "timestamp_str": timestamp_str,
             })
-            
+
     # Sort tarballs by timestamp (newest first)
     return sorted(summary, key=lambda item: item['timestamp_str'], reverse=True)
-
 
 def format_files_for_archived_manifest(raw_files: List[Dict]) -> List[Dict]:
     """
@@ -280,7 +275,7 @@ def format_files_for_archived_manifest(raw_files: List[Dict]) -> List[Dict]:
     for f in raw_files:
         # Format size to human readable
         size_display = sizeof_fmt(f.get("size", 0)) if isinstance(f.get("size", 0), (int, float)) else "N/A"
-        
+
         # Format timestamp to readable date
         modified_display = "N/A"
         if f.get("mtime"):
@@ -289,30 +284,29 @@ def format_files_for_archived_manifest(raw_files: List[Dict]) -> List[Dict]:
                 modified_display = dt.strftime("%Y-%m-%d %H:%M:%S")
             except (ValueError, TypeError):
                 modified_display = "N/A"
-        
+
         formatted_files.append({
             "tarball": f.get("tarball", "unknown"),
             "path": f.get("path", ""),
             "size": size_display,
             "modified": modified_display,
         })
-    
-    return formatted_files
 
+    return formatted_files
 
 def calculate_last_modified(raw_files: List[Dict]) -> Optional[str]:
     """
     Calculate the last modified timestamp from a list of files.
-    
+
     Args:
         raw_files: List of file dictionaries
-        
+
     Returns:
         Formatted timestamp string or None
     """
     if not raw_files:
         return None
-        
+
     try:
         # Find the most recent modification time
         last_file_modified = max(
@@ -323,37 +317,36 @@ def calculate_last_modified(raw_files: List[Dict]) -> Optional[str]:
     except (ValueError, KeyError, TypeError):
         return None
 
-
 def generate_archived_manifest(
-    job_config_path: str, 
-    job_name: str, 
+    job_config_path: str,
+    job_name: str,
     backup_set_id: str,
-    backup_set_path: str, 
+    backup_set_path: str,
     backup_type: str,
-    **kwargs  # Keep this to ignore any other parameters
+    **kwargs
 ) -> Optional[str]:
     """
     Generate an archived (standalone HTML) manifest for a backup set.
-    
+
     Args:
         job_config_path: Path to the job configuration file
         job_name: Name of the backup job
         backup_set_id: ID of the backup set
         backup_set_path: Path to the backup set directory
         backup_type: Type of backup (full, incremental, differential, dryrun)
-        
+
     Returns:
         Path to the generated HTML manifest or None if generation failed
     """
     # Handle 'mode' parameter for compatibility with existing calls
     if 'mode' in kwargs and not backup_type:
         backup_type = kwargs['mode']
-        
+
     # Skip manifest generation for dryrun backups
     if backup_type == "dryrun":
         logger.info("Skipping archived manifest generation for dryrun backup")
         return None
-        
+
     # Load and merge configs
     try:
         with open(job_config_path, 'r', encoding='utf-8') as f:
@@ -364,7 +357,7 @@ def generate_archived_manifest(
     except (OSError, yaml.YAMLError) as e:
         logger.error(f"Could not load config: {e}")
         merged_config = {"error": f"Could not load config: {e}"}
-    
+
     # Get backup set from database
     backup_set_row = get_backup_set_by_job_and_set(job_name, backup_set_id)
     if not backup_set_row:
@@ -392,7 +385,7 @@ def generate_archived_manifest(
     # Format files data and get tarball summary
     formatted_files = format_files_for_archived_manifest(raw_files)
     tarball_summary = get_tarball_summary(backup_set_path)
-    
+
     # Fall back to estimated sizes if no tarballs found
     if not tarball_summary:
         logger.warning(f"No tarballs found in {backup_set_path}, using estimated sizes")
@@ -420,16 +413,15 @@ def generate_archived_manifest(
             tarball_summary=tarball_summary,
             used_config=merged_config
         )
-        
+
         with open(html_path, "w", encoding='utf-8') as f:
             f.write(html_content)
-            
+
         logger.info(f"Successfully wrote archived manifest to {html_path}")
         return html_path
     except Exception as e:
         logger.error(f"Error writing archived manifest to {html_path}: {e}")
         return None
-
 
 def calculate_total_size(tarball_summary: List[Dict]) -> Dict:
     """
@@ -443,12 +435,11 @@ def calculate_total_size(tarball_summary: List[Dict]) -> Dict:
     """
     total_size_bytes = sum(tarball.get("size_bytes", 0) for tarball in tarball_summary)
     total_size_human = sizeof_fmt(total_size_bytes) if total_size_bytes > 0 else "N/A"
-    
+
     return {
         "total_size_bytes": total_size_bytes,
         "total_size_human": total_size_human
     }
-
 
 def render_archived_manifest(
     job_name: str,
@@ -461,7 +452,7 @@ def render_archived_manifest(
 ) -> str:
     """
     Render the archived HTML manifest for a backup set using Jinja2 templates.
-    
+
     Args:
         job_name: Name of the backup job
         backup_set_id: ID of the backup set
@@ -470,7 +461,7 @@ def render_archived_manifest(
         last_modified: Last modified timestamp string
         tarball_summary: List of tarball summary dictionaries
         used_config: Merged configuration dictionary
-        
+
     Returns:
         HTML content as a string
     """
@@ -520,6 +511,8 @@ def render_archived_manifest(
     try:
         templates_dir = os.path.dirname(template_path)
         env = Environment(loader=FileSystemLoader(templates_dir))
+        # from flask import url_for
+        # env.globals['url_for'] = url_for
         template = env.get_template(os.path.basename(template_path))
         return template.render(
             job_name=job_name,
@@ -559,7 +552,6 @@ def render_archived_manifest(
         </html>
         """
 
-
 def _remove_yaml_comments(yaml_string: str) -> str:
     """
     Remove comments from a YAML string.
@@ -583,7 +575,6 @@ def _remove_yaml_comments(yaml_string: str) -> str:
         result += '\n'
     return result.rstrip() + '\n' if result.strip() else ''
 
-
 def get_merged_cleaned_yaml_config(job_config_path: str) -> str:
     """
     Load, clean, and merge the job and global YAML configs for display.
@@ -596,7 +587,7 @@ def get_merged_cleaned_yaml_config(job_config_path: str) -> str:
     """
     if not os.path.exists(job_config_path):
         return f"# Error: Config file not found: {job_config_path}"
-    
+
     try:
         with open(job_config_path, 'r', encoding='utf-8') as f:
             raw_yaml = f.read()
@@ -605,13 +596,13 @@ def get_merged_cleaned_yaml_config(job_config_path: str) -> str:
         
         with open(GLOBAL_CONFIG_PATH, 'r', encoding='utf-8') as f:
             global_config = yaml.safe_load(f)
-            
+
         # Add defaults from global config if missing
         if "destination" not in job_config or not job_config.get("destination"):
             job_config["destination"] = global_config.get("destination")
         if "aws" not in job_config or not job_config.get("aws"):
             job_config["aws"] = global_config.get("aws")
-            
+
         # Build merged config keeping order
         merged = {}
         for key in ("destination", "aws"):
@@ -620,7 +611,7 @@ def get_merged_cleaned_yaml_config(job_config_path: str) -> str:
         for key, value in job_config.items():
             if key not in merged:
                 merged[key] = value
-                
+
         # Convert to YAML string
         return yaml.safe_dump(
             merged,
@@ -630,3 +621,4 @@ def get_merged_cleaned_yaml_config(job_config_path: str) -> str:
         )
     except Exception as e:
         return f"# Error reading config file {job_config_path}: {e}"
+

@@ -51,7 +51,7 @@ def import_from_json(json_path: str) -> int:
     try:
         with open(json_path, 'r', encoding='utf-8') as f:
             digests = json.load(f)
-        
+
         with get_db_connection() as conn:
             c = conn.cursor()
             count = 0

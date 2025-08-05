@@ -1,19 +1,37 @@
+"""Full backup logic for JABS: handles creation, archiving, and database updates for full backup jobs."""
+
 import os
 import shutil
 import socket
 import json
+
 from app.utils.logger import setup_logger, timestamp, ensure_dir
 from app.services.manifest import generate_archived_manifest, extract_tar_info
 from app.models.events import update_event, finalize_event, event_exists
 from app.settings import RESTORE_SCRIPT_SRC
-from .utils import get_all_files, create_tar_archives, get_merged_exclude_patterns
-
 from app.models.db_core import get_db_connection
 from app.models.backup_sets import get_or_create_backup_set
 from app.models.backup_jobs import insert_backup_job
 from app.models.backup_files import insert_files
 
+from .utils import get_all_files, create_tar_archives, get_merged_exclude_patterns
+
 def run_full_backup(config, encrypt=False, sync=False, event_id=None, job_config_path=None, global_config=None):
+    """
+    Run a full backup job: collect files, create tarballs, update database, and generate manifest.
+
+    Args:
+        config (dict): Job configuration dictionary.
+        encrypt (bool): Whether to encrypt the backup.
+        sync (bool): Whether to sync the backup after completion.
+        event_id (int, optional): Event/job ID for tracking.
+        job_config_path (str, optional): Path to the job config file.
+        global_config (dict, optional): Global configuration dictionary.
+
+    Returns:
+        tuple: (backup_set_dir, event_id, backup_set_id_string, tarball_paths)
+            Or (None, event_id, None, None) on error.
+    """
     job_name = config.get("job_name", "unknown_job")
     logger = setup_logger(job_name)
     logger.debug(f"Starting FULL backup job '{job_name}' with provided config.")
@@ -59,10 +77,10 @@ def run_full_backup(config, encrypt=False, sync=False, event_id=None, job_config
         logger.debug(f"config type: {type(config)}")
         logger.debug(f"config empty? {not bool(config)}")
         logger.debug(f"config keys: {list(config.keys()) if config else 'None'}")
-        
+
         # Create a JSON string of the config for the config_snapshot field
         config_snapshot = json.dumps(config) if config else None
-        
+
         # Debug the config_snapshot
         logger.debug(f"config_snapshot type: {type(config_snapshot)}")
         logger.debug(f"config_snapshot is None? {config_snapshot is None}")
@@ -74,7 +92,8 @@ def run_full_backup(config, encrypt=False, sync=False, event_id=None, job_config
         backup_set_id = get_or_create_backup_set(
             job_name=job_name,  # Use the original job name for database consistency
             set_name=backup_set_id_string,  # Use the timestamp as the set name
-            config_settings=None  # Do not store the config snapshot
+            config_settings=config_snapshot,  # Store the config snapshot
+            source_path=config.get('source')  # Store the source path
         )
         logger.debug(f"Created backup set with ID {backup_set_id}")
 
@@ -117,30 +136,30 @@ def run_full_backup(config, encrypt=False, sync=False, event_id=None, job_config
         # Update the event to show we're collecting files
         if event_id and event_exists(event_id):
             update_event(event_id, event_message=f"Scanning source directory with {len(exclude_patterns)} exclude patterns")
-        
+
         logger.debug(f"Collecting files with {len(exclude_patterns)} exclude patterns")
-        
+
         # Let the should_exclude function handle all exclusions
         files = get_all_files(src, exclude_patterns)
         logger.debug(f"Collected {len(files)} files after applying exclusion patterns")
-        
+
         # Update the event with progress
         if event_id and event_exists(event_id):
             update_event(event_id, event_message=f"Creating tar archives for {len(files)} files")
-        
+
         tarball_paths = create_tar_archives(
             files, backup_set_dir, max_tarball_size_mb, logger, "full", config
         )
-        
+
         encryption_enabled = config.get("encryption", {}).get("enabled", False) or encrypt
         new_tar_info = []
         total_files = 0
         total_size_bytes = 0
-        
+
         # Update the event with progress
         if event_id and event_exists(event_id):
             update_event(event_id, event_message="Extracting file information from tarballs")
-        
+
         # Extract file info from all tarballs
         for tar_path in tarball_paths:
             tar_info = extract_tar_info(tar_path, encryption_enabled=encryption_enabled)
@@ -161,7 +180,7 @@ def run_full_backup(config, encrypt=False, sync=False, event_id=None, job_config
             logger.debug("Writing manifest files...")
             if event_id and event_exists(event_id):
                 update_event(event_id, event_message="Generating manifest files")
-                
+
             html_manifest_path = generate_archived_manifest(
                 job_config_path=job_config_path,
                 job_name=job_name,
@@ -187,7 +206,7 @@ def run_full_backup(config, encrypt=False, sync=False, event_id=None, job_config
 
     except Exception as e:
         logger.error(f"An error occurred during the full backup process: {e}", exc_info=True)
-        
+
         # Finalize the event ONLY for errors
         if event_id and event_exists(event_id):
             finalize_event(

@@ -29,7 +29,7 @@ def load_storage_config(config_path):
 def dashboard():
     """Render the dashboard with scheduled jobs and their statuses."""
     ensure_minimum_scheduler_events()
-    
+
     jobs_dir = os.path.join(BASE_DIR, "config", "jobs")
     job_paths = [
         os.path.join(jobs_dir, fname)
@@ -175,7 +175,7 @@ def change_log():
     return render_template("change_log.html", content=content, env_mode=ENV_MODE, hostname=socket.gethostname())
 
 @dashboard_bp.route("/license")
-def license():
+def license_page():
     """Render the documentation page from LICENSE.md."""
     license_path = os.path.join(BASE_DIR, "LICENSE.md")
     if not os.path.exists(license_path):
@@ -185,7 +185,7 @@ def license():
             md_content = f.read()
         markdown_renderer = mistune.create_markdown(renderer=mistune.HTMLRenderer())
         content = Markup(markdown_renderer(md_content))
-    return render_template("license.html", content=content, env_mode=ENV_MODE,hostname=socket.gethostname())
+    return render_template("license.html", content=content, env_mode=ENV_MODE, hostname=socket.gethostname())
 
 @dashboard_bp.route("/scheduler")
 def scheduler():
@@ -201,4 +201,3 @@ def scheduler():
         env_mode=ENV_MODE,
         hostname=socket.gethostname()
     )
-

@@ -1,7 +1,13 @@
+"""Scheduler event database utilities for JABS.
+
+Provides functions to append, retrieve, and trim scheduler event records.
+"""
+
 from app.models.db_core import get_db_connection
 from app.settings import MAX_SCHEDULER_EVENTS
 
 def append_scheduler_event(datetime, job_name, backup_type, status):
+    """Insert a new scheduler event record into the database."""
     with get_db_connection() as conn:
         c = conn.cursor()
         c.execute("""
@@ -11,6 +17,7 @@ def append_scheduler_event(datetime, job_name, backup_type, status):
         conn.commit()
 
 def get_scheduler_events(limit=MAX_SCHEDULER_EVENTS):
+    """Retrieve the most recent scheduler event records, up to the specified limit."""
     with get_db_connection() as conn:
         c = conn.cursor()
         c.execute("""

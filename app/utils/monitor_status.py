@@ -1,3 +1,5 @@
+"""Utility functions for writing monitor status and heartbeat data in JABS."""
+
 import os
 import json
 import socket
@@ -6,7 +8,14 @@ from datetime import datetime
 from app.settings import VERSION, ENV_MODE
 from app.models.events import count_error_events
 
-def write_monitor_status(shared_monitor_dir, version, last_run, log_dir):
+def write_monitor_status(shared_monitor_dir, last_run):
+    """
+    Write the monitor status and heartbeat data to a JSON file.
+
+    Args:
+        shared_monitor_dir (str): Path to the shared monitor directory.
+        last_run (float or str): Timestamp or ISO string of the last scheduler run.
+    """
     if not shared_monitor_dir:
         return
     os.makedirs(shared_monitor_dir, exist_ok=True)

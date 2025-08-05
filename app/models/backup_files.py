@@ -1,5 +1,10 @@
+"""Database operations for backup file records in JABS.
+
+Provides functions to insert, retrieve, and search backup file metadata
+associated with backup jobs and sets.
+"""
 import sqlite3
-from typing import List, Dict, Optional, Any
+from typing import List, Dict, Any
 from app.models.db_core import get_db_connection
 
 def insert_files(backup_job_id: int, files: List[Dict[str, Any]]):
@@ -67,7 +72,6 @@ def search_files(query: str, job_name: str = None) -> List[sqlite3.Row]:
     """Search for files by path pattern."""
     with get_db_connection() as conn:
         c = conn.cursor()
-        
         if job_name:
             c.execute("""
                 SELECT 
@@ -100,5 +104,5 @@ def search_files(query: str, job_name: str = None) -> List[sqlite3.Row]:
                 WHERE bf.path LIKE ?
                 ORDER BY bs.job_name, bs.updated_at DESC, bf.path
             """, (f"%{query}%",))
-        
+
         return c.fetchall()

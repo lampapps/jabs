@@ -1,30 +1,30 @@
 """API routes for JABS: provides endpoints for restore, events, disk/S3 usage, logs, and manifest management."""
- 
+
 import os
 import re
 import glob
 import shutil
 import time
 import math
-import yaml
-import boto3
 import socket
 from datetime import datetime
 
+import yaml
+import boto3
+
 from flask import (
-    Blueprint, jsonify, request, render_template, flash, url_for
+    Blueprint, jsonify, request, flash, url_for
 )
 
 from app.settings import (
     BASE_DIR, LOG_DIR, GLOBAL_CONFIG_PATH, HOME_DIR, MAX_LOG_LINES, VERSION, SCHEDULER_STATUS_FILE
 )
-from app.utils.logger import sizeof_fmt  # Import canonical sizeof_fmt function
+from app.utils.logger import sizeof_fmt
 from core import restore
 from app.utils.restore_status import check_restore_status
 from app.models.events import get_all_events, count_error_events
 from app.utils.poll_targets import poll_targets
-
-from app.models.backup_sets import delete_backup_set
+from app.models.backup_sets import delete_backup_set, get_backup_set_by_job_and_set
 from app.services.manifest import get_manifest_with_files
 from app.models.db_core import get_db_connection
 from app.models.scheduler_events import get_scheduler_events
@@ -192,20 +192,15 @@ def trim_logs():
 @api_bp.route('/api/manifest/<string:job_name>/<string:backup_set_id>/json')
 def api_manifest_json(job_name, backup_set_id):
     """Return the manifest JSON for a specific job and backup set from SQLite database."""
-    
+
     # Keep the original job name for database lookup
     original_job_name = job_name
-    
-    # Sanitize the job name for any file path operations (if needed)
-    sanitized_job = "".join(
-        c if c.isalnum() or c in ("-", "_") else "_" for c in job_name
-    )
-    
+
     # Get manifest data from database using the original job name
     manifest_data = get_manifest_with_files(original_job_name, backup_set_id)
     if not manifest_data:
         return jsonify({"error": f"Manifest not found for job '{original_job_name}' and backup set '{backup_set_id}'"}), 404
-    
+
     try:
         # Format the data for the JavaScript DataTable
         files_for_table = []
@@ -218,13 +213,13 @@ def api_manifest_json(job_name, backup_set_id):
                     modified_display = dt.strftime("%Y-%m-%d %H:%M:%S")
                 except (ValueError, TypeError):
                     modified_display = "N/A"
-            
+
             # Format size for display
             size_display = file_data.get('size', 0)
             if isinstance(size_display, (int, float)):
                 # Use the canonical sizeof_fmt from app.utils.logger
                 size_display = sizeof_fmt(size_display)
-            
+
             files_for_table.append({
                 'tarball': file_data.get('tarball', 'unknown'),
                 'tarball_path': file_data.get('tarball', 'unknown'),  # For checkbox data attribute
@@ -232,7 +227,7 @@ def api_manifest_json(job_name, backup_set_id):
                 'size': size_display,
                 'modified': modified_display
             })
-        
+
         return jsonify({
             'job_name': manifest_data.get('job_name'),
             'set_name': manifest_data.get('set_name'),  # Separate set_name from new schema
@@ -245,7 +240,7 @@ def api_manifest_json(job_name, backup_set_id):
             'completed_at': manifest_data.get('completed_at'),
             'files': files_for_table
         })
-        
+
     except Exception as e:
         return jsonify({"error": f"Failed to process manifest data: {str(e)}"}), 500
 
@@ -321,14 +316,25 @@ def restore_full():
     restore_location = data.get('restore_location', 'original')
     custom_path = data.get('custom_path', None)
 
+    # Get backup set info for the source path
+    backup_set = get_backup_set_by_job_and_set(job_name, backup_set_id)
+    if not backup_set:
+        sanitized_job = "".join(c if c.isalnum() or c in ("-", "_") else "_" for c in job_name)
+        backup_set = get_backup_set_by_job_and_set(sanitized_job, backup_set_id)
+        
+    if not backup_set:
+        flash(f"Backup set '{backup_set_id}' not found for job '{job_name}'", "danger")
+        return jsonify({"error": "Backup set not found"}), 404
+
     if restore_location == "custom":
         if not is_valid_path(custom_path):
             return jsonify({"error": "Invalid custom path."}), 400
         dest = os.path.abspath(os.path.join(HOME_DIR, custom_path))
     else:
-        dest = None
+        # For original location, use the source path from the database
+        dest = None  # We'll let restore_full determine the path from the database
 
-    result = restore.restore_full(job_name, backup_set_id, dest=dest, base_dir=BASE_DIR)
+    result = restore.restore_full(job_name, backup_set_id, dest=dest)
     if result.get("overwrite_warnings"):
         return jsonify({
             "error": "Some files will be overwritten.",
@@ -338,10 +344,10 @@ def restore_full():
         first = result["errors"][0]
         flash(f"{first['error']}", "danger")
     else:
-        flash("Full restore completed.", "success")
-    return jsonify({
-        "redirect": url_for('manifest.view_manifest', job_name=job_name, backup_set_id=backup_set_id)
-    })
+        # Success
+        flash("Restore started successfully.", "success")
+    
+    return jsonify({"status": "ok", "errors": result.get("errors", [])})
 
 @api_bp.route('/api/restore/files', methods=['POST'])
 def restore_files():
@@ -358,12 +364,28 @@ def restore_files():
             return jsonify({"error": "Invalid custom path."}), 400
         dest = os.path.abspath(os.path.join(HOME_DIR, custom_path))
     else:
-        dest = None
+        # Get the job config to find the original source path
+        try:
+            sanitized_job = "".join(c if c.isalnum() or c in ("-", "_") else "_" for c in job_name)
+            job_config_path = os.path.join("config/jobs", f"{sanitized_job}.yaml")
+            
+            if os.path.exists(job_config_path):
+                with open(job_config_path, 'r') as f:
+                    job_config = yaml.safe_load(f)
+                    if 'source' in job_config:
+                        dest = job_config['source']
+                    else:
+                        return jsonify({"error": "Original source directory not found in job configuration."}), 400
+            else:
+                return jsonify({"error": f"Job configuration file not found for {job_name}."}), 400
+                
+        except Exception as e:
+            return jsonify({"error": "Could not determine original source directory."}), 500
 
     if not files or not isinstance(files, list):
         return jsonify({"error": "No files selected for restore."}), 400
 
-    result = restore.restore_files(job_name, backup_set_id, files, dest=dest, base_dir=BASE_DIR)
+    result = restore.restore_files(job_name, backup_set_id, files, dest=dest)
     if result.get("overwrite_warnings"):
         return jsonify({
             "error": "Some files will be overwritten.",
@@ -430,7 +452,7 @@ def delete_events():
                 c if c.isalnum() or c in ("-", "_") else "_" for c in job_name
             )
             manifest_dir = os.path.join(BASE_DIR, "data", "manifests", sanitized_job)
-            
+
             # Find all manifest files for this backup set
             if os.path.exists(manifest_dir):
                 for filename in os.listdir(manifest_dir):

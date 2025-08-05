@@ -229,7 +229,8 @@ def run_dryrun_backup(config, encrypt=False, sync=False, event_id=None, job_conf
             backup_set_id = get_or_create_backup_set(
                 job_name=job_name,
                 set_name=backup_set_id_string,
-                config_settings=config_snapshot
+                config_settings=config_snapshot,
+                source_path=config.get('source') if config else None  # Add source path
             )
             
             # Step 2: Create backup job in database

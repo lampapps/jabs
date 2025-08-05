@@ -1,3 +1,4 @@
+"""Incremental backup logic for JABS."""
 
 from app.models.backup_files import get_files_for_backup_set
 from .common import run_partial_backup
@@ -10,7 +11,7 @@ def run_incremental_backup(config, encrypt=False, sync=False, event_id=None, job
     # Source getter function for incremental backup
     def incremental_source_getter(backup_set_id):
         return get_files_for_backup_set(backup_set_id)
-    
+
     # Use the shared partial backup logic with incremental-specific parameters
     return run_partial_backup(
         config=config, 

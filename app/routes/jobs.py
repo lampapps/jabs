@@ -3,16 +3,15 @@
 import os
 import re
 import pathlib
-import yaml
 import socket
 import threading
+import yaml
+
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from werkzeug.utils import secure_filename
 from cron_descriptor import get_description
 from app.settings import LOCK_DIR, JOBS_DIR, GLOBAL_CONFIG_PATH, ENV_MODE
 from app.utils.logger import setup_logger
-
-# Import the run_job function directly
 from cli import run_job
 
 jobs_bp = Blueprint('jobs', __name__)
@@ -91,7 +90,7 @@ def trigger_backup_job(filename):
     """Run a backup job directly using cli.py's run_job function."""
     # Setup logger
     logger = setup_logger("flask_jobs", "server.log")
-    
+
     # Validate the filename
     if (
         not filename.endswith(".yaml")
@@ -110,14 +109,14 @@ def trigger_backup_job(filename):
     # Load the config to get the job name
     with open(config_path, encoding="utf-8") as f:
         config = yaml.safe_load(f)
-    
+
     job_name = config.get("job_name", filename.replace(".yaml", ""))
-    
+
     # Check if job is already locked/running
     # Using the same logic for lock path as in cli.py
     safe_job_name = "".join(c if c.isalnum() or c in ("-", "_") else "_" for c in job_name)
     lock_path = os.path.join(LOCK_DIR, f"{safe_job_name}.lock")
-    
+
     if os.path.exists(lock_path):
         # Job is already running, show a flash message
         logger.warning(f"Attempted to start job '{job_name}' but it's already running")
@@ -129,7 +128,7 @@ def trigger_backup_job(filename):
     if backup_type not in ("full", "diff", "incremental", "dry_run"):
         flash("Invalid backup type.", "danger")
         return redirect(url_for("jobs.jobs_view"))
-        
+
     # Convert backup type to the format expected by cli.py
     if backup_type == "diff":
         backup_type = "differential"
@@ -138,7 +137,7 @@ def trigger_backup_job(filename):
 
     # Check if sync is requested
     sync = request.form.get("sync", "0") == "1"
-    
+
     # Get encryption option - use config from job or global config
     encrypt = False
     aws_enabled = None
@@ -148,7 +147,7 @@ def trigger_backup_job(filename):
         with open(GLOBAL_CONFIG_PATH, encoding="utf-8") as gf:
             global_config = yaml.safe_load(gf)
         encrypt = global_config.get("encryption", {}).get("enabled", False)
-    
+
     # Check AWS sync option as well
     if config.get("aws") and "enabled" in config["aws"]:
         aws_enabled = config["aws"]["enabled"]
@@ -156,13 +155,13 @@ def trigger_backup_job(filename):
         with open(GLOBAL_CONFIG_PATH, encoding="utf-8") as gf:
             global_config = yaml.safe_load(gf)
         aws_enabled = global_config.get("aws", {}).get("enabled", False)
-    
+
     # Only use sync if both requested and enabled
     sync = sync and aws_enabled
 
     try:
         logger.info(f"Starting {backup_type} backup for job '{job_name}' via web interface")
-        
+
         # Start the job in a separate thread to avoid blocking the web server
         thread = threading.Thread(
             target=run_job,
@@ -170,7 +169,7 @@ def trigger_backup_job(filename):
             daemon=True
         )
         thread.start()
-        
+
         # Show success message
         backup_type_display = backup_type.replace('_', ' ').title()
         flash(f"{backup_type_display} backup for {job_name} has been started.", "success")
@@ -281,3 +280,4 @@ def delete_config(filename):
     os.remove(file_path)
     flash(f"Deleted {filename}.", "success")
     return redirect(url_for("jobs.jobs_view"))
+

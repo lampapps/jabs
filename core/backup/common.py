@@ -8,15 +8,19 @@ import shutil
 import glob
 import socket
 import subprocess
+import ctypes
+import platform
+
 import portalocker
 
 from app.models.events import update_event, finalize_event, event_exists
 from app.utils.logger import setup_logger, ensure_dir
 from app.services.manifest import generate_archived_manifest, extract_tar_info
-from app.models.backup_sets import get_or_create_backup_set
+from app.models.backup_sets import get_or_create_backup_set, rotate_backup_sets_in_db, get_backup_set_by_job_and_set
 from app.models.backup_jobs import get_last_backup_job, get_last_full_backup_job
 from app.models.backup_files import insert_files
 from .utils import create_tar_archives, should_exclude, get_merged_exclude_patterns
+from .full import run_full_backup
 
 def acquire_lock(lock_path):
     """
@@ -38,18 +42,18 @@ def acquire_lock(lock_path):
             os.makedirs(lock_dir, exist_ok=True)
         except OSError as e:
             raise RuntimeError(f"Could not create lock directory: {lock_dir}") from e
-    
+
     try:
         # First, check if the lock file exists but is stale
         if os.path.exists(lock_path):
             try:
                 # Try to read the file without locking
-                with open(lock_path, 'r') as existing:
+                with open(lock_path, 'r', encoding='utf-8') as existing:
                     try:
                         lock_info = json.load(existing)
                         pid = lock_info.get("pid", 0)
                         created_at = lock_info.get("created_at", 0)
-                        
+
                         # If lock is very old (over 2 hours), remove it
                         if time.time() - created_at > 7200:
                             os.remove(lock_path)
@@ -58,20 +62,20 @@ def acquire_lock(lock_path):
                         # Invalid JSON, remove the lock file
                         os.remove(lock_path)
                         print(f"Removed invalid lock file: {lock_path}")
-            except:
+            except Exception:
                 # Can't read the file, ignore
                 pass
-        
+
         # Create the file normally, then apply the lock
-        lock_file = open(lock_path, 'a+')
-        
+        lock_file = open(lock_path, 'a+', encoding='utf-8')
+
         # Get an exclusive lock (non-blocking)
         portalocker.lock(lock_file, portalocker.LOCK_EX | portalocker.LOCK_NB)
-        
+
         # Truncate the file and write our process info
         lock_file.seek(0)
         lock_file.truncate()
-        
+
         # Write process information to the lock file
         lock_info = {
             "pid": os.getpid(),
@@ -79,13 +83,13 @@ def acquire_lock(lock_path):
             "hostname": socket.gethostname(),
             "command": " ".join(["python"] + [os.path.basename(arg) for arg in sys.argv])
         }
-        
+
         # Write the lock info as JSON
         json.dump(lock_info, lock_file)
         lock_file.flush()
-        
+
         return lock_file
-        
+
     except portalocker.exceptions.LockException as e:
         # Could not acquire lock - try to read the existing lock for better error message
         try:
@@ -93,14 +97,14 @@ def acquire_lock(lock_path):
                 try:
                     lock_info = json.load(existing_lock)
                     pid = lock_info.get("pid", "unknown")
-                    created = time.strftime('%Y-%m-%d %H:%M:%S', 
+                    created = time.strftime('%Y-%m-%d %H:%M:%S',
                                           time.localtime(lock_info.get("created_at", 0)))
                     msg = f"Lock held by PID {pid} since {created}"
                 except json.JSONDecodeError:
-                    msg = f"Lock exists but content is not valid JSON"
-        except:
+                    msg = "Lock exists but content is not valid JSON"
+        except Exception:
             msg = "Lock exists but details couldn't be read"
-            
+
         raise RuntimeError(f"Could not acquire lock: {lock_path}. {msg}") from e
     except Exception as e:
         raise RuntimeError(f"Error acquiring lock: {lock_path}") from e
@@ -108,7 +112,7 @@ def acquire_lock(lock_path):
 def release_lock(lock_file):
     """
     Release the lock, close the file, and remove the lock file.
-    
+
     Args:
         lock_file: Open file handle with lock acquired
     """
@@ -116,11 +120,11 @@ def release_lock(lock_file):
         try:
             # Get the path before closing the file
             lock_path = lock_file.name
-            
+
             # Unlock and close the file
             portalocker.unlock(lock_file)
             lock_file.close()
-            
+
             # Remove the lock file
             if os.path.exists(lock_path):
                 os.remove(lock_path)
@@ -130,7 +134,7 @@ def release_lock(lock_file):
                 lock_file.close()
             except Exception:
                 pass
-            
+
             # Try to get and remove the lock file anyway
             try:
                 lock_path = getattr(lock_file, 'name', None)
@@ -143,19 +147,16 @@ def release_lock(lock_file):
 def is_process_running(pid):
     """
     Check if a process with the given PID is running, in a cross-platform way.
-    
+
     Args:
         pid: Process ID to check
-        
+
     Returns:
         True if the process is running, False otherwise
     """
-    import platform
     if platform.system() == "Windows":
         # Windows implementation
-        import subprocess
-        import ctypes
-        
+
         # Use tasklist to check if PID exists
         try:
             output = subprocess.check_output(f"tasklist /FI \"PID eq {pid}\"", shell=True)
@@ -189,23 +190,23 @@ def is_locked(lock_file_path):
     """
     if not os.path.exists(lock_file_path):
         return False
-        
+
     try:
         # Try to open the lock file to read the PID
-        with open(lock_file_path, 'r') as f:
+        with open(lock_file_path, 'r', encoding='utf-8') as f:
             pid_str = f.read().strip()
-            
+
         if not pid_str:
             # Empty lock file, consider it stale
             return False
-            
+
         # Parse the PID
         try:
             pid = int(pid_str)
         except ValueError:
             # Invalid PID, consider it stale
             return False
-            
+
         # Check if the process is still running
         try:
             # Send signal 0 to check if process exists without affecting it
@@ -215,29 +216,28 @@ def is_locked(lock_file_path):
         except OSError:
             # Process doesn't exist, stale lock
             return False
-    except (IOError, OSError):
+    except (IOError, OSError, Exception):
         # Can't read the file or other error, assume not locked to be safe
         return False
 
 def rotate_backups(job_dst, keep_sets, logger, config=None):
     """
     Rotate backup sets to keep only the latest 'keep_sets' sets and clean up corresponding database records and S3 folders.
-    
+
     This function:
     1. Rotates filesystem backup sets (keeping the latest N)
     2. Rotates database records (keeping the latest N)
     3. Cleans up S3 buckets if configured
     """
-    from app.models.backup_sets import get_backup_set_by_job_and_set, delete_backup_set, rotate_backup_sets_in_db
-    
+
     # Get the job name
     job_name = os.path.basename(job_dst)
     logger.info(f"Starting backup rotation for job '{job_name}', keeping {keep_sets} sets")
-    
+
     # STEP 1: Rotate filesystem backup sets
     backup_sets = sorted(glob.glob(os.path.join(job_dst, "backup_set_*")), reverse=True)
     logger.debug(f"Found {len(backup_sets)} backup sets in filesystem for job '{job_name}'")
-    
+
     if len(backup_sets) > keep_sets:
         # These are the sets to delete from the filesystem
         to_delete = backup_sets[keep_sets:]
@@ -248,7 +248,7 @@ def rotate_backups(job_dst, keep_sets, logger, config=None):
                 # Extract backup set name and job name
                 backup_set_dir_name = os.path.basename(old_set)  # e.g., "backup_set_123456789"
                 set_name = backup_set_dir_name.replace("backup_set_", "")
-                
+
                 # Delete filesystem directory
                 shutil.rmtree(old_set)
                 logger.info(f"Deleted old backup set directory: {old_set}")
@@ -264,30 +264,30 @@ def rotate_backups(job_dst, keep_sets, logger, config=None):
                         c if c.isalnum() or c in ("-", "_") else "_" for c in job_name
                     )
                     prefix = machine_name
-                    
+
                     # Check for AWS credentials in environment variables
-                    has_env_creds = bool(os.environ.get("AWS_ACCESS_KEY_ID") and 
+                    has_env_creds = bool(os.environ.get("AWS_ACCESS_KEY_ID") and
                                         os.environ.get("AWS_SECRET_ACCESS_KEY"))
-                    
+
                     # specifically delete only the backup sets we just removed from the filesystem
                     for old_set in to_delete:
                         try:
                             # Extract backup set name from path
                             backup_set_dir_name = os.path.basename(old_set)  # e.g., "backup_set_123456789"
-                            
+
                             # Prepare S3 path for this specific backup set
                             s3_backup_set_path = f"s3://{bucket}/{prefix}/{sanitized_job_name}/{backup_set_dir_name}"
-                            
+
                             # Build the rm command to remove this specific backup set from S3
                             rm_cmd = ["aws", "s3", "rm", s3_backup_set_path, "--recursive"]
-                            
+
                             # Only use profile if we don't have environment credentials
                             if not has_env_creds and profile:
                                 rm_cmd.extend(["--profile", profile])
-                                
+
                             if region:
                                 rm_cmd.extend(["--region", region])
-                            
+
                             logger.debug(f"Deleting S3 backup set: {s3_backup_set_path}")
                             subprocess.run(rm_cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
                             logger.info(f"Deleted S3 backup set: {s3_backup_set_path}")
@@ -297,7 +297,7 @@ def rotate_backups(job_dst, keep_sets, logger, config=None):
                 # Rotate database records (independent of filesystem)
                 db_result = rotate_backup_sets_in_db(job_name, keep_sets)
                 logger.info(f"Database rotation results: {db_result['sets_deleted']} sets, {db_result['jobs_deleted']} jobs, {db_result['files_deleted']} file records deleted")
-                
+
             except Exception as e:
                 logger.error(f"Error deleting backup set {old_set}: {e}")
     else:
@@ -305,11 +305,10 @@ def rotate_backups(job_dst, keep_sets, logger, config=None):
 
     logger.info(f"Backup rotation completed for job '{job_name}'")
 
-
 def run_partial_backup(config, backup_type, source_getter_fn, encrypt=False, sync=False, event_id=None, job_config_path=None, global_config=None):
     """
     Shared logic for incremental and differential backups.
-    
+
     Args:
         config: The job configuration
         backup_type: 'incremental' or 'differential'
@@ -319,7 +318,7 @@ def run_partial_backup(config, backup_type, source_getter_fn, encrypt=False, syn
         event_id: The event ID
         job_config_path: Path to the job config file
         global_config: Global configuration
-        
+
     Returns:
         Tuple containing: (backup_set_dir, event_id, backup_set_name, tarball_paths)
         Or ("skipped", event_id, None, None) if no changes
@@ -333,7 +332,7 @@ def run_partial_backup(config, backup_type, source_getter_fn, encrypt=False, syn
     # Update event with our current status
     if event_id and event_exists(event_id):
         update_event(event_id, event_message=f"Initializing {backup_type} backup for {job_name}")
-    
+
     # Get source and destination paths from config
     src = config.get("source")
     dest = config.get("destination")
@@ -353,9 +352,9 @@ def run_partial_backup(config, backup_type, source_getter_fn, encrypt=False, syn
 
     # Update event for next stage
     if event_id and event_exists(event_id):
-        update_event(event_id, event_message=f"Setting up backup paths and loading exclude patterns")
-    
-    # Path setup 
+        update_event(event_id, event_message="Setting up backup paths and loading exclude patterns")
+
+    # Path setup
     machine_name = socket.gethostname()
     sanitized_job_name = "".join(c if c.isalnum() or c in ("-", "_") else "_" for c in job_name)
     sanitized_machine_name = "".join(c if c.isalnum() or c in ("-", "_") else "_" for c in machine_name)
@@ -377,7 +376,7 @@ def run_partial_backup(config, backup_type, source_getter_fn, encrypt=False, syn
         # For differential, we specifically need the last full backup job
         last_job = get_last_full_backup_job(job_name=job_name)
         job_type_description = "previous full backup job"
-    
+
     if not last_job:
         logger.warning(f"No {job_type_description} found in database, running full backup instead.")
         # Update the event to show we're changing to full backup
@@ -387,23 +386,18 @@ def run_partial_backup(config, backup_type, source_getter_fn, encrypt=False, syn
                 event_message=f"No {job_type_description} found; running full backup instead of {backup_type}.",
                 backup_type="full"
             )
-        from .full import run_full_backup
+
         return run_full_backup(config, encrypt=encrypt, sync=sync, event_id=event_id, job_config_path=job_config_path, global_config=global_config)
 
     # Get the backup set that this job belongs to
     backup_set_name = last_job['set_name']
-    
-    try:
-        backup_type_str = last_job['backup_type'] if 'backup_type' in last_job else 'unknown'
-    except (KeyError, IndexError):
-        backup_type_str = 'unknown'
-        
+
     logger.debug(f"Found {job_type_description} in set: {backup_set_name}, type: {backup_type}")
 
     # For both incremental and differential, use the same backup set
     target_backup_set_name = backup_set_name
     target_backup_set_dir = os.path.join(job_dst, f"backup_set_{target_backup_set_name}")
-    
+
     # Ensure the target backup set directory exists
     if not os.path.exists(target_backup_set_dir):
         error_msg = f"Target backup set directory not found: {target_backup_set_dir}"
@@ -421,27 +415,35 @@ def run_partial_backup(config, backup_type, source_getter_fn, encrypt=False, syn
 
     # CRITICAL: Use original job name (not sanitized) for database operations
     # Get or create the backup set for file comparison - without updating config_snapshot for incremental/differential
+    
+    # Check if the backup set already exists
+    existing_set = get_backup_set_by_job_and_set(job_name, target_backup_set_name)
+    
+    # Only include source_path when creating a new set, not for existing ones
+    source_path = None if existing_set else config.get('source')
+    
     backup_set_id = get_or_create_backup_set(
         job_name=job_name,  # Use original job name
         set_name=target_backup_set_name,
         # Do not update config_snapshot for incremental/differential backups
-        config_settings=None
+        config_settings=None,
+        source_path=source_path
     )
-    
+
     # Get source files for comparison using the provided getter function
     # For incremental, this will be all files in the backup set
     # For differential, this will be just files from the last full backup
     source_description = "backup set" if backup_type == "incremental" else "last full backup"
     logger.debug(f"Checking for changes against {source_description}: {target_backup_set_name}")
-    
+
     # The source_getter_fn parameter should handle the appropriate lookup logic
     source_files = source_getter_fn(backup_set_id if backup_type == "incremental" else job_name)
-    
+
     # Convert database files to the format expected by comparison function
     manifest_data = {
         "files": []
     }
-    
+
     for db_file in source_files:
         manifest_data["files"].append({
             "path": db_file["path"],
@@ -453,7 +455,7 @@ def run_partial_backup(config, backup_type, source_getter_fn, encrypt=False, syn
 
     # Detect new or modified files by comparing with source files
     files = get_new_or_modified_files_from_data(
-        src, manifest_data, exclude_patterns=exclude_patterns, backup_type=backup_type, job_name=job_name
+        src, manifest_data, exclude_patterns=exclude_patterns, job_name=job_name
     )
     if not files:
         logger.info(f"No files changed or added since {source_description}. Skipping {backup_type} backup.")
@@ -470,14 +472,14 @@ def run_partial_backup(config, backup_type, source_getter_fn, encrypt=False, syn
     try:
         # Create tarballs for the new/changed files in the existing backup set directory
         tarball_paths = create_tar_archives(
-            files, 
-            target_backup_set_dir, 
-            max_tarball_size_mb, 
-            logger, 
-            backup_type, 
+            files,
+            target_backup_set_dir,
+            max_tarball_size_mb,
+            logger,
+            backup_type,
             config
         )
-        
+
         encryption_enabled = config.get("encryption", {}).get("enabled", False) or encrypt
         new_tar_info = []
         for tar_path in tarball_paths:
@@ -487,20 +489,20 @@ def run_partial_backup(config, backup_type, source_getter_fn, encrypt=False, syn
         for file_info in new_tar_info:
             path = file_info.get("path", "")
             normalized_path = os.path.normpath(path).replace("\\", "/")
-            
+
             if backup_type == 'incremental':
                 # For incremental, check if file exists in previous backups
                 file_exists = False
                 for db_file in source_files:
                     db_path = db_file.get("path", "")
                     normalized_db_path = os.path.normpath(db_path).replace("\\", "/")
-                    
+
                     if normalized_path == normalized_db_path:
                         file_exists = True
                         file_info['is_new'] = False
                         file_info['is_modified'] = True
                         break
-                
+
                 if not file_exists:
                     file_info['is_new'] = True
                     file_info['is_modified'] = False
@@ -514,23 +516,23 @@ def run_partial_backup(config, backup_type, source_getter_fn, encrypt=False, syn
             # Calculate totals first
             total_files = len(new_tar_info)
             total_size_bytes = sum(f.get('size', 0) for f in new_tar_info)
-            
+
             logger.debug(f"Inserting {total_files} files into database for backup job {backup_job_id}")
             insert_files(backup_job_id, new_tar_info)
-            
+
             # Update event with progress
             if event_id and event_exists(event_id):
                 update_event(
                     event_id=event_id,
                     event_message=f"Backed up {total_files} files ({total_size_bytes} bytes)"
                 )
-            
+
             logger.info(f"Tarballs created for: {total_files} files, {total_size_bytes} bytes")
-            
+
             # Generate updated HTML manifest for the backup set
             if event_id and event_exists(event_id):
                 update_event(event_id, event_message="Generating manifest files")
-                
+
             html_manifest_path = generate_archived_manifest(
                 job_config_path=job_config_path,
                 job_name=job_name,
@@ -539,7 +541,7 @@ def run_partial_backup(config, backup_type, source_getter_fn, encrypt=False, syn
                 backup_type=backup_type
             )
             logger.info(f"HTML Manifest written to: {html_manifest_path}")
-            
+
         else:
             logger.warning("No tarballs created")
             if event_id and event_exists(event_id):
@@ -560,7 +562,7 @@ def run_partial_backup(config, backup_type, source_getter_fn, encrypt=False, syn
 
     except Exception as e:
         logger.error(f"Error during {backup_type} backup: {e}", exc_info=True)
-        
+
         # Finalize the event for errors ONLY
         if event_id and event_exists(event_id):
             finalize_event(
@@ -570,20 +572,20 @@ def run_partial_backup(config, backup_type, source_getter_fn, encrypt=False, syn
                 backup_set_id=target_backup_set_name,
                 runtime="00:00:00"
             )
-        
+
         raise
 
-def get_new_or_modified_files_from_data(src, manifest_data, exclude_patterns=None, backup_type="incremental", job_name="unknown_job"):
+def get_new_or_modified_files_from_data(src, manifest_data, exclude_patterns=None,job_name="unknown_job"):
     """
     Compare filesystem with manifest data to find new or modified files.
     This replaces the JSON file-based comparison with in-memory data comparison.
-    
+
     Args:
         src: Source directory to scan
         manifest_data: Dictionary of previous backup files
         exclude_patterns: List of patterns to exclude
         backup_type: Type of backup ('incremental' or 'differential')
-        
+
     Returns:
         List of file paths that are new or modified
     """
@@ -607,19 +609,18 @@ def get_new_or_modified_files_from_data(src, manifest_data, exclude_patterns=Non
         }
 
     logger.debug(f"Loaded {len(manifest_files)} files from previous backup for comparison")
-    
+
     new_or_modified = []
     dirs_excluded = 0
     files_excluded = 0
     files_checked = 0
-    
+
     for root, dirs, files in os.walk(src):
         # Process directories to exclude before walking them
         i = 0
         while i < len(dirs):
             dir_path = os.path.join(root, dirs[i])
-            rel_dir = os.path.relpath(dir_path, src)
-            
+
             if should_exclude(dir_path, exclude_patterns, src):
                 dirs.pop(i)
                 dirs_excluded += 1
@@ -632,7 +633,7 @@ def get_new_or_modified_files_from_data(src, manifest_data, exclude_patterns=Non
             rel_path = os.path.relpath(file_path, src)
             normalized_rel_path = os.path.normpath(rel_path).replace("\\", "/")
             files_checked += 1
-            
+
             # Check if file should be excluded
             if should_exclude(file_path, exclude_patterns, src):
                 files_excluded += 1
@@ -652,21 +653,20 @@ def get_new_or_modified_files_from_data(src, manifest_data, exclude_patterns=Non
                     # Use a more precise comparison and add logging for troubleshooting
                     mtime_diff = abs(current_mtime - manifest_file["mtime"])
                     if mtime_diff > 1 or current_size != manifest_file["size"]:
-                        logger.debug(f"Modified file: {normalized_rel_path} - " 
+                        logger.debug(f"Modified file: {normalized_rel_path} - "
                                      f"mtime diff: {mtime_diff}, "
                                      f"size: {current_size} vs {manifest_file['size']}")
                         new_or_modified.append(file_path)
-                        
+
             except OSError as e:
                 logger.warning(f"Could not access file {file_path}: {e}")
                 continue
 
     logger.debug(f"SUMMARY: Checked {files_checked} files, excluded {dirs_excluded} directories and {files_excluded} files")
     logger.info(f"Found {len(new_or_modified)} new or modified files to back up")
-    
+
     if len(new_or_modified) <= 10:
         for file_path in new_or_modified:
             logger.debug(f"Will back up: {os.path.relpath(file_path, src)}")
-    
-    return new_or_modified
 
+    return new_or_modified

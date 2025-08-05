@@ -19,7 +19,7 @@ def view_manifest(job_name, backup_set_id):
     """Render the manifest view for a specific job and backup set (from SQLite)."""
     # Get the original job name (with spaces) from the URL parameter
     original_job_name = job_name
-    
+
     # Sanitize the job name for filesystem paths only
     sanitized_job = "".join(
         c if c.isalnum() or c in ("-", "_") else "_" for c in job_name
@@ -33,10 +33,12 @@ def view_manifest(job_name, backup_set_id):
     # Use original job name for config lookup
     job_config_path = find_config_path_by_job_name(original_job_name)
     tarball_summary_list = []
-    
+    total_size_bytes = 0
+    total_size_human = "0 B"
+
     with open(GLOBAL_CONFIG_PATH, encoding="utf-8") as f:
         global_config = yaml.safe_load(f)
-    
+
     destination = None
     if job_config_path:
         job_config = load_config(job_config_path)
@@ -56,7 +58,7 @@ def view_manifest(job_name, backup_set_id):
             totals = calculate_total_size(tarball_summary_list)
             total_size_bytes = totals["total_size_bytes"]
             total_size_human = totals["total_size_human"]
-    
+
     cleaned_config = (
         get_merged_cleaned_yaml_config(job_config_path)
         if job_config_path else "Config file not found."
@@ -73,8 +75,7 @@ def view_manifest(job_name, backup_set_id):
 
     # Extract data from the new schema
     all_files = manifest_data.get("files", [])
-    
-    # Get config settings from database only, no fallback
+
     used_config = {}
     if manifest_data.get("config_snapshot"):
         try:

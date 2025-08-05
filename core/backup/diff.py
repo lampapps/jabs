@@ -1,3 +1,5 @@
+"""Differential backup logic for JABS."""
+
 from app.models.backup_files import get_files_for_last_full_backup
 from .common import run_partial_backup
 
@@ -12,12 +14,12 @@ def run_diff_backup(config, encrypt=False, sync=False, event_id=None, job_config
     
     # Use the shared partial backup logic with differential-specific parameters
     return run_partial_backup(
-        config=config, 
+        config=config,
         backup_type="differential",
         source_getter_fn=differential_source_getter,
-        encrypt=encrypt, 
-        sync=sync, 
-        event_id=event_id, 
-        job_config_path=job_config_path, 
+        encrypt=encrypt,
+        sync=sync,
+        event_id=event_id,
+        job_config_path=job_config_path,
         global_config=global_config
     )

@@ -20,7 +20,7 @@ def find_archives(directory="."):
     """Finds .tar.gz and .tar.gz.gpg files in the specified directory."""
     unencrypted_files = glob.glob(os.path.join(directory, UNENCRYPTED_PATTERN))
     encrypted_files = glob.glob(os.path.join(directory, ENCRYPTED_PATTERN))
-    
+
     all_archives_paths = sorted(list(set(unencrypted_files + encrypted_files)))
     # Return only basenames, sorted alphabetically for consistent display
     return sorted([os.path.basename(f) for f in all_archives_paths])
@@ -188,7 +188,7 @@ def extract_tar_gz(tar_file_path, destination_dir="."):
 def process_archive(archive_name, current_passphrase_holder, prompt_user=True):
     """Processes a single archive (decrypt if needed, then extract)."""
     is_encrypted = archive_name.endswith(".gpg")
-    
+
     if is_encrypted:
         print(f"\nArchive '{archive_name}' is encrypted.")
         if prompt_user:
@@ -218,7 +218,7 @@ def main():
     print(
         f"This script looks for '{UNENCRYPTED_PATTERN}' and '{ENCRYPTED_PATTERN}' files in the current directory."
     )
-    
+
     current_passphrase_holder = [None] 
 
     while True:
@@ -253,7 +253,7 @@ def main():
             # then those without timestamps (alphabetically by name).
             def sort_key(item):
                 if item['timestamp'] is None:
-                    return (datetime.max, item['name']) 
+                    return (datetime.max, item['name'])
                 return (item['timestamp'], item['name'])
             sorted_archives_to_process = sorted(detailed_archives, key=sort_key)
             if not sorted_archives_to_process:
@@ -281,7 +281,7 @@ def main():
                     print("Invalid number. Please try again.")
             except ValueError:
                 print("Invalid input. Please enter a number, 'all', or 'q'.")
-                
+
         print("-" * 30)
 
 if __name__ == "__main__":

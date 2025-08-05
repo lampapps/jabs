@@ -21,24 +21,24 @@ def check_aws_credentials(logger):
     if not shutil.which("aws"):
         logger.warning("AWS CLI not found. Cannot perform sync.")
         return False
-    
+
     # Check if the required environment variables or AWS config files exist
     aws_access_key = os.environ.get("AWS_ACCESS_KEY_ID")
     aws_secret_key = os.environ.get("AWS_SECRET_ACCESS_KEY")
-    
+
     if aws_access_key and aws_secret_key:
         logger.debug("AWS credentials found in environment variables.")
         return True
-    
+
     # Check for AWS native credentials file (cross-platform)
     home_dir = os.path.expanduser("~")
     aws_creds_file = os.path.join(home_dir, ".aws", "credentials")
     aws_config_file = os.path.join(home_dir, ".aws", "config")
-    
+
     if os.path.exists(aws_creds_file) or os.path.exists(aws_config_file):
         logger.debug("AWS credentials/config files found.")
         return True
-    
+
     logger.warning("No AWS credentials found in environment variables or config files.")
     return False
 
@@ -52,10 +52,10 @@ def sync_to_s3(backup_set_path, config, event_id=None):
     """
     job_name = config.get("job_name", "unknown")
     logger = setup_logger(job_name)
-    
+
     # Get the backup job ID - in the events view, event.id is the same as job_id
     job_id = event_id  # Since event ID corresponds to backup_jobs.id in the events view
-    
+
     aws_config = config.get("aws", {})
     # Get profile from environment variable first, fall back to config
     profile = os.environ.get("AWS_PROFILE") or aws_config.get("profile", "default")
@@ -66,7 +66,7 @@ def sync_to_s3(backup_set_path, config, event_id=None):
     prefix = machine_name
 
     # Check if we have AWS credentials in environment variables
-    has_env_creds = bool(os.environ.get("AWS_ACCESS_KEY_ID") and 
+    has_env_creds = bool(os.environ.get("AWS_ACCESS_KEY_ID") and
                          os.environ.get("AWS_SECRET_ACCESS_KEY"))
 
     if not bucket:
@@ -86,7 +86,7 @@ def sync_to_s3(backup_set_path, config, event_id=None):
     # Extract the parent directory (job directory name) from the backup set path
     job_dir_name = os.path.basename(os.path.dirname(backup_set_path))
     backup_set_name = os.path.basename(backup_set_path)
-    
+
     # Use the job_dir_name directly instead of re-sanitizing the job name
     # This ensures we use the exact same directory name that's already on disk
     s3_path = f"s3://{bucket}/{prefix}/{job_dir_name}/{backup_set_name}"
@@ -115,7 +115,7 @@ def sync_to_s3(backup_set_path, config, event_id=None):
     if not check_aws_credentials(logger):
         error_msg = "AWS CLI not available or credentials not configured. S3 sync will be skipped."
         logger.warning(error_msg)
-        
+
         # Send an error email notification
         hostname = socket.gethostname()
         email_subject = f"[JABS] AWS Credentials Missing on {hostname} for Job '{job_name}'"
@@ -137,7 +137,7 @@ The backup job completed successfully but the S3 sync step was skipped.
 """
         # Use error event type for immediate notification
         process_email_event("error", email_subject, email_body)
-        
+
         if event_id and event_exists(event_id):
             update_event(
                 event_id=event_id,
@@ -153,39 +153,39 @@ The backup job completed successfully but the S3 sync step was skipped.
     cmd = [
         "aws", "s3api", "head-bucket", "--bucket", bucket
     ]
-    
+
     # Only use profile if we don't have environment credentials
     if not has_env_creds:
         cmd.extend(["--profile", profile])
-        
+
     if region:
         cmd.extend(["--region", region])
-    
+
     try:
         # Use a timeout to prevent hanging
         process = subprocess.Popen(
-            cmd, 
-            stdout=subprocess.PIPE, 
-            stderr=subprocess.PIPE, 
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
             text=True
         )
-        
+
         # Wait for up to 10 seconds
         for _ in range(10):
             if process.poll() is not None:
                 break
             time.sleep(1)
-        
+
         # If still running after timeout, kill it
         if process.poll() is None:
             process.terminate()
             process.wait(2)  # Give it 2 more seconds to terminate
             if process.poll() is None:
                 process.kill()  # Force kill if still not terminated
-            
+
             logger.warning(f"Bucket check timed out after 10 seconds. Assuming bucket '{bucket}' doesn't exist.")
             raise subprocess.TimeoutExpired(cmd, 10)
-        
+
         # Check the return code
         if process.returncode == 0:
             logger.debug(f"Bucket '{bucket}' exists.")
@@ -193,18 +193,18 @@ The backup job completed successfully but the S3 sync step was skipped.
             stderr = process.stderr.read()
             logger.warning(f"Bucket check failed: {stderr}")
             raise subprocess.CalledProcessError(process.returncode, cmd, stderr=stderr)
-            
+
     except (subprocess.SubprocessError, subprocess.TimeoutExpired) as e:
         logger.warning(f"Bucket '{bucket}' does not exist or cannot be accessed. Attempting to create it...")
         try:
             create_cmd = [
                 "aws", "s3api", "create-bucket", "--bucket", bucket
             ]
-            
+
             # Only use profile if we don't have environment credentials
             if not has_env_creds:
                 create_cmd.extend(["--profile", profile])
-                
+
             if region and region != "us-east-1":
                 create_cmd.extend([
                     "--region", region,
@@ -212,31 +212,31 @@ The backup job completed successfully but the S3 sync step was skipped.
                 ])
             elif region:
                 create_cmd.extend(["--region", region])
-            
+
             # Use a timeout for bucket creation too
             process = subprocess.Popen(
-                create_cmd, 
-                stdout=subprocess.PIPE, 
-                stderr=subprocess.PIPE, 
+                create_cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
                 text=True
             )
-            
+
             # Wait for up to 15 seconds
             for _ in range(15):
                 if process.poll() is not None:
                     break
                 time.sleep(1)
-            
+
             # If still running after timeout, kill it
             if process.poll() is None:
                 process.terminate()
                 process.wait(2)
                 if process.poll() is None:
                     process.kill()
-                
+
                 error_msg = "Bucket creation timed out after 15 seconds."
                 logger.error(error_msg)
-                
+
                 # Send error email about bucket creation timeout
                 hostname = socket.gethostname()
                 email_subject = f"[JABS] AWS Bucket Creation Timeout on {hostname} for Job '{job_name}'"
@@ -252,7 +252,7 @@ Error: {error_msg}
 The backup job completed successfully but the S3 sync step was skipped.
 """
                 process_email_event("error", email_subject, email_body)
-                
+
                 if event_id and event_exists(event_id):
                     update_event(
                         event_id=event_id,
@@ -263,12 +263,12 @@ The backup job completed successfully but the S3 sync step was skipped.
                 if job_id:
                     update_job_sync_status(job_id, False)
                 return False
-            
+
             if process.returncode != 0:
                 stderr = process.stderr.read()
                 error_msg = f"Failed to create bucket: {stderr}"
                 logger.error(error_msg)
-                
+
                 # Send error email about bucket creation failure
                 hostname = socket.gethostname()
                 email_subject = f"[JABS] AWS Bucket Creation Failed on {hostname} for Job '{job_name}'"
@@ -284,7 +284,7 @@ Error: {error_msg}
 The backup job completed successfully but the S3 sync step was skipped.
 """
                 process_email_event("error", email_subject, email_body)
-                
+
                 if event_id and event_exists(event_id):
                     update_event(
                         event_id=event_id,
@@ -295,13 +295,13 @@ The backup job completed successfully but the S3 sync step was skipped.
                 if job_id:
                     update_job_sync_status(job_id, False)
                 return False
-            
+
             logger.debug(f"Bucket '{bucket}' created.")
-            
+
         except Exception as bucket_error:
             error_msg = f"Failed to create or access bucket: {str(bucket_error)}"
             logger.error(error_msg)
-            
+
             # Send error email about bucket access failure
             hostname = socket.gethostname()
             email_subject = f"[JABS] AWS Bucket Access Failed on {hostname} for Job '{job_name}'"
@@ -317,7 +317,7 @@ Error: {error_msg}
 The backup job completed successfully but the S3 sync step was skipped.
 """
             process_email_event("error", email_subject, email_body)
-            
+
             if event_id and event_exists(event_id):
                 update_event(
                     event_id=event_id,
@@ -334,32 +334,32 @@ The backup job completed successfully but the S3 sync step was skipped.
             "aws", "s3", "sync", backup_set_path, s3_path,
             "--storage-class", storage_class
         ]
-        
+
         # Only use profile if we don't have environment credentials
         if not has_env_creds:
             cmd.extend(["--profile", profile])
-            
+
         if region:
             cmd.extend(["--region", region])
 
         logger.debug(
             f"Syncing {backup_set_path} to {s3_path} with storage class {storage_class}..."
         )
-        
+
         # Use Popen for better control over the process
         process = subprocess.Popen(
-            cmd, 
-            stdout=subprocess.PIPE, 
-            stderr=subprocess.PIPE, 
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
             text=True
         )
-        
+
         # For large backups, we don't want to kill the process, but we do want to
         # implement a keep-alive mechanism to prevent the script from stalling
         stdout_lines = []
         start_time = time.time()
         last_output_time = start_time
-        
+
         # Use this loop to periodically check if the process is still running and has output
         while process.poll() is None:
             # Read output without blocking
@@ -370,7 +370,7 @@ The backup job completed successfully but the S3 sync step was skipped.
                 # Log progress periodically to show activity
                 if len(stdout_lines) % 10 == 0:
                     logger.debug(f"S3 sync in progress... {len(stdout_lines)} files processed")
-            
+
             # If no output for 30 seconds, check if process is stuck
             if time.time() - last_output_time > 30:
                 logger.warning("No output from AWS S3 sync for 30 seconds, checking status...")
@@ -381,18 +381,18 @@ The backup job completed successfully but the S3 sync step was skipped.
                 except:
                     pass
                 last_output_time = time.time()  # Reset the counter
-            
+
             # Sleep a bit to avoid CPU spinning
             time.sleep(0.5)
-        
+
         # Process has finished, collect any remaining output
         stdout, stderr = process.communicate()
         stdout_lines.extend(stdout.splitlines())
-        
+
         if process.returncode != 0:
             error_msg = f"S3 sync failed with return code {process.returncode}: {stderr}"
             logger.error(error_msg)
-            
+
             # Send error email about sync failure
             hostname = socket.gethostname()
             email_subject = f"[JABS] AWS S3 Sync Failed on {hostname} for Job '{job_name}'"
@@ -408,7 +408,7 @@ Error: {error_msg}
 The backup job completed successfully but the S3 sync step failed.
 """
             process_email_event("error", email_subject, email_body)
-            
+
             if event_id and event_exists(event_id):
                 update_event(
                     event_id=event_id,
@@ -419,7 +419,7 @@ The backup job completed successfully but the S3 sync step failed.
             if job_id:
                 update_job_sync_status(job_id, False)
             return False
-        
+
         files_synced = len(stdout_lines)
         logger.debug(f"Sync to AWS S3 completed successfully: {files_synced} files processed")
 
@@ -430,7 +430,7 @@ The backup job completed successfully but the S3 sync step failed.
                 event_message=f"S3 sync completed: {files_synced} files uploaded to {bucket}/{prefix}/{job_dir_name}/{backup_set_name}",
                 status="running"  # Keep it as running so CLI can finalize
             )
-            
+
         # Update job sync status to True
         if job_id:
             update_job_sync_status(job_id, True)
@@ -441,7 +441,7 @@ The backup job completed successfully but the S3 sync step failed.
     except Exception as e:
         error_msg = f"An unexpected error occurred during sync: {str(e)}"
         logger.error(error_msg)
-        
+
         # Send error email about unexpected sync error
         hostname = socket.gethostname()
         email_subject = f"[JABS] AWS S3 Sync Error on {hostname} for Job '{job_name}'"
@@ -457,7 +457,7 @@ Error: {error_msg}
 The backup job completed successfully but the S3 sync step encountered an error.
 """
         process_email_event("error", email_subject, email_body)
-        
+
         if event_id and event_exists(event_id):
             update_event(
                 event_id=event_id,
