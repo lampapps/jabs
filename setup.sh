@@ -1,16 +1,16 @@
 #!/usr/bin/bash
 
-echo "Checking for Python 3.12+..."
+echo "Checking for Python 3.11+..."
 if command -v python3 &>/dev/null; then
     PYTHON_VERSION=$(python3 -c 'import sys; print(".".join(map(str, sys.version_info[:3])))')
-    PYTHON_OK=$(python3 -c 'import sys; print(sys.version_info >= (3,12))')
+    PYTHON_OK=$(python3 -c 'import sys; print(sys.version_info >= (3,11))')
     if [ "$PYTHON_OK" = "True" ]; then
-        echo -e " \xE2\x9C\x93 Python 3.12+ found: $PYTHON_VERSION "
+        echo -e " \xE2\x9C\x93 Python 3.11+ found: $PYTHON_VERSION "
     else
-        echo "WARNING: Python version $PYTHON_VERSION found, but 3.12+ is required."
-        echo "If Python 3.12 is not installed, you can install it on Ubuntu with:"
+        echo "WARNING: Python version $PYTHON_VERSION found, but 3.11+ is required."
+        echo "If Python 3.11 is not installed, you can install it on Ubuntu with:"
         echo "  sudo apt update"
-        echo "  sudo apt install python3.12 python3.12-venv"
+        echo "  sudo apt install python3.11 python3.11-venv"
         echo "Or visit https://www.python.org/downloads/ for other platforms."
         exit 1
     fi
@@ -19,14 +19,14 @@ else
     exit 1
 fi
 
-echo "Checking for python3.12-venv module..."
+echo "Checking for python3.11-venv module..."
 if python3 -c "import venv" &>/dev/null; then
     echo -e " \xE2\x9C\x93 python3 venv module is available."
 else
     echo "WARNING: python3 venv module is missing."
-    echo "If Python 3.12 is not installed, you can install it on Ubuntu with:"
+    echo "If Python 3.11 is not installed, you can install it on Ubuntu with:"
     echo "  sudo apt update"
-    echo "  sudo apt install python3.12-venv"
+    echo "  sudo apt install python3.11-venv"
     echo "Or visit https://www.python.org/downloads/ for other platforms."
     exit 1
 fi

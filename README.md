@@ -33,7 +33,7 @@ A Python-based backup utility for creating local and cloud backups with a web da
 
 ```bash
 # Clone repository
-git clone <your-repo-url> jabs
+git clone https://github.com/lampapps/jabs.git jabs
 cd jabs
 
 # Run setup script

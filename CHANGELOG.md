@@ -2,7 +2,26 @@
 
 - Periodic refresh badges and monitor.html
 - enable monitoring true | false has no effect
-- store aws credentials in .env so root user has access to run jabs that sync
+- reformat emails
+- improve dryrun logging and disable restore in manifest
+
+## v0.8.1
+
+### Added
+
+- Adjust setup script to require Python 3.11
+
+## v0.8.0
+
+### Added
+
+- Changed from json data files to SQLite
+- Allowed AWS credentials to be added to enviremental variables so app can be run under root user
+
+### Fixed
+
+- Refactured logic flow to improve code readabilty
+- Many fixes due to refacturing for upgrade to SQLite.
 
 ## v0.7.3
 
