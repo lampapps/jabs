@@ -7,7 +7,7 @@ import yaml
 
 
 
-VERSION = "v0.8.2"
+VERSION = "v0.8.3"
 
 # --- Environment Configuration ---
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))

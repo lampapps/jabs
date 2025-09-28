@@ -68,14 +68,15 @@ $(document).ready(function() {
                     return;
                 }
                 
-                const { problems, api_statuses } = data;
+                const { problems, api_statuses, monitor_statuses } = data;  // Include monitor_statuses
                 
                 // Update each monitor card
                 monitorTargets.forEach((target, index) => {
                     const key = target.hostname || target.name;
                     const problem = problems[key];
                     const api_status = api_statuses[key];
-                    const status = api_status; // Use API status as primary
+                    const file_status = monitor_statuses[key];  // Get file status
+                    const status = api_status || file_status;    // Prefer API, fall back to file
                     
                     updateMonitorCard(key, target, status, problem, api_status);
                 });

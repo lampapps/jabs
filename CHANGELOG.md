@@ -10,6 +10,13 @@
 - Update/improve AWS credential setup on Security page, remove aws config option
 - Show IP for each JABS instance on monitor.html
 
+## v0.8.3
+
+### Fixed
+
+- Monitor status not properly rendering if target instance flask app was not running.
+
+
 ## v0.8.2
 
 ### Fixed

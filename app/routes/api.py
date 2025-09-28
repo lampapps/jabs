@@ -601,6 +601,7 @@ def get_monitor_targets():
     targets = []
     problems = {}
     api_statuses = {}
+    monitor_statuses = {}
     
     try:
         with open(monitor_yaml_path, "r", encoding="utf-8") as f:
@@ -647,7 +648,15 @@ def get_monitor_targets():
             key = target.get("hostname") or target.get("name") or "UNKNOWN"
             api_statuses[key] = api_status
             
-            # Determine if there is a problem
+            # Store the appropriate status data - prioritize API status, fall back to file status
+            if api_status:
+                monitor_statuses[key] = api_status
+            elif status:
+                monitor_statuses[key] = status
+            else:
+                monitor_statuses[key] = None
+            
+            # Determine if there is a problem - use the actual status we found
             s = api_status or status or {}
             error_count = s.get("error_event_count", 0)
             last_run_ts = s.get("last_scheduler_run")
@@ -672,5 +681,6 @@ def get_monitor_targets():
     return jsonify({
         "targets": targets,
         "problems": problems,
-        "api_statuses": api_statuses
+        "api_statuses": api_statuses,
+        "monitor_statuses": monitor_statuses
     })
