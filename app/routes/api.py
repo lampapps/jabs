@@ -62,6 +62,10 @@ def serve_events():
 @api_bp.route('/api/disk_usage')
 def get_disk_usage():
     """Return disk usage statistics for configured drives."""
+    import concurrent.futures
+    import threading
+    import time
+    
     try:
         with open(GLOBAL_CONFIG_PATH, "r", encoding="utf-8") as f:
             global_config = yaml.safe_load(f)
@@ -74,23 +78,93 @@ def get_disk_usage():
         return jsonify({"error": f"Configuration file {GLOBAL_CONFIG_PATH} not found."}), 404
     except yaml.YAMLError as e:
         return jsonify({"error": f"Error parsing {GLOBAL_CONFIG_PATH}: {str(e)}"}), 500
+    
+    def check_drive_usage_with_timeout(drive_path, timeout=3):
+        """Check disk usage for a single drive with individual timeout."""
+        result = [None]
+        exception = [None]
+        
+        def target():
+            try:
+                result[0] = shutil.disk_usage(drive_path)
+            except (FileNotFoundError, OSError) as e:
+                exception[0] = e
+        
+        thread = threading.Thread(target=target)
+        thread.daemon = True
+        thread.start()
+        thread.join(timeout)
+        
+        if thread.is_alive():
+            # Thread is still running, meaning it timed out
+            raise TimeoutError(f"Drive check for {drive_path} timed out after {timeout} seconds")
+        
+        if exception[0]:
+            raise exception[0]
+        
+        if result[0] is None:
+            raise Exception("Unknown error occurred during drive check")
+            
+        return result[0]
+    
     disk_usage = []
-    for drive in drives:
-        label = drive_labels.get(drive['path'], drive['path'])
+    
+    # Use ThreadPoolExecutor with shorter overall timeout
+    with concurrent.futures.ThreadPoolExecutor(max_workers=min(len(drives), 5)) as executor:
+        # Submit all drive checks with individual 3-second timeouts
+        future_to_drive = {}
+        for drive in drives:
+            future = executor.submit(check_drive_usage_with_timeout, drive['path'], 3)
+            future_to_drive[future] = drive
+        
+        # Process completed futures within a 5-second overall timeout
+        completed_futures = set()
         try:
-            total, used, free = shutil.disk_usage(drive['path'])
-            disk_usage.append({
-                "drive": label,
-                "total_gib": round(total / (1024 ** 3), 2),
-                "used_gib": round(used / (1024 ** 3), 2),
-                "free_gib": round(free / (1024 ** 3), 2),
-                "percent_used": round((used / total) * 100, 2)
-            })
-        except FileNotFoundError:
-            disk_usage.append({
-                "drive": label,
-                "error": "Drive not found or inaccessible"
-            })
+            for future in concurrent.futures.as_completed(future_to_drive, timeout=5):
+                completed_futures.add(future)
+                drive = future_to_drive[future]
+                label = drive_labels.get(drive['path'], drive['path'])
+                
+                try:
+                    total, used, free = future.result()
+                    disk_usage.append({
+                        "drive": label,
+                        "total_gib": round(total / (1024 ** 3), 2),
+                        "used_gib": round(used / (1024 ** 3), 2),
+                        "free_gib": round(free / (1024 ** 3), 2),
+                        "percent_used": round((used / total) * 100, 2)
+                    })
+                except TimeoutError:
+                    disk_usage.append({
+                        "drive": label,
+                        "error": "Drive check timed out (network issue or slow drive)"
+                    })
+                except (FileNotFoundError, OSError) as e:
+                    # Handle various error conditions gracefully
+                    if "Host is down" in str(e):
+                        error_msg = "Network drive unavailable (host is down)"
+                    elif "No such file or directory" in str(e):
+                        error_msg = "Drive not found or inaccessible"
+                    else:
+                        error_msg = f"Error accessing drive: {str(e)}"
+                        
+                    disk_usage.append({
+                        "drive": label,
+                        "error": error_msg
+                    })
+        except concurrent.futures.TimeoutError:
+            # Handle overall timeout - some futures didn't complete within 5 seconds
+            pass
+        
+        # Handle any drives that didn't complete within the timeout
+        for future, drive in future_to_drive.items():
+            if future not in completed_futures:
+                label = drive_labels.get(drive['path'], drive['path'])
+                disk_usage.append({
+                    "drive": label,
+                    "error": "Drive check timed out (possibly network issue)"
+                })
+    
     return jsonify(disk_usage)
 
 @api_bp.route('/api/s3_usage')
@@ -512,4 +586,91 @@ def heartbeat():
         "last_scheduler_run": last_run,
         "last_scheduler_run_str": last_run_str,
         "error_event_count": error_event_count
+    })
+
+@api_bp.route('/api/monitor_targets')
+def get_monitor_targets():
+    """Return the status of monitored targets."""
+    import os
+    import json
+    import requests
+    from datetime import datetime, timezone
+    from app.settings import CONFIG_DIR
+
+    monitor_yaml_path = os.path.join(CONFIG_DIR, "monitor.yaml")
+    targets = []
+    problems = {}
+    api_statuses = {}
+    
+    try:
+        with open(monitor_yaml_path, "r", encoding="utf-8") as f:
+            monitor_cfg = yaml.safe_load(f)
+        targets = monitor_cfg.get("monitored_targets", [])
+        shared_monitor_dir = monitor_cfg.get("shared_monitor_dir")
+        now = datetime.now(timezone.utc)
+        
+        for target in targets:
+            host_keys = []
+            if target.get("hostname"):
+                host_keys.append(target["hostname"])
+            if target.get("name"):
+                host_keys.append(target["name"])
+            status = None
+            api_status = None
+            api_available = False
+            api_url = target.get("url")
+            
+            # Try API first with short timeout
+            if api_url:
+                try:
+                    resp = requests.get(f"{api_url}/api/heartbeat", timeout=1)
+                    if resp.ok:
+                        api_status = resp.json()
+                        api_available = True
+                except Exception:
+                    api_status = None
+                    api_available = False
+            
+            # If API not available, try local file
+            if not api_available and shared_monitor_dir:
+                monitor_dir = os.path.join(shared_monitor_dir, "monitor")
+                for host_key in host_keys:
+                    json_path = os.path.join(monitor_dir, f"{host_key}.json")
+                    if os.path.exists(json_path):
+                        try:
+                            with open(json_path, "r", encoding="utf-8") as f:
+                                status = json.load(f)
+                            break
+                        except (json.JSONDecodeError, OSError):
+                            continue
+            
+            key = target.get("hostname") or target.get("name") or "UNKNOWN"
+            api_statuses[key] = api_status
+            
+            # Determine if there is a problem
+            s = api_status or status or {}
+            error_count = s.get("error_event_count", 0)
+            last_run_ts = s.get("last_scheduler_run")
+            grace_period = target.get("grace_period", 60)
+            too_old = False
+            
+            if last_run_ts:
+                try:
+                    last_run_dt = datetime.fromtimestamp(float(last_run_ts), tz=timezone.utc)
+                    minutes_since = (now - last_run_dt).total_seconds() / 60
+                    too_old = minutes_since > grace_period
+                except (ValueError, TypeError, OSError, IOError):
+                    too_old = True
+            else:
+                too_old = True
+            
+            problems[key] = (error_count > 0) or too_old
+            
+    except (OSError, IOError, yaml.YAMLError) as e:
+        return jsonify({"error": f"Error loading monitor configuration: {str(e)}"}), 500
+    
+    return jsonify({
+        "targets": targets,
+        "problems": problems,
+        "api_statuses": api_statuses
     })

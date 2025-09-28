@@ -17,16 +17,12 @@
             <i class="fa fa-edit"></i> Edit
         </a>
     </div>
-    <div class="row g-4">
+    <div class="row g-4" id="monitor-cards">
         {% for monitor in monitors %}
             {% set target = targets[loop.index0] %}
             {% set key = target.hostname or target.name %}
-            {% set api_status = api_statuses.get(key) %}
-            {% set file_status = monitor_statuses.get(key) %}
-            {% set status = api_status or file_status %}
-            {% set problem = problems.get(key) %}
-            <div class="col-12 col-md-6">
-                <div class="card border-{{ 'danger' if problem else 'success' }}">
+            <div class="col-12 col-md-6" data-target-key="{{ key }}">
+                <div class="card border-secondary" data-card-for="{{ key }}">
                     <div class="card-header d-flex justify-content-between align-items-center">
                         <span>
                             <strong>{{ monitor.name }}</strong>
@@ -35,49 +31,19 @@
                             Server {{ 'Online' if monitor.ok else 'Offline' }}
                         </span>
                     </div>
-                    <div class="card-body d-flex flex-column">
-                        <div><strong>Status:</strong>
-                            <span class="badge bg-{{ 'danger' if problem else 'success' }}">
-                                {{ 'Problem' if problem else 'OK' }}
-                            </span>
-                        </div>
-                        {% if status %}
-                            <div>Hostname: {{ status.get('hostname', 'N/A') }}</div>
-                            <div>Version: {{ status.get('version', 'N/A') }}</div>
-                            <div>Last Run: {{ status.get('last_scheduler_run_str', 'N/A') }}</div>
-                            <div>
-                                Error Count:
-                                <span class="{{ 'text-danger fw-bold' if status.get('error_event_count', 0) > 0 else 'text-muted' }}">
-                                    {{ status.get('error_event_count', 0) }}
-                                </span>
+                    <div class="card-body d-flex flex-column" data-body-for="{{ key }}">
+                        <div class="d-flex justify-content-center align-items-center" style="min-height: 120px;">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading status...</span>
                             </div>
-                            {% if problem %}
-                                <div class="mt-2 alert alert-danger p-2">
-                                    {% if status.get('error_event_count', 0) > 0 %}
-                                        <div><i class="fa fa-exclamation-triangle"></i> Backup error(s) detected.</div>
-                                    {% endif %}
-                                    {% set last_run_ts = status.get('last_scheduler_run') %}
-                                    {% set grace_period = target.grace_period or 60 %}
-                                    {% if last_run_ts %}
-                                        {% set minutes_since = ((now - last_run_ts) / 60) %}
-                                        {% if minutes_since > grace_period %}
-                                            <div><i class="fa fa-clock"></i> Last run was {{ minutes_since|round(1) }} min ago (over {{ grace_period }} min grace period).</div>
-                                        {% endif %}
-                                    {% endif %}
-                                </div>
-                            {% endif %}
-                        {% else %}
-                            <div class="text-danger">No status available.</div>
-                        {% endif %}
+                        </div>
                     </div>
-                    <div class="card-footer d-flex flex-wrap gap-2 justify-content-end">
-                        <a class="btn btn-primary btn-sm {% if not api_status %}disabled{% endif %}"
-                           href="{% if api_status %}{{ target.url }}{% else %}#{% endif %}"
-                           target="_blank"
-                           tabindex="-1"
-                           aria-disabled="{% if not api_status %}true{% else %}false{% endif %}">
-                            Dashboard
-                        </a>
+                    <div class="card-footer d-flex flex-wrap gap-2 justify-content-end" data-footer-for="{{ key }}">
+                        <button class="btn btn-primary btn-sm disabled" disabled>
+                            <div class="spinner-border spinner-border-sm" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -87,4 +53,110 @@
 {% endblock %}
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/global.js') }}"></script>
+<script>
+$(document).ready(function() {
+    const nowTimestamp = {{ now }};
+    const monitorTargets = {{ targets | tojson | safe }};
+    
+    function updateMonitorStatus() {
+        fetch('/api/monitor_targets')
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    console.error('Monitor targets error:', data.error);
+                    showErrorState();
+                    return;
+                }
+                
+                const { problems, api_statuses } = data;
+                
+                // Update each monitor card
+                monitorTargets.forEach((target, index) => {
+                    const key = target.hostname || target.name;
+                    const problem = problems[key];
+                    const api_status = api_statuses[key];
+                    const status = api_status; // Use API status as primary
+                    
+                    updateMonitorCard(key, target, status, problem, api_status);
+                });
+            })
+            .catch(error => {
+                console.error('Failed to load monitor targets:', error);
+                showErrorState();
+            });
+    }
+    
+    function updateMonitorCard(key, target, status, problem, api_status) {
+        const card = document.querySelector('[data-card-for="' + key + '"]');
+        const body = document.querySelector('[data-body-for="' + key + '"]');
+        const footer = document.querySelector('[data-footer-for="' + key + '"]');
+        
+        if (!card || !body || !footer) return;
+        
+        // Update card border color
+        card.className = card.className.replace(/border-\w+/, 'border-' + (problem ? 'danger' : 'success'));
+        
+        // Update body content
+        let bodyHTML = '<div><strong>Status:</strong> ' +
+            '<span class="badge bg-' + (problem ? 'danger' : 'success') + '">' +
+            (problem ? 'Problem' : 'OK') + '</span></div>';
+        
+        if (status) {
+            bodyHTML += '<div>Hostname: ' + (status.hostname || 'N/A') + '</div>';
+            bodyHTML += '<div>Version: ' + (status.version || 'N/A') + '</div>';
+            bodyHTML += '<div>Last Run: ' + (status.last_scheduler_run_str || 'N/A') + '</div>';
+            bodyHTML += '<div>Error Count: ' +
+                '<span class="' + ((status.error_event_count || 0) > 0 ? 'text-danger fw-bold' : 'text-muted') + '">' +
+                (status.error_event_count || 0) + '</span></div>';
+            
+            if (problem) {
+                bodyHTML += '<div class="mt-2 alert alert-danger p-2">';
+                if ((status.error_event_count || 0) > 0) {
+                    bodyHTML += '<div><i class="fa fa-exclamation-triangle"></i> Backup error(s) detected.</div>';
+                }
+                if (status.last_scheduler_run) {
+                    const lastRunTs = parseFloat(status.last_scheduler_run);
+                    const minutesSince = (nowTimestamp - lastRunTs) / 60;
+                    const gracePeriod = target.grace_period || 60;
+                    if (minutesSince > gracePeriod) {
+                        bodyHTML += '<div><i class="fa fa-clock"></i> Last run was ' + 
+                            minutesSince.toFixed(1) + ' min ago (over ' + gracePeriod + ' min grace period).</div>';
+                    }
+                }
+                bodyHTML += '</div>';
+            }
+        } else {
+            bodyHTML += '<div class="text-danger">No status available.</div>';
+        }
+        
+        body.innerHTML = bodyHTML;
+        
+        // Update footer
+        const dashboardEnabled = api_status ? '' : 'disabled';
+        const dashboardHref = api_status ? target.url : '#';
+        const dashboardTarget = api_status ? '_blank' : '';
+        const dashboardTabindex = api_status ? '' : '-1';
+        const dashboardAriaDisabled = api_status ? 'false' : 'true';
+        
+        footer.innerHTML = '<a class="btn btn-primary btn-sm ' + dashboardEnabled + '" ' +
+            'href="' + dashboardHref + '" ' +
+            'target="' + dashboardTarget + '" ' +
+            'tabindex="' + dashboardTabindex + '" ' +
+            'aria-disabled="' + dashboardAriaDisabled + '">Dashboard</a>';
+    }
+    
+    function showErrorState() {
+        document.querySelectorAll('[data-body-for]').forEach(function(body) {
+            body.innerHTML = '<div class="text-danger">Error loading status information.</div>';
+        });
+        document.querySelectorAll('[data-footer-for]').forEach(function(footer) {
+            footer.innerHTML = '<button class="btn btn-danger btn-sm disabled" disabled>Error</button>';
+        });
+    }
+    
+    // Load status immediately and then periodically
+    updateMonitorStatus();
+    setInterval(updateMonitorStatus, 30000); // Update every 30 seconds
+});
+</script>
 {% endblock %}

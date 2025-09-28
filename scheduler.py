@@ -16,6 +16,7 @@ from app.services.emailer import send_email_digest
 from app.utils.monitor_status import write_monitor_status
 from app.settings import CONFIG_DIR, LOG_DIR, CLI_SCRIPT, SCHEDULER_STATUS_FILE, SCHEDULE_TOLERANCE, VERSION, GLOBAL_CONFIG_PATH, MONITOR_CONFIG_PATH, ENV_PATH
 from app.models.scheduler_events import append_scheduler_event, trim_scheduler_events
+from app.services.emailer import email_logger
 
 # --- Load .env file ---
 load_dotenv(ENV_PATH)
@@ -99,10 +100,22 @@ def send_digest_email_thread():
     """Send the email digest in a separate thread."""
     try:
         logger.info("Starting digest email in separate thread")
-        send_email_digest()
-        logger.info("Digest email completed")
+        # Also log to the email logger for better tracking
+        email_logger.info("Digest email thread started")
+        
+        success = send_email_digest()
+        
+        if success:
+            logger.info("Digest email completed successfully")
+            email_logger.info("Digest email completed successfully")
+        else:
+            logger.warning("Digest email completed but returned False")
+            email_logger.warning("Digest email completed but returned False")
+            
     except Exception as e:
         logger.error(f"Error sending digest email in thread: {e}", exc_info=True)
+        # Also log to email logger (email_logger is already imported at top)
+        email_logger.error(f"Error sending digest email in thread: {e}", exc_info=True)
 
 def send_digest_email(global_config, now):
     """Return True if it's time to send the digest email based on cron syntax in config."""
@@ -162,7 +175,7 @@ def main():
     if send_digest_email(global_config, now):
         logger.info("Digest email schedule matched. Starting email thread.")
         email_thread = threading.Thread(target=send_digest_email_thread)
-        email_thread.daemon = True  # Allow program to exit if thread is still running
+        email_thread.daemon = False  # Changed from True - allows proper SSL context inheritance
         email_thread.start()
 
     triggered_jobs_count = 0

@@ -1,13 +1,9 @@
-# Default Backup Job Configuration
-# Rename this file to global.yaml
+# --- Default Backup Job Configuration ---
 
-# Local destination for all backups jobs unless overridden in job config
-# The `destination` directory must have sufficient space for the backup sets.
+# Local configuration for all backups jobs unless overridden in job config
 destination: "/path/to/directory"      # must be local or mapped drive
-
 keep_sets: 5  # Number of backup sets to retain (older sets will be deleted automatically)
 max_tarball_size: 2048  # Maximum size of each tarball in MB (e.g., 1024 MB = 1 GB)
-
 use_common_exclude: true   # true | false to exclude patterns from config/common_exclude.yaml
 
 # AWS S3 settings for cloud backups unless overridden in job config
@@ -19,10 +15,8 @@ use_common_exclude: true   # true | false to exclude patterns from config/common
 # - Must start and end with a letter or number.
 # - Cannot contain uppercase letters or underscores.
 # - Cannot be formatted as an IP address (e.g., 192.168.5.4).
-
 aws:
   enabled: false  # Default, false can be overridden in job config or by CLI
-  profile: "default"  # AWS CLI profile to use (default if not specified)
   region: "us-east-1"  # AWS region (overrides profile region if specified)
   bucket: "example-jabs"  # S3 bucket name (required for cloud backups)
   storage_class: "STANDARD"  # Options: STANDARD, STANDARD_IA, ONEZONE_IA, INTELLIGENT_TIERING, GLACIER, DEEP_ARCHIVE, etc.
@@ -34,13 +28,14 @@ encryption:
   passphrase_env: JABS_ENCRYPT_PASSPHRASE  # Name of env var holding passphrase
 
 
-# Dashboard Configuration:
+# --- Dashboard Configuration ---
+
 # Configure the drives and buckets that appear in the dashboard
 drives:
   - path: "/"
     label: "Root"
-  - path: "/path/to/directory"
-    label: "Backup Drive"
+# - path: "/path/to/directory"
+#   label: "Backup Drive"
 
 s3_buckets:
   - bucket: "example-jabs"
@@ -48,12 +43,15 @@ s3_buckets:
   - bucket: "example-backup"
     label: "Backup"
 
+# --- Email Notification Configuration ---
+
+# Configure email notifications for backup events
 email:
   smtp_server: "smtp.zoho.com"         # SMTP server (change if using another provider)
   smtp_port: 587                       # 587 for TLS (Gmail and most providers)
   to_addrs:                            # List of recipient email addresses, set credentials for smtp server in Security menu
     - "example1@gmail.com"
-    - "example2@gmail.com"
+#   - "example2@gmail.com"
   use_tls: true                        # Use TLS for SMTP connection (recommended for Gmail)
   digest_email_schedule: "0 8 * * *"   # Every day at 8:00 AM (example)
 

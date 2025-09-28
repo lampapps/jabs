@@ -197,4 +197,46 @@
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 <script src="{{ url_for('static', filename='js/global.js') }}"></script>
+<script>
+// Load monitor badges asynchronously after page loads
+$(document).ready(function() {
+    function updateMonitorBadges() {
+        fetch('/api/monitor_targets')
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    console.error('Monitor targets error:', data.error);
+                    return;
+                }
+                
+                const { targets, problems, api_statuses } = data;
+                
+                // Update each monitor badge
+                targets.forEach(target => {
+                    const key = target.hostname || target.name;
+                    const problem = problems[key];
+                    const api_status = api_statuses[key];
+                    
+                    // Find the badge image for this target
+                    const badges = document.querySelectorAll('img[alt*="' + (target.name || key) + '"]');
+                    badges.forEach(badge => {
+                        const status = problem ? 'problem' : (api_status ? 'online' : 'offline');
+                        const color = problem ? 'red' : (api_status ? '00DF4D' : 'bdbdbd');
+                        
+                        // Update the badge URL
+                        const newSrc = `https://img.shields.io/static/v1?label=${encodeURIComponent(target.name || key)}&message=${status}&labelColor=0B0021&color=${color}&style=flat&logo=server&logoColor=white`;
+                        badge.src = newSrc;
+                    });
+                });
+            })
+            .catch(error => {
+                console.error('Failed to load monitor targets:', error);
+            });
+    }
+    
+    // Load badges immediately and then periodically
+    updateMonitorBadges();
+    setInterval(updateMonitorBadges, 30000); // Update every 30 seconds
+});
+</script>
 {% endblock %}

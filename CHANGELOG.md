@@ -3,7 +3,18 @@
 - Periodic refresh badges and monitor.html
 - enable monitoring true | false has no effect
 - reformat emails
-- improve dryrun logging and disable restore in manifest
+- improve dryrun logging, check but skip sync, skip rotate, and disable restore in manifest
+- add example backup.job config file
+- change "error loading S3 Usage data" to Credentials not found (better error handling)
+- Update/improve scheduler config page
+- Update/improve AWS credential setup on Security page, remove aws config option
+- Show IP for each JABS instance on monitor.html
+
+## v0.8.2
+
+### Fixed
+
+- Daily digest email was not firing as scheduled.
 
 ## v0.8.1
 

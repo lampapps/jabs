@@ -40,68 +40,16 @@ def dashboard():
     with open('config/global.yaml', encoding="utf-8") as f:
         global_config = yaml.safe_load(f)
 
-    # --- Monitor badge logic ---
+    # --- Load monitor targets but don't check them server-side ---
     monitor_yaml_path = os.path.join(CONFIG_DIR, "monitor.yaml")
     targets = []
-    problems = {}
-    api_statuses = {}
     try:
         with open(monitor_yaml_path, "r", encoding="utf-8") as f:
             monitor_cfg = yaml.safe_load(f)
         targets = monitor_cfg.get("monitored_targets", [])
-        shared_monitor_dir = monitor_cfg.get("shared_monitor_dir")
-        now = datetime.now(timezone.utc)
-        for target in targets:
-            host_keys = []
-            if target.get("hostname"):
-                host_keys.append(target["hostname"])
-            if target.get("name"):
-                host_keys.append(target["name"])
-            status = None
-            api_status = None
-            api_available = False
-            api_url = target.get("url")
-            # Try API first
-            if api_url:
-                try:
-                    resp = requests.get(f"{api_url}/api/heartbeat", timeout=2)
-                    if resp.ok:
-                        api_status = resp.json()
-                        api_available = True
-                except Exception:
-                    api_status = None
-                    api_available = False
-            # If API not available, try local file
-            if not api_available and shared_monitor_dir:
-                monitor_dir = os.path.join(shared_monitor_dir, "monitor")
-                for host_key in host_keys:
-                    json_path = os.path.join(monitor_dir, f"{host_key}.json")
-                    if os.path.exists(json_path):
-                        with open(json_path, "r", encoding="utf-8") as f:
-                            status = json.load(f)
-                        break
-            key = target.get("hostname") or target.get("name") or "UNKNOWN"
-            api_statuses[key] = api_status
-            # Determine if there is a problem
-            s = api_status or status or {}
-            error_count = s.get("error_event_count", 0)
-            last_run_ts = s.get("last_scheduler_run")
-            grace_period = target.get("grace_period", 60)
-            too_old = False
-            if last_run_ts:
-                try:
-                    last_run_dt = datetime.fromtimestamp(float(last_run_ts), tz=timezone.utc)
-                    minutes_since = (now - last_run_dt).total_seconds() / 60
-                    too_old = minutes_since > grace_period
-                except (ValueError, TypeError, OSError, IOError):
-                    too_old = True
-            else:
-                too_old = True
-            problems[key] = (error_count > 0) or too_old
     except (OSError, IOError, yaml.YAMLError) as e:
         current_app.logger.error(f"Error loading monitor.yaml: {e}")
-        # Optionally: set targets = [] or handle gracefully
-    # --- End monitor badge logic ---
+    # --- End monitor badge logic (simplified) ---
 
     scheduled_jobs = []
     for job_path in job_paths:
@@ -143,8 +91,8 @@ def dashboard():
         scheduled_jobs=scheduled_jobs,
         hostname=socket.gethostname(),
         targets=targets,
-        problems=problems,
-        api_statuses=api_statuses,
+        problems={},  # Empty - will be populated by client-side JS
+        api_statuses={},  # Empty - will be populated by client-side JS
         env_mode=ENV_MODE
     )
 
