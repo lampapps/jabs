@@ -4,10 +4,11 @@ import os
 import sys
 from datetime import timedelta
 import yaml
+from dotenv import load_dotenv
 
 
 
-VERSION = "v0.8.3"
+VERSION = "v0.8.4"
 
 # --- Environment Configuration ---
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
@@ -16,9 +17,11 @@ BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 # This file should not be committed to version control
 ENV_PATH = os.path.join(BASE_DIR, ".env")
 
-# Uncomment the following line if codebase is in development mode
-# This will display a banner, create a seperate monitor json file, and enable debug logging
-ENV_MODE='development'
+# Load environment variables
+load_dotenv(ENV_PATH)
+
+# Environment mode (development/production)
+ENV_MODE = os.environ.get("ENV_MODE", "production")
 
 # --- Application Configuration ---
 TEMPLATE_DIR = os.path.join(BASE_DIR, 'app', 'templates')

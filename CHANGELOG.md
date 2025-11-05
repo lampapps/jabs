@@ -1,7 +1,7 @@
 ## To do
 
 - Periodic refresh badges and monitor.html
-- enable monitoring true | false has no effect
+- Improve monitoring true | false flag
 - reformat emails
 - improve dryrun logging, check but skip sync, skip rotate, and disable restore in manifest
 - add example backup.job config file
@@ -10,14 +10,19 @@
 - Update/improve AWS credential setup on Security page, remove aws config option
 - Show IP for each JABS instance on monitor.html
 
-## v0.8.3
+## v0.8.4 - 25-11-05
+
+### Fixed
+
+- Moved development mode flag back to .env
+
+## v0.8.3 - 25-09-29
 
 ### Fixed
 
 - Monitor status not properly rendering if target instance flask app was not running.
 
-
-## v0.8.2
+## v0.8.2 - 25-09-29
 
 ### Fixed
 

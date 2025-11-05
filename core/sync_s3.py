@@ -332,7 +332,9 @@ The backup job completed successfully but the S3 sync step was skipped.
     try:
         cmd = [
             "aws", "s3", "sync", backup_set_path, s3_path,
-            "--storage-class", storage_class
+            "--storage-class", storage_class,
+            "--exclude", "*",  # Exclude everything first
+            "--include", "*"   # Then include everything (forces processing)
         ]
 
         # Only use profile if we don't have environment credentials
@@ -342,16 +344,34 @@ The backup job completed successfully but the S3 sync step was skipped.
         if region:
             cmd.extend(["--region", region])
 
-        logger.debug(
-            f"Syncing {backup_set_path} to {s3_path} with storage class {storage_class}..."
+        logger.info(
+            f"Syncing {backup_set_path} to {s3_path} with storage class {storage_class} "
+            f"(optimized for performance)..."
         )
+
+        # Set AWS CLI configuration for better performance via environment variables
+        env = os.environ.copy()
+        env.update({
+            # Performance optimizations
+            'AWS_CLI_FILE_ENCODING': 'UTF-8',
+            'AWS_MAX_ATTEMPTS': '3',
+            'AWS_RETRY_MODE': 'adaptive',
+            # S3 Transfer configuration
+            'AWS_S3_MAX_CONCURRENT_REQUESTS': '20',     # Increase concurrent requests
+            'AWS_S3_MAX_BANDWIDTH': '10MB',             # Limit bandwidth to 10MB/s
+            'AWS_S3_MULTIPART_THRESHOLD': '64MB',       # Use multipart for files > 64MB
+            'AWS_S3_MULTIPART_CHUNKSIZE': '16MB',       # 16MB chunks
+            'AWS_S3_MAX_QUEUE_SIZE': '10000',           # Increase queue size
+            'AWS_S3_USE_ACCELERATE_ENDPOINT': 'false'   # Disable acceleration (can be slow for some regions)
+        })
 
         # Use Popen for better control over the process
         process = subprocess.Popen(
             cmd,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            text=True
+            text=True,
+            env=env
         )
 
         # For large backups, we don't want to kill the process, but we do want to
@@ -367,13 +387,15 @@ The backup job completed successfully but the S3 sync step was skipped.
             if stdout_line:
                 stdout_lines.append(stdout_line)
                 last_output_time = time.time()
-                # Log progress periodically to show activity
-                if len(stdout_lines) % 10 == 0:
-                    logger.debug(f"S3 sync in progress... {len(stdout_lines)} files processed")
+                # Log progress more frequently to show activity
+                if len(stdout_lines) % 5 == 0:  # Every 5 files instead of 10
+                    elapsed = time.time() - start_time
+                    rate = len(stdout_lines) / elapsed if elapsed > 0 else 0
+                    logger.debug(f"S3 sync in progress... {len(stdout_lines)} files processed ({rate:.1f} files/sec)")
 
-            # If no output for 30 seconds, check if process is stuck
-            if time.time() - last_output_time > 30:
-                logger.warning("No output from AWS S3 sync for 30 seconds, checking status...")
+            # Increase timeout for high-speed uploads (more data means longer individual operations)
+            if time.time() - last_output_time > 120:  # 2 minutes for large files
+                logger.warning("No output from AWS S3 sync for 2 minutes, checking status...")
                 # Try sending SIGINFO (not available on Windows) or just continue waiting
                 try:
                     if hasattr(signal, 'SIGINFO'):
@@ -421,13 +443,17 @@ The backup job completed successfully but the S3 sync step failed.
             return False
 
         files_synced = len(stdout_lines)
-        logger.debug(f"Sync to AWS S3 completed successfully: {files_synced} files processed")
+        elapsed_time = time.time() - start_time
+        avg_rate = files_synced / elapsed_time if elapsed_time > 0 else 0
+        
+        # Calculate approximate data transfer rate if we can estimate file sizes
+        logger.info(f"Sync to AWS S3 completed successfully: {files_synced} files processed in {elapsed_time:.1f}s ({avg_rate:.1f} files/sec)")
 
-        # Update event with success message
+        # Update event with success message including performance info
         if event_id and event_exists(event_id):
             update_event(
                 event_id=event_id,
-                event_message=f"S3 sync completed: {files_synced} files uploaded to {bucket}/{prefix}/{job_dir_name}/{backup_set_name}",
+                event_message=f"S3 sync completed: {files_synced} files uploaded to {bucket}/{prefix}/{job_dir_name}/{backup_set_name} in {elapsed_time:.1f}s",
                 status="running"  # Keep it as running so CLI can finalize
             )
 
@@ -437,7 +463,6 @@ The backup job completed successfully but the S3 sync step failed.
 
         # Return without finalizing - let CLI do that
         return True
-
     except Exception as e:
         error_msg = f"An unexpected error occurred during sync: {str(e)}"
         logger.error(error_msg)
