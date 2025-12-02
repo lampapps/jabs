@@ -9,6 +9,14 @@
 - Update/improve scheduler config page
 - Update/improve AWS credential setup on Security page, remove aws config option
 - Show IP for each JABS instance on monitor.html
+- Fix errors in terminal when AWS credetials are missing or incorrect.
+- Backup Archives in set on the manifest page lists only first 90 parts.
+
+## v0.8.5 - 25-12-02
+
+### Added
+
+- Refactor setup process: remove old setup.sh, add jabs.sh with enhanced management routines and logging
 
 ## v0.8.4 - 25-11-05
 

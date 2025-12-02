@@ -3,6 +3,7 @@
 .flask_secret_key
 **/__pycache__/**
 venv/
+jabs.pid
 
 /data/*
 !/data/.gitkeep
