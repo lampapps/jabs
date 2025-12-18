@@ -7,7 +7,7 @@
 <div class="container-fluid px-4">
     <div class="row pb-0">
         <div class="col-md-6">
-            <h2 class="mt-4 mb-0 me-md-3">Dashboard <span class="text-muted" style="font-size:0.7em;">( {{ hostname }} )</span></h2>
+            <h2 class="mt-4 mb-0 me-md-3">Dashboard</h2>
             <div class="mb-4">
                 <span class="fs-6">Just Another Backup Script {JABS}</span>
             </div>
@@ -17,21 +17,10 @@
             <!-- Use flexbox to align items horizontally -->
             <div class="mt-4 mt-ms-0 d-flex align-items-center justify-content-md-end flex-wrap gap-2">
                 {% include 'partials/monitor_badges.html' %}
-                {% for target in targets %}
-                    {% set key = target.hostname or target.name %}
-                    {% set problem = problems.get(key) %}
-                    {% set api_status = api_statuses.get(key) %}
-                    <a href="{{ url_for('monitor.monitor') }}" style="text-decoration: none;">
-                        <img
-                            src="https://img.shields.io/static/v1?label={{ (target.name or key)|urlencode }}&message={{ 'problem' if problem else ('online' if api_status else 'offline') }}&labelColor=0B0021&color={{ 'red' if problem else ('00DF4D' if api_status else 'bdbdbd') }}&style=flat&logo=server&logoColor=white"
-                            alt="JABS Server: {{ target.name or key }}"
-                            class="ms-2 mb-2"
-                            title="{{ target.name or key }}"
-                            style="max-width: 100%; height: 20px;"
-                        />
-                    </a>
-                {% endfor %}
+                <!-- Dynamic JABS Instance Badges (populated by JavaScript) -->
+                <div id="jabs-instance-badges"></div>
             </div>
+        </div>
         <!-- End Modified Column -->
         </div>
     </div>
@@ -193,50 +182,8 @@
 
 {% block scripts %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 <script src="{{ url_for('static', filename='js/global.js') }}"></script>
-<script>
-// Load monitor badges asynchronously after page loads
-$(document).ready(function() {
-    function updateMonitorBadges() {
-        fetch('/api/monitor_targets')
-            .then(response => response.json())
-            .then(data => {
-                if (data.error) {
-                    console.error('Monitor targets error:', data.error);
-                    return;
-                }
-                
-                const { targets, problems, api_statuses } = data;
-                
-                // Update each monitor badge
-                targets.forEach(target => {
-                    const key = target.hostname || target.name;
-                    const problem = problems[key];
-                    const api_status = api_statuses[key];
-                    
-                    // Find the badge image for this target
-                    const badges = document.querySelectorAll('img[alt*="' + (target.name || key) + '"]');
-                    badges.forEach(badge => {
-                        const status = problem ? 'problem' : (api_status ? 'online' : 'offline');
-                        const color = problem ? 'red' : (api_status ? '00DF4D' : 'bdbdbd');
-                        
-                        // Update the badge URL
-                        const newSrc = `https://img.shields.io/static/v1?label=${encodeURIComponent(target.name || key)}&message=${status}&labelColor=0B0021&color=${color}&style=flat&logo=server&logoColor=white`;
-                        badge.src = newSrc;
-                    });
-                });
-            })
-            .catch(error => {
-                console.error('Failed to load monitor targets:', error);
-            });
-    }
-    
-    // Load badges immediately and then periodically
-    updateMonitorBadges();
-    setInterval(updateMonitorBadges, 30000); // Update every 30 seconds
-});
-</script>
+<script src="{{ url_for('static', filename='js/index.js') }}"></script>
 {% endblock %}

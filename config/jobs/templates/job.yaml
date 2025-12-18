@@ -24,11 +24,11 @@ exclude:
   #        * * * * * 
 schedules:
   - cron: "0 2 * * 7"    # Runs at 2:00 AM, every Sunday
-    type: "full"         # full or diff
+    type: "full"         # full, diff, or incremental
     enabled: false       # Scheduled to run, true or false
 
   - cron: "0 2 * * 1-6"  # Runs at 2:00 AM, Monday to Saturday
-    type: "diff"           
+    type: "incremental"  # full, diff, or incremental          
     enabled: false 
 
 # #######################################################################################################################

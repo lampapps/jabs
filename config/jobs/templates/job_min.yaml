@@ -9,7 +9,7 @@ schedules:
     enabled: false       # true or false
 
   - cron: "0 2 * * 1-6"  # Runs at 2:00 AM, Monday to Saturday
-    type: "diff"          
+    type: "incremental"  # full, diff, or incremental          
     enabled: false 
 
 # Uncomment below to override Global Configuration if desired. See job.yaml for more

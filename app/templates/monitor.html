@@ -2,162 +2,102 @@
 {% block title %}Monitor{% endblock %}
 {% block top_scripts %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/monitor.css') }}">
 {% endblock %}
 {% block content %}
 <div class="container my-4">
+    <!-- Header Section -->
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
             <h2 class="mb-0">Monitor</h2>
             <div class="mb-2">
-                <span class="fs-6">Monitor other JABS instances on local network</span>
+                <span class="fs-6">Monitor JABS instances on local network</span>
             </div>
         </div>
-        <a class="btn btn-warning btn-sm"
-           href="{{ url_for('config.edit_config', filename='monitor.yaml', next=url_for('monitor.monitor')) }}">
-            <i class="fa fa-edit"></i> Edit
-        </a>
+        <div class="d-flex gap-2">
+            <button class="btn btn-primary btn-sm" id="discover-btn" onclick="discoverInstances()">
+                <i class="fa fa-search"></i> Auto-Discover
+            </button>
+            <a class="btn btn-warning btn-sm"
+               href="{{ url_for('config.edit_config', filename='monitor.yaml', next=url_for('monitor.monitor')) }}">
+                <i class="fa fa-edit"></i> Edit Config
+            </a>
+        </div>
     </div>
-    <div class="row g-4" id="monitor-cards">
-        {% for monitor in monitors %}
-            {% set target = targets[loop.index0] %}
-            {% set key = target.hostname or target.name %}
-            <div class="col-12 col-md-6" data-target-key="{{ key }}">
-                <div class="card border-secondary" data-card-for="{{ key }}">
-                    <div class="card-header d-flex justify-content-between align-items-center">
-                        <span>
-                            <strong>{{ monitor.name }}</strong>
-                        </span>
-                        <span class="badge bg-{{ 'success' if monitor.ok else 'secondary' }}">
-                            Server {{ 'Online' if monitor.ok else 'Offline' }}
-                        </span>
-                    </div>
-                    <div class="card-body d-flex flex-column" data-body-for="{{ key }}">
-                        <div class="d-flex justify-content-center align-items-center" style="min-height: 120px;">
-                            <div class="spinner-border text-primary" role="status">
-                                <span class="visually-hidden">Loading status...</span>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="card-footer d-flex flex-wrap gap-2 justify-content-end" data-footer-for="{{ key }}">
-                        <button class="btn btn-primary btn-sm disabled" disabled>
-                            <div class="spinner-border spinner-border-sm" role="status">
-                                <span class="visually-hidden">Loading...</span>
-                            </div>
-                        </button>
-                    </div>
-                </div>
-            </div>
-        {% endfor %}
+
+    <!-- Discovery Status -->
+    <div id="discovery-status" class="alert alert-info discovery-status">
+        <div class="d-flex align-items-center">
+            <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+            <span id="discovery-message">Scanning network for JABS instances...</span>
+        </div>
+    </div>
+
+    <!-- Auto-Discovered Instances Table -->
+    <div class="mb-5">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h4>Discovered Instances</h4>
+            <button class="btn btn-outline-secondary btn-sm" onclick="refreshDiscoveredInstances()">
+                <i class="fa fa-refresh"></i> Refresh
+            </button>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-striped table-hover" id="discovered-instances-table">
+                <thead class="table-dark">
+                    <tr>
+                        <th colspan="3" class="text-center"></th>
+                        <th colspan="3" class="text-center group-header-cli">CRON Schedule</th>
+                        <th colspan="3" class="text-center group-header-flask">Web Interface</th>
+                        <th class="group-header-actions"></th>
+                    </tr>
+                    <tr>
+                        <th>Hostname</th>
+                        <th>IP Address</th>
+                        <th>Version</th>
+                        <th class="group-border-cli-start">Status</th>
+                        <th>Errors</th>
+                        <th class="group-border-cli-end">Grace Period</th>
+                        <th class="group-border-flask-start">Status</th>
+                        <th>Errors</th>
+                        <th class="group-border-flask-end">Open</th>
+                        <th class="group-border-actions">Delete</th>
+                    </tr>
+                </thead>
+                <tbody id="discovered-instances-tbody">
+                    <!-- Populated by JavaScript -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
     </div>
 </div>
+
+<!-- Grace Period Edit Modal -->
+<div class="modal fade" id="gracePeriodModal" tabindex="-1" aria-labelledby="gracePeriodModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="gracePeriodModalLabel">Edit Grace Period</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="gracePeriodInput" class="form-label">Grace Period (minutes)</label>
+                    <input type="number" class="form-control" id="gracePeriodInput" min="1" max="1440">
+                    <div class="form-text">Time to wait before marking CRON as stopped (1-1440 minutes)</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="saveGracePeriod()">Save Changes</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/global.js') }}"></script>
-<script>
-$(document).ready(function() {
-    const nowTimestamp = {{ now }};
-    const monitorTargets = {{ targets | tojson | safe }};
-    
-    function updateMonitorStatus() {
-        fetch('/api/monitor_targets')
-            .then(response => response.json())
-            .then(data => {
-                if (data.error) {
-                    console.error('Monitor targets error:', data.error);
-                    showErrorState();
-                    return;
-                }
-                
-                const { problems, api_statuses, monitor_statuses } = data;  // Include monitor_statuses
-                
-                // Update each monitor card
-                monitorTargets.forEach((target, index) => {
-                    const key = target.hostname || target.name;
-                    const problem = problems[key];
-                    const api_status = api_statuses[key];
-                    const file_status = monitor_statuses[key];  // Get file status
-                    const status = api_status || file_status;    // Prefer API, fall back to file
-                    
-                    updateMonitorCard(key, target, status, problem, api_status);
-                });
-            })
-            .catch(error => {
-                console.error('Failed to load monitor targets:', error);
-                showErrorState();
-            });
-    }
-    
-    function updateMonitorCard(key, target, status, problem, api_status) {
-        const card = document.querySelector('[data-card-for="' + key + '"]');
-        const body = document.querySelector('[data-body-for="' + key + '"]');
-        const footer = document.querySelector('[data-footer-for="' + key + '"]');
-        
-        if (!card || !body || !footer) return;
-        
-        // Update card border color
-        card.className = card.className.replace(/border-\w+/, 'border-' + (problem ? 'danger' : 'success'));
-        
-        // Update body content
-        let bodyHTML = '<div><strong>Status:</strong> ' +
-            '<span class="badge bg-' + (problem ? 'danger' : 'success') + '">' +
-            (problem ? 'Problem' : 'OK') + '</span></div>';
-        
-        if (status) {
-            bodyHTML += '<div>Hostname: ' + (status.hostname || 'N/A') + '</div>';
-            bodyHTML += '<div>Version: ' + (status.version || 'N/A') + '</div>';
-            bodyHTML += '<div>Last Run: ' + (status.last_scheduler_run_str || 'N/A') + '</div>';
-            bodyHTML += '<div>Error Count: ' +
-                '<span class="' + ((status.error_event_count || 0) > 0 ? 'text-danger fw-bold' : 'text-muted') + '">' +
-                (status.error_event_count || 0) + '</span></div>';
-            
-            if (problem) {
-                bodyHTML += '<div class="mt-2 alert alert-danger p-2">';
-                if ((status.error_event_count || 0) > 0) {
-                    bodyHTML += '<div><i class="fa fa-exclamation-triangle"></i> Backup error(s) detected.</div>';
-                }
-                if (status.last_scheduler_run) {
-                    const lastRunTs = parseFloat(status.last_scheduler_run);
-                    const minutesSince = (nowTimestamp - lastRunTs) / 60;
-                    const gracePeriod = target.grace_period || 60;
-                    if (minutesSince > gracePeriod) {
-                        bodyHTML += '<div><i class="fa fa-clock"></i> Last run was ' + 
-                            minutesSince.toFixed(1) + ' min ago (over ' + gracePeriod + ' min grace period).</div>';
-                    }
-                }
-                bodyHTML += '</div>';
-            }
-        } else {
-            bodyHTML += '<div class="text-danger">No status available.</div>';
-        }
-        
-        body.innerHTML = bodyHTML;
-        
-        // Update footer
-        const dashboardEnabled = api_status ? '' : 'disabled';
-        const dashboardHref = api_status ? target.url : '#';
-        const dashboardTarget = api_status ? '_blank' : '';
-        const dashboardTabindex = api_status ? '' : '-1';
-        const dashboardAriaDisabled = api_status ? 'false' : 'true';
-        
-        footer.innerHTML = '<a class="btn btn-primary btn-sm ' + dashboardEnabled + '" ' +
-            'href="' + dashboardHref + '" ' +
-            'target="' + dashboardTarget + '" ' +
-            'tabindex="' + dashboardTabindex + '" ' +
-            'aria-disabled="' + dashboardAriaDisabled + '">Dashboard</a>';
-    }
-    
-    function showErrorState() {
-        document.querySelectorAll('[data-body-for]').forEach(function(body) {
-            body.innerHTML = '<div class="text-danger">Error loading status information.</div>';
-        });
-        document.querySelectorAll('[data-footer-for]').forEach(function(footer) {
-            footer.innerHTML = '<button class="btn btn-danger btn-sm disabled" disabled>Error</button>';
-        });
-    }
-    
-    // Load status immediately and then periodically
-    updateMonitorStatus();
-    setInterval(updateMonitorStatus, 30000); // Update every 30 seconds
-});
-</script>
+<script src="{{ url_for('static', filename='js/monitor.js') }}"></script>
 {% endblock %}

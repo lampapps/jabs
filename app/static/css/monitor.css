@@ -1,0 +1,55 @@
+/* Monitor page specific styles */
+
+.discovery-status {
+    display: none;
+    margin-top: 10px;
+}
+
+.discovery-status.show {
+    display: block;
+}
+
+/* Monitor page CSS styles */
+
+/* Discovery status alert styling */
+.discovery-status {
+    display: none;
+    margin-top: 10px;
+}
+.discovery-status.show {
+    display: block;
+}
+
+/* Group border styling - only outer edges */
+.group-border-cli-start {
+    border-left: 2px solid rgba(255, 255, 255, 0.3) !important;
+}
+
+.group-border-cli-end {
+    border-right: 2px solid rgba(255, 255, 255, 0.3) !important;
+}
+
+.group-border-flask-start {
+    border-left: 2px solid rgba(255, 255, 255, 0.3) !important;
+}
+
+.group-border-flask-end {
+    border-right: 2px solid rgba(255, 255, 255, 0.3) !important;
+}
+
+.group-border-actions {
+    border-left: 2px solid rgba(255, 255, 255, 0.3) !important;
+}
+
+/* Header styling for grouped columns - subtle */
+.group-header-cli {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2) !important;
+}
+
+.group-header-flask {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2) !important;
+}
+
+.group-header-actions {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2) !important;
+}

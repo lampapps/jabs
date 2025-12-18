@@ -1,5 +1,12 @@
+// Index page JavaScript - Combined dashboard and monitor badge functionality
+
 $(document).ready(function () {
-    // --- Track selected event IDs ---
+    // --- Monitor Badges - Load discovered instance badges immediately and then periodically ---
+    updateMonitorBadges();
+    setInterval(updateMonitorBadges, 30000); // Update every 30 seconds
+    
+    // --- Dashboard Events Table ---
+    // Track selected event IDs
     let selectedIds = new Set();
 
     // Initialize DataTables for the Events Table
@@ -223,7 +230,7 @@ $(document).ready(function () {
         console.warn("SortableJS is not loaded. Drag-and-drop for dashboard cards will not work.");
     }
 
-    // --- Disk Usage Chart ---
+    // --- Charts Initialization ---
     let diskUsageChart = null;
     function initializeDiskUsageChart() {
         fetch('/api/disk_usage')
@@ -232,7 +239,6 @@ $(document).ready(function () {
                 console.log("Disk Usage Data:", data);
                 if (!Array.isArray(data) || data.length === 0) {
                     console.warn("No disk usage data received or data is empty.");
-                    // Optionally display a message on the page
                     const canvas = document.getElementById('diskUsageChart');
                     if (canvas) {
                         const ctx = canvas.getContext('2d');
@@ -254,7 +260,6 @@ $(document).ready(function () {
                     return;
                 }
 
-                // Destroy previous chart instance if it exists
                 if (diskUsageChart) {
                     diskUsageChart.destroy();
                 }
@@ -295,7 +300,7 @@ $(document).ready(function () {
                                     }
                                 }
                             },
-                            datalabels: { // Requires chartjs-plugin-datalabels
+                            datalabels: {
                                 anchor: 'center',
                                 align: 'center',
                                 formatter: function (value, context) {
@@ -321,7 +326,7 @@ $(document).ready(function () {
                             }
                         }
                     },
-                    plugins: [ChartDataLabels] // Ensure plugin is registered globally or passed here
+                    plugins: [ChartDataLabels]
                 });
             })
             .catch(error => {
@@ -330,21 +335,19 @@ $(document).ready(function () {
                  if (canvas) {
                         const ctx = canvas.getContext('2d');
                         ctx.font = '16px Arial';
-                        ctx.fillStyle = '#dc3545'; // Error color
+                        ctx.fillStyle = '#dc3545';
                         ctx.textAlign = 'center';
                         ctx.fillText('Error loading disk usage data.', canvas.width / 2, canvas.height / 2);
                     }
             });
     }
 
-    // --- S3 Usage Chart ---
     let s3UsageChart = null;
     function initializeS3UsageChart() {
         fetch('/api/s3_usage')
             .then(response => response.json())
             .then(data => {
                 if (data.error) {
-                    // Show error in the chart area
                     const canvas = document.getElementById('s3UsageChart');
                     if (canvas) {
                         const ctx = canvas.getContext('2d');
@@ -372,9 +375,8 @@ $(document).ready(function () {
 
                 const labels = data.map(bucket => bucket.label || bucket.bucket || 'Unknown Bucket');
                 const datasets = [];
-                const totalUsage = Array(labels.length).fill(0); // Initialize totals array
+                const totalUsage = Array(labels.length).fill(0);
 
-                // Function to generate a distinct color (simple version)
                 const colorCache = {};
                 let colorIndex = 0;
                 const baseColors = [
@@ -393,10 +395,9 @@ $(document).ready(function () {
                 data.forEach((bucket, bucketIndex) => {
                     if (bucket.error) {
                         console.error(`Error fetching S3 data for bucket ${bucket.bucket}: ${bucket.error}`);
-                        // Optionally skip or represent error state in the chart
-                        return; // Skip this bucket if there was an error
+                        return;
                     }
-                    if (!bucket.prefixes) return; // Skip if no prefixes
+                    if (!bucket.prefixes) return;
 
                     bucket.prefixes.forEach(prefix => {
                         const prefixSize = prefix.size_gib || 0;
@@ -407,16 +408,16 @@ $(document).ready(function () {
                             label: prefix.prefix || 'Root',
                             data: labels.map((_, index) => (index === bucketIndex ? prefixSize : 0)),
                             backgroundColor: prefixColor,
-                            borderColor: prefixColor.replace('0.6', '1'), // Make border opaque
+                            borderColor: prefixColor.replace('0.6', '1'),
                             borderWidth: 1
                         });
 
-                        if (!prefix.sub_prefixes) return; // Skip if no sub-prefixes
+                        if (!prefix.sub_prefixes) return;
 
                         prefix.sub_prefixes.forEach(sub_prefix => {
                             const subPrefixSize = sub_prefix.size_gib || 0;
                             totalUsage[bucketIndex] += subPrefixSize;
-                            const subPrefixColor = getColor(sub_prefix.prefix); // Could use a different color scheme
+                            const subPrefixColor = getColor(sub_prefix.prefix);
 
                             datasets.push({
                                 label: sub_prefix.prefix || 'Unknown Sub-Prefix',
@@ -435,7 +436,6 @@ $(document).ready(function () {
                     return;
                 }
 
-                // Destroy previous chart instance if it exists
                 if (s3UsageChart) {
                     s3UsageChart.destroy();
                 }
@@ -451,7 +451,7 @@ $(document).ready(function () {
                         responsive: true,
                         maintainAspectRatio: false,
                         plugins: {
-                            legend: { display: false }, // Keep legend hidden for potentially many prefixes
+                            legend: { display: false },
                             tooltip: {
                                 callbacks: {
                                     label: function (context) {
@@ -459,25 +459,20 @@ $(document).ready(function () {
                                     }
                                 }
                             },
-                            datalabels: { // Requires chartjs-plugin-datalabels
-                                anchor: 'end', // Show total at the end of the stack
+                            datalabels: {
+                                anchor: 'end',
                                 align: 'end',
                                 formatter: function (value, context) {
-                                    // Check if this is the last dataset for the current bar stack
                                     const isLastDataset = context.chart.data.datasets
-                                        .filter(ds => ds.data[context.dataIndex] > 0) // Consider only datasets with value for this index
-                                        .slice(-1)[0] === context.dataset; // Is it the last one?
+                                        .filter(ds => ds.data[context.dataIndex] > 0)
+                                        .slice(-1)[0] === context.dataset;
 
                                     if (isLastDataset) {
                                         return `${totalUsage[context.dataIndex].toFixed(2)} GiB`;
                                     }
-                                    return null; // No label for intermediate segments
+                                    return null;
                                 },
-                                color: '#fff',
-                                // Optional: Add background for better readability
-                                // backgroundColor: 'rgba(0, 0, 0, 0.5)',
-                                // borderRadius: 4,
-                                // padding: 4
+                                color: '#fff'
                             }
                         },
                         scales: {
@@ -492,7 +487,7 @@ $(document).ready(function () {
                             }
                         }
                     },
-                    plugins: [ChartDataLabels] // Ensure plugin is registered globally or passed here
+                    plugins: [ChartDataLabels]
                 });
             })
             .catch(error => {
@@ -501,7 +496,7 @@ $(document).ready(function () {
                  if (canvas) {
                         const ctx = canvas.getContext('2d');
                         ctx.font = '16px Arial';
-                        ctx.fillStyle = '#dc3545'; // Error color
+                        ctx.fillStyle = '#dc3545';
                         ctx.textAlign = 'center';
                         ctx.fillText('Error loading S3 usage data.', canvas.width / 2, canvas.height / 2);
                     }
@@ -517,18 +512,16 @@ $(document).ready(function () {
         fetch("/data/dashboard/scheduler_events.json")
             .then(r => r.json())
             .then(data => {
-                // Reverse the data so newest events are on the right
                 data = data.slice().reverse();
 
-                // Build bar colors: blue for "No jobs", red for error, green for success
                 const barColors = data.map(event => {
                     if (event.job_name === "No jobs" || event.status === "none") {
-                        return "rgba(15, 107, 255, 0.47)"; // blue
+                        return "rgba(15, 107, 255, 0.47)";
                     }
                     if (event.status === "error") {
-                        return "rgba(220, 53, 70, 0.43)"; // red
+                        return "rgba(220, 53, 70, 0.43)";
                     }
-                    return "rgba(40, 167, 70, 0.49)"; // green
+                    return "rgba(40, 167, 70, 0.49)";
                 });
 
                 if (window.scheduledJobsMiniChart && typeof window.scheduledJobsMiniChart.destroy === "function") {
@@ -599,10 +592,6 @@ $(document).ready(function () {
     initializeS3UsageChart();
     initializeScheduledJobsMiniChart();
 
-    // Optional: Refresh charts periodically (if needed)
-    // setInterval(initializeDiskUsageChart, 60000);
-    // setInterval(initializeS3UsageChart, 300000);
-
     // Refresh the table data and mini chart periodically
     setInterval(function () {
         eventsTable.ajax.reload(null, false);
@@ -610,3 +599,105 @@ $(document).ready(function () {
     }, 10000); // every 10 seconds
 
 }); // End document ready
+
+// === Monitor Badge Functions ===
+function updateMonitorBadges() {
+    console.log('updateMonitorBadges called');
+    fetch('/api/discovered_instances_with_status')
+        .then(response => {
+            console.log('API response received:', response);
+            return response.json();
+        })
+        .then(data => {
+            console.log('API data:', data);
+            if (data.success) {
+                updateInstanceBadges(data.instances);
+            } else {
+                console.error('Failed to load discovered instances:', data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Failed to fetch discovered instances:', error);
+        });
+}
+
+function updateInstanceBadges(instances) {
+    console.log('updateInstanceBadges called with:', instances);
+    const badgeContainer = document.getElementById('jabs-instance-badges');
+    if (!badgeContainer) {
+        console.log('Badge container not found!');
+        return;
+    }
+    
+    // Clear existing badges
+    badgeContainer.innerHTML = '';
+    
+    // Create badges for each discovered instance
+    instances.forEach(instance => {
+        console.log('Processing instance:', instance);
+        
+        const flaskOnline = instance.flask_status === 'online';
+        const cliOnline = instance.cli_status === 'online';
+        
+        // Check for errors in status data
+        const flaskErrors = instance.status_data?.flask_data?.error_event_count || 0;
+        const cliErrors = instance.status_data?.cli_data?.error_event_count || 0;
+        const hasErrors = flaskErrors > 0 || cliErrors > 0;
+        
+        // Determine status and color based on what's running and error status
+        let status, color, tooltip;
+        if (hasErrors) {
+            status = 'errors';
+            color = 'FF0000'; // Red - errors detected
+            tooltip = `Errors detected: Flask(${flaskErrors}) CLI(${cliErrors})`;
+        } else if (flaskOnline && cliOnline) {
+            status = 'online';
+            color = '00DF4D'; // Green - both running
+            tooltip = 'Both Web and CRON are running';
+        } else if (flaskOnline && !cliOnline) {
+            status = 'web%20only';
+            color = 'FFA500'; // Orange - web only
+            tooltip = 'Web interface online, CRON stopped';
+        } else if (!flaskOnline && cliOnline) {
+            status = 'cron%20only';
+            color = 'FFD700'; // Gold - cron only
+            tooltip = 'CRON running, Web interface offline';
+        } else {
+            status = 'offline';
+            color = 'FF0000'; // Red - both down
+            tooltip = 'Both Web and CRON are offline';
+        }
+        
+        console.log(`Status: ${status}, Color: ${color}, Flask: ${flaskOnline}, CLI: ${cliOnline}`);
+        
+        // Create badge container (link only if Flask is online)
+        const badgeElement = document.createElement(flaskOnline ? 'a' : 'span');
+        if (flaskOnline) {
+            badgeElement.href = `http://${instance.ip_address}:${instance.port}`;
+            badgeElement.target = '_blank';
+            badgeElement.style.textDecoration = 'none';
+            badgeElement.style.cursor = 'pointer';
+        } else {
+            badgeElement.style.cursor = 'default';
+        }
+        
+        // Create badge image
+        const badgeImg = document.createElement('img');
+        const badgeText = instance.hostname || `${instance.ip_address}:${instance.port}`;
+        badgeImg.src = `https://img.shields.io/static/v1?label=${encodeURIComponent(badgeText)}&message=${status}&labelColor=0B0021&color=${color}&style=flat&logo=server&logoColor=white`;
+        badgeImg.alt = `JABS Server: ${badgeText}`;
+        badgeImg.className = 'me-2 mb-2';
+        badgeImg.title = `${badgeText} (${instance.version || 'Unknown'})
+${tooltip}
+Flask: ${instance.flask_status.toUpperCase()}${flaskErrors > 0 ? ` (${flaskErrors} errors)` : ''}
+CLI: ${instance.cli_status.toUpperCase()}${cliErrors > 0 ? ` (${cliErrors} errors)` : ''}
+Grace Period: ${instance.grace_period_minutes || 60} min${!flaskOnline ? '\n(Click disabled - Web interface offline)' : ''}`;
+        badgeImg.style.cssText = 'max-width: 100%; height: 20px;';
+        
+        badgeElement.appendChild(badgeImg);
+        badgeContainer.appendChild(badgeElement);
+        console.log('Added badge for:', badgeText, 'Status:', status);
+    });
+    
+    console.log('Finished adding badges, container now has', badgeContainer.children.length, 'children');
+}

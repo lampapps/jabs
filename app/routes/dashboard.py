@@ -46,7 +46,6 @@ def dashboard():
     try:
         with open(monitor_yaml_path, "r", encoding="utf-8") as f:
             monitor_cfg = yaml.safe_load(f)
-        targets = monitor_cfg.get("monitored_targets", [])
     except (OSError, IOError, yaml.YAMLError) as e:
         current_app.logger.error(f"Error loading monitor.yaml: {e}")
     # --- End monitor badge logic (simplified) ---

@@ -36,6 +36,7 @@ def init_db(db_path: str = DB_PATH):
         _create_backup_files_table(c)
         _create_scheduler_events_table(c)
         _create_email_digests_table(c)
+        _create_discovered_instances_table(c)
         _create_indexes(c)
 
         from app.models.events import create_events_view
@@ -119,6 +120,76 @@ def _create_email_digests_table(cursor):
     )
     """)
 
+def _create_discovered_instances_table(cursor):
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS discovered_instances (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        ip_address TEXT NOT NULL,
+        hostname TEXT NOT NULL,
+        port INTEGER NOT NULL DEFAULT 5000,
+        version TEXT,
+        last_discovered TEXT NOT NULL,
+        grace_period_minutes INTEGER DEFAULT 60,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(ip_address, port)
+    )
+    """)
+    
+    # Migrate from old schema to new simplified schema
+    try:
+        # Check if old schema exists by looking for last_seen column
+        result = cursor.execute("PRAGMA table_info(discovered_instances)").fetchall()
+        columns = [col[1] for col in result]
+        
+        if 'last_seen' in columns and 'last_discovered' not in columns:
+            # We have old schema, need to migrate
+            print("Migrating discovered_instances table from old schema...")
+            
+            # Add last_discovered column
+            cursor.execute("ALTER TABLE discovered_instances ADD COLUMN last_discovered TEXT")
+            
+            # Copy data from last_seen to last_discovered
+            cursor.execute("""
+                UPDATE discovered_instances 
+                SET last_discovered = last_seen 
+                WHERE last_discovered IS NULL
+            """)
+            
+            # Drop old columns by recreating table (SQLite doesn't support DROP COLUMN easily)
+            cursor.execute("""
+                CREATE TABLE discovered_instances_new (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    ip_address TEXT NOT NULL,
+                    hostname TEXT NOT NULL,
+                    port INTEGER NOT NULL DEFAULT 5000,
+                    version TEXT,
+                    last_discovered TEXT NOT NULL,
+                    grace_period_minutes INTEGER DEFAULT 60,
+                    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(ip_address, port)
+                )
+            """)
+            
+            # Copy data to new table
+            cursor.execute("""
+                INSERT INTO discovered_instances_new 
+                (id, ip_address, hostname, port, version, last_discovered, grace_period_minutes, created_at)
+                SELECT id, ip_address, hostname, port, version, 
+                       COALESCE(last_discovered, last_seen, datetime('now')),
+                       COALESCE(grace_period_minutes, 60),
+                       COALESCE(created_at, datetime('now'))
+                FROM discovered_instances
+            """)
+            
+            # Replace old table
+            cursor.execute("DROP TABLE discovered_instances")
+            cursor.execute("ALTER TABLE discovered_instances_new RENAME TO discovered_instances")
+            
+            print("Migration completed successfully")
+            
+    except Exception as e:
+        print(f"Schema migration error (safe to ignore if new install): {e}")
+
 def _create_indexes(cursor):
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_backup_sets_job_name ON backup_sets(job_name)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_backup_jobs_set_id ON backup_jobs(backup_set_id)")
@@ -126,3 +197,5 @@ def _create_indexes(cursor):
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_backup_jobs_started_at ON backup_jobs(started_at)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_backup_files_job_id ON backup_files(backup_job_id)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_backup_files_path ON backup_files(path)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_discovered_instances_ip_port ON discovered_instances(ip_address, port)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_discovered_instances_last_discovered ON discovered_instances(last_discovered)")

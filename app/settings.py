@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 
 
 
-VERSION = "v0.8.4"
+VERSION = "v0.9.0"
 
 # --- Environment Configuration ---
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))

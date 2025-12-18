@@ -9,11 +9,12 @@ A Python-based backup utility for creating local and cloud backups with a web da
 * **Backup Rotation:** Automatically manages backup sets retention
 * **Email notifications:** Receive email of job errors and summary of jobs run
 * **Web Dashboard:**
-  * View backup events and status
-  * Monitor disk usage and S3 storage
-  * Schedule backup jobs
-  * Run manual backups
-  * Restore files or entire backup sets
+  * Auto-discover and monitor multiple JABS instances on your network
+  * Real-time status monitoring with error detection and color-coded badges
+  * View backup events and status with advanced filtering
+  * Monitor disk usage and S3 storage with interactive charts
+  * Schedule backup jobs with cron-style scheduling
+  * Run manual backups and restore operations
   * Access logs and scheduler status
 * **Disater Recover:** Each backup set has a manifest and restore script
 * **Encryption:** Optional GPG encryption for archives
@@ -29,23 +30,58 @@ A Python-based backup utility for creating local and cloud backups with a web da
 
 ## Quick Start
 
-**Setup:**
+**Setup and Launch:**
 
 ```bash
 # Clone repository
 git clone https://github.com/lampapps/jabs.git jabs
 cd jabs
 
-# Run setup script
-chmod +x setup.sh
-./setup.sh
+# Setup and start dashboard (includes validation and dependency checks)
+chmod +x jabs.sh
+bash jabs.sh start
 ```
 
-**Launch Dashboard:**
+**jabs.sh Script Commands:**
 
 ```bash
-python3 run.py
+# Start the web dashboard
+bash jabs.sh start
+
+# Stop the dashboard
+bash jabs.sh stop
+
+# Restart the dashboard
+bash jabs.sh restart
+
+# Check dashboard status
+bash jabs.sh status
+
+# View dashboard logs
+bash jabs.sh logs
+
+# Validate setup (check dependencies, permissions, config)
+bash jabs.sh validate
+
+# Update JABS from GitHub (with confirmation)
+bash jabs.sh update
+
+# Force update JABS from GitHub (automatic conflict resolution)
+bash jabs.sh force-update
+
+# Fix update conflicts manually
+bash jabs.sh fix-update
+
+# Show script help
+bash jabs.sh help
 ```
+
+The `jabs.sh` script provides convenient commands to manage the web dashboard service. The dashboard will be available at `http://localhost:5000` (production) or `http://localhost:5001` (development) and includes:
+
+* **Monitor Page:** Auto-discover and monitor multiple JABS instances across your network
+* **Real-time Status:** View CRON (CLI) and Web interface status with error detection
+* **Smart Badges:** Color-coded status indicators with detailed tooltips
+* **Instance Management:** Grace period editing and remote access to web interfaces
 
 **Configuration:**
 
@@ -54,7 +90,7 @@ python3 run.py
 * Set encryption passphrase
 * Set smtp credentials (email and password)
 
-**Run Backups:**
+**Manully Run Backups via CLI:**
 
 ```bash
 # Start a backup job

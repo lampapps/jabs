@@ -23,7 +23,6 @@ from app.utils.logger import sizeof_fmt
 from core import restore
 from app.utils.restore_status import check_restore_status
 from app.models.events import get_all_events, count_error_events
-from app.utils.poll_targets import poll_targets
 from app.models.backup_sets import delete_backup_set, get_backup_set_by_job_and_set
 from app.services.manifest import get_manifest_with_files
 from app.models.db_core import get_db_connection
@@ -552,12 +551,9 @@ def get_scheduler_events_api():
 
 @api_bp.route("/api/monitor_status")
 def monitor_status():
-    """Return the status of monitored targets."""
-    # Load targets from config
-    with open("config/global.yaml") as f:
-        config = yaml.safe_load(f)
-    targets = config.get("monitored_targets", [])
-    return jsonify(poll_targets(targets))
+    """Return the status of monitored targets - now deprecated."""
+    # This endpoint is deprecated - use discovered instances instead
+    return jsonify([])
 
 
 @api_bp.route("/api/heartbeat")
@@ -590,97 +586,44 @@ def heartbeat():
 
 @api_bp.route('/api/monitor_targets')
 def get_monitor_targets():
-    """Return the status of monitored targets."""
-    import os
-    import json
-    import requests
-    from datetime import datetime, timezone
-    from app.settings import CONFIG_DIR
-
-    monitor_yaml_path = os.path.join(CONFIG_DIR, "monitor.yaml")
-    targets = []
-    problems = {}
-    api_statuses = {}
-    monitor_statuses = {}
+    """Return the status of discovered JABS instances (replaces manual targets)."""
+    from app.models.discovered_instances import DiscoveredInstance
     
     try:
-        with open(monitor_yaml_path, "r", encoding="utf-8") as f:
-            monitor_cfg = yaml.safe_load(f)
-        targets = monitor_cfg.get("monitored_targets", [])
-        shared_monitor_dir = monitor_cfg.get("shared_monitor_dir")
-        now = datetime.now(timezone.utc)
+        # Get discovered instances instead of manual targets
+        discovered_instances = DiscoveredInstance.get_all()
         
-        for target in targets:
-            host_keys = []
-            if target.get("hostname"):
-                host_keys.append(target["hostname"])
-            if target.get("name"):
-                host_keys.append(target["name"])
-            status = None
-            api_status = None
-            api_available = False
-            api_url = target.get("url")
+        # Format for backward compatibility with existing UI code
+        targets = []
+        problems = {}
+        api_statuses = {}
+        
+        for instance in discovered_instances:
+            target_key = instance.hostname
+            targets.append({
+                'name': instance.hostname,
+                'hostname': instance.hostname,
+                'url': f"http://{instance.ip_address}:{instance.port}",
+                'grace_period': 60
+            })
             
-            # Try API first with short timeout
-            if api_url:
-                try:
-                    resp = requests.get(f"{api_url}/api/heartbeat", timeout=1)
-                    if resp.ok:
-                        api_status = resp.json()
-                        api_available = True
-                except Exception:
-                    api_status = None
-                    api_available = False
+            # Check if instance is responding (basic status)
+            api_statuses[target_key] = {
+                'hostname': instance.hostname,
+                'version': instance.version,
+                'last_seen': instance.last_seen.isoformat() if instance.last_seen else None,
+                'status_data': instance.status_data
+            }
             
-            # If API not available, try local file
-            if not api_available and shared_monitor_dir:
-                monitor_dir = os.path.join(shared_monitor_dir, "monitor")
-                for host_key in host_keys:
-                    json_path = os.path.join(monitor_dir, f"{host_key}.json")
-                    if os.path.exists(json_path):
-                        try:
-                            with open(json_path, "r", encoding="utf-8") as f:
-                                status = json.load(f)
-                            break
-                        except (json.JSONDecodeError, OSError):
-                            continue
-            
-            key = target.get("hostname") or target.get("name") or "UNKNOWN"
-            api_statuses[key] = api_status
-            
-            # Store the appropriate status data - prioritize API status, fall back to file status
-            if api_status:
-                monitor_statuses[key] = api_status
-            elif status:
-                monitor_statuses[key] = status
-            else:
-                monitor_statuses[key] = None
-            
-            # Determine if there is a problem - use the actual status we found
-            s = api_status or status or {}
-            error_count = s.get("error_event_count", 0)
-            last_run_ts = s.get("last_scheduler_run")
-            grace_period = target.get("grace_period", 60)
-            too_old = False
-            
-            if last_run_ts:
-                try:
-                    last_run_dt = datetime.fromtimestamp(float(last_run_ts), tz=timezone.utc)
-                    minutes_since = (now - last_run_dt).total_seconds() / 60
-                    too_old = minutes_since > grace_period
-                except (ValueError, TypeError, OSError, IOError):
-                    too_old = True
-            else:
-                too_old = True
-            
-            problems[key] = (error_count > 0) or too_old
-            
-    except (OSError, IOError, yaml.YAMLError) as e:
-        return jsonify({"error": f"Error loading monitor configuration: {str(e)}"}), 500
-    
-    return jsonify({
-        "targets": targets,
-        "problems": problems,
-        "api_statuses": api_statuses,
-        "monitor_statuses": monitor_statuses
-    })
+            # No problems detected from discovery data alone
+            problems[target_key] = False
+        
+        return jsonify({
+            "targets": targets,
+            "problems": problems, 
+            "api_statuses": api_statuses,
+            "monitor_statuses": {}
+        })
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500

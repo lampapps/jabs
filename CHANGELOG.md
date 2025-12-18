@@ -1,16 +1,24 @@
 ## To do
 
-- Periodic refresh badges and monitor.html
-- Improve monitoring true | false flag
 - reformat emails
 - improve dryrun logging, check but skip sync, skip rotate, and disable restore in manifest
 - add example backup.job config file
 - change "error loading S3 Usage data" to Credentials not found (better error handling)
 - Update/improve scheduler config page
 - Update/improve AWS credential setup on Security page, remove aws config option
-- Show IP for each JABS instance on monitor.html
 - Fix errors in terminal when AWS credetials are missing or incorrect.
 - Backup Archives in set on the manifest page lists only first 90 parts.
+
+## v0.9.0 - 2025-12-18
+
+### Added
+
+ - Refactored the monitor page to auto detect JABS instances on the configured network
+ - Updated badges on the dashboard to work with refactored monitoing
+
+### Fixed
+
+ - Fixed duplicate server log created by jabs.sh
 
 ## v0.8.5 - 25-12-02
 

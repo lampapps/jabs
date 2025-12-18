@@ -79,6 +79,10 @@ def get_local_ip():
         return "127.0.0.1"
 
 if __name__ == "__main__":
+    # Determine port based on ENV_MODE
+    env_mode = os.getenv("ENV_MODE", "production")
+    port = 5001 if env_mode == "development" else 5000
+    
     try:
         from waitress import serve
 
@@ -100,11 +104,12 @@ if __name__ == "__main__":
         hostname = socket.gethostname()
         local_ip = socket.gethostbyname(hostname)
         primary_ip = get_local_ip()
+        mode_info = f" ({env_mode.upper()} MODE)" if env_mode == "development" else ""
         print("\n" + "="*60)
-        print("JABS server is starting!")
-        print(f"Open your browser and go to: http://{local_ip}:5000")
+        print(f"JABS server is starting!{mode_info}")
+        print(f"Open your browser and go to: http://{local_ip}:{port}")
         if primary_ip != local_ip:
-            print(f"Or try: http://{primary_ip}:5000")
+            print(f"Or try: http://{primary_ip}:{port}")
         print("\nTo stop the server, press Ctrl+C in this terminal.")
         print("="*60 + "\n")
 
@@ -112,10 +117,10 @@ if __name__ == "__main__":
         app_with_access_log = AccessLogMiddleware(app)
 
         try:
-            serve(app_with_access_log, host="0.0.0.0", port=5000)
+            serve(app_with_access_log, host="0.0.0.0", port=port)
         except OSError as e:
             if hasattr(e, 'errno') and e.errno == 98:
-                print("ERROR: Server is already running on port 5000.")
+                print(f"ERROR: Server is already running on port {port}.")
                 print("Stop the existing server or use a different port.")
                 exit(1)
             else:
@@ -128,19 +133,20 @@ if __name__ == "__main__":
         hostname = socket.gethostname()
         local_ip = socket.gethostbyname(hostname)
         primary_ip = get_local_ip()
+        mode_info = f" ({env_mode.upper()} MODE)" if env_mode == "development" else ""
         print("\n" + "="*60)
-        print("JABS server is starting!")
-        print(f"Open your browser and go to: http://{local_ip}:5000")
+        print(f"JABS server is starting!{mode_info}")
+        print(f"Open your browser and go to: http://{local_ip}:{port}")
         if primary_ip != local_ip:
-            print(f"Or try: http://{primary_ip}:5000")
+            print(f"Or try: http://{primary_ip}:{port}")
         print("\nTo stop the server, press Ctrl+C in this terminal.")
         print("="*60 + "\n")
 
         try:
-            app.run(host="0.0.0.0", port=5000, debug=True)
+            app.run(host="0.0.0.0", port=port, debug=True)
         except OSError as e:
             if hasattr(e, 'errno') and e.errno == 98:
-                print("ERROR: Server is already running on port 5000.")
+                print(f"ERROR: Server is already running on port {port}.")
                 print("Stop the existing server or use a different port.")
                 exit(1)
             else:

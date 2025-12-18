@@ -14,7 +14,7 @@ VENV_PATH="$SCRIPT_DIR/venv"
 PYTHON_VENV="$VENV_PATH/bin/python"
 RUN_SCRIPT="$SCRIPT_DIR/run.py"
 PID_FILE="$SCRIPT_DIR/jabs.pid"
-LOG_FILE="$SCRIPT_DIR/logs/jabs_webapp.log"
+LOG_FILE="$SCRIPT_DIR/logs/server.log"
 
 # Color output
 GREEN='\033[0;32m'
@@ -282,32 +282,52 @@ start_jabs() {
     
     if is_running; then
         local pid=$(cat "$PID_FILE")
+        local port=$(get_jabs_port)
         print_warning "JABS is already running (PID: $pid)"
-        print_status "Access at: http://localhost:5000"
+        print_status "Access at: http://localhost:$port"
         return 0
+    fi
+    
+    # Check if the appropriate port is already in use
+    local port=$(get_jabs_port)
+    if lsof -Pi :$port -sTCP:LISTEN -t >/dev/null 2>&1; then
+        print_error "Port $port is already in use by another application"
+        print_error "Check what's using port $port:"
+        lsof -Pi :$port -sTCP:LISTEN 2>/dev/null || netstat -tlnp | grep :$port
+        print_error "Stop the conflicting application or use a different port"
+        exit 1
     fi
     
     print_status "Starting JABS Flask application..."
     
     # Start the application in background
     cd "$SCRIPT_DIR"
-    nohup "$PYTHON_VENV" "$RUN_SCRIPT" > "$LOG_FILE" 2>&1 &
+    # Create a temporary error log to capture startup issues
+    local temp_error_log="/tmp/jabs_startup_error_$$.log"
+    nohup "$PYTHON_VENV" "$RUN_SCRIPT" > "$LOG_FILE" 2>"$temp_error_log" &
     local pid=$!
     
     # Save PID to file
     echo "$pid" > "$PID_FILE"
     
     # Wait a moment and check if it's still running
-    sleep 2
+    sleep 3
     if ps -p "$pid" > /dev/null 2>&1; then
+        local port=$(get_jabs_port)
         print_success "JABS started successfully (PID: $pid)"
         print_status "Log file: $LOG_FILE"
-        print_status "Access at: http://localhost:5000"
+        print_status "Access at: http://localhost:$port"
         print_status "Use '$0 stop' to stop the application"
+        # Clean up temp error log
+        rm -f "$temp_error_log"
     else
         print_error "Failed to start JABS application"
+        if [[ -f "$temp_error_log" && -s "$temp_error_log" ]]; then
+            print_error "Startup error:"
+            cat "$temp_error_log"
+        fi
         print_error "Check log file: $LOG_FILE"
-        rm -f "$PID_FILE"
+        rm -f "$PID_FILE" "$temp_error_log"
         exit 1
     fi
 }
@@ -354,8 +374,9 @@ restart_jabs() {
 status_jabs() {
     if is_running; then
         local pid=$(cat "$PID_FILE")
+        local port=$(get_jabs_port)
         print_success "JABS is running (PID: $pid)"
-        print_status "Access at: http://localhost:5000"
+        print_status "Access at: http://localhost:$port"
         print_status "Log file: $LOG_FILE"
         
         # Show recent log entries
@@ -378,6 +399,122 @@ show_logs() {
         print_error "Log file not found: $LOG_FILE"
         print_status "Start JABS first with: $0 start"
     fi
+}
+
+# Function to reset JABS to fresh install state
+reset_to_fresh_install() {
+    print_header "⚠️  DANGER: Reset JABS to Fresh Install State ⚠️"
+    echo ""
+    print_warning "THIS WILL PERMANENTLY DELETE ALL DATA!"
+    echo ""
+    echo "What will be deleted:"
+    echo "  • All backup job history and metadata"
+    echo "  • All log files (backup, server, email, etc.)"
+    echo "  • All discovered network instances"
+    echo "  • All scheduler events and status"
+    echo "  • All lock files and PID files"
+    echo "  • Database file (jabs.sqlite)"
+    echo ""
+    echo "What will be preserved:"
+    echo "  • Configuration files (global.yaml, monitor.yaml, job configs)"
+    echo "  • Virtual environment and installed packages"
+    echo "  • Backup archives in storage (not deleted)"
+    echo ""
+    print_warning "This action CANNOT BE UNDONE!"
+    echo ""
+    
+    # First confirmation
+    read -p "Are you absolutely sure you want to reset to fresh install? (type 'YES' to confirm): " -r
+    if [[ "$REPLY" != "YES" ]]; then
+        print_status "Reset cancelled."
+        return 0
+    fi
+    
+    echo ""
+    print_warning "Last chance! This will delete ALL application data."
+    read -p "Type 'DELETE ALL DATA' to proceed: " -r
+    if [[ "$REPLY" != "DELETE ALL DATA" ]]; then
+        print_status "Reset cancelled."
+        return 0
+    fi
+    
+    # Stop JABS if running
+    if is_running; then
+        print_status "Stopping JABS application..."
+        stop_jabs
+    fi
+    
+    print_status "Resetting JABS to fresh install state..."
+    
+    # Delete database
+    if [[ -f "data/jabs.sqlite" ]]; then
+        rm -f "data/jabs.sqlite"
+        print_success "Deleted database: data/jabs.sqlite"
+    fi
+    
+    # Delete all log files
+    if [[ -d "logs" ]]; then
+        find logs/ -name "*.log" -type f -delete 2>/dev/null || true
+        find logs/ -name "*.status" -type f -delete 2>/dev/null || true
+        print_success "Deleted all log files in logs/ directory"
+    fi
+    
+    # Delete lock files and directories
+    if [[ -d "locks" ]]; then
+        rm -rf locks/*
+        print_success "Deleted all lock files and directories"
+    fi
+    
+    # Delete PID file
+    if [[ -f "$PID_FILE" ]]; then
+        rm -f "$PID_FILE"
+        print_success "Deleted PID file"
+    fi
+    
+    # Delete any temporary or cache files
+    find . -name "*.tmp" -type f -delete 2>/dev/null || true
+    find . -name "*.cache" -type f -delete 2>/dev/null || true
+    find . -name "__pycache__" -type d -exec rm -rf {} + 2>/dev/null || true
+    find . -name "*.pyc" -type f -delete 2>/dev/null || true
+    
+    print_success "Deleted temporary and cache files"
+    
+    # Recreate essential directories
+    mkdir -p data logs locks/restore_status
+    
+    # Initialize fresh database
+    print_status "Initializing fresh database..."
+    if "$PYTHON_VENV" -c "
+from app.models.db_core import init_db
+init_db()
+print('Database initialized successfully')
+" 2>/dev/null; then
+        print_success "Fresh database initialized"
+    else
+        print_warning "Database initialization may need to be done on first startup"
+    fi
+    
+    echo ""
+    print_success "🎉 Reset to fresh install completed successfully!"
+    echo ""
+    echo "JABS has been reset to a clean state. You can now:"
+    echo "  1. Start JABS: $0 start"
+    echo "  2. Access web interface: http://localhost:$(get_jabs_port)"
+    echo "  3. Configure new backup jobs as needed"
+    echo ""
+    print_warning "Remember: Your backup archives were NOT deleted."
+    print_warning "You can still restore from existing backups if needed."
+}
+
+# Function to get the correct port based on ENV_MODE
+get_jabs_port() {
+    if [[ -f "$SCRIPT_DIR/.env" ]]; then
+        if grep -q "ENV_MODE='development'" "$SCRIPT_DIR/.env" || grep -q 'ENV_MODE="development"' "$SCRIPT_DIR/.env"; then
+            echo "5001"
+            return
+        fi
+    fi
+    echo "5000"
 }
 
 # Function to check if in development mode
@@ -472,12 +609,196 @@ update_from_github() {
         exit 0
     fi
     
+    # Check for untracked files that would conflict
+    print_status "Checking for conflicts..."
+    local untracked_conflicts=$(git ls-files --others --exclude-standard | grep -E '\.(py|sh|yaml|yml|txt|md)$' | head -5)
+    if [[ -n "$untracked_conflicts" ]]; then
+        print_warning "Untracked files detected that may conflict:"
+        echo "$untracked_conflicts" | while read file; do echo "  - $file"; done
+        echo ""
+        read -p "Backup and remove these files before update? (y/N): " -r
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            print_status "Backing up conflicting files..."
+            local backup_dir="backup_$(date +%Y%m%d_%H%M%S)"
+            mkdir -p "$backup_dir"
+            echo "$untracked_conflicts" | while read file; do
+                if [[ -f "$file" ]]; then
+                    cp "$file" "$backup_dir/" 2>/dev/null || true
+                    rm -f "$file"
+                    print_status "Backed up and removed: $file"
+                fi
+            done
+            print_status "Files backed up to: $backup_dir"
+        else
+            print_error "Cannot continue with conflicting files present."
+            if $was_running; then
+                start_jabs
+            fi
+            exit 1
+        fi
+    fi
+    
     # Pull changes
     print_status "Pulling latest changes..."
     if ! git pull origin $current_branch; then
         print_error "Failed to pull changes. You may have local modifications."
-        echo "Try: git stash && git pull && git stash pop"
+        echo "Manual resolution steps:"
+        echo "  1. git status  # Check what's modified"
+        echo "  2. git stash   # Stash your changes"
+        echo "  3. git pull    # Pull updates"
+        echo "  4. git stash pop  # Restore your changes"
+        echo ""
+        echo "Or use: $0 force-update  # To automatically handle conflicts"
         exit 1
+    fi
+}
+
+# Function to force update from GitHub (handles conflicts automatically)
+force_update_from_github() {
+    print_header "Force updating JABS from GitHub..."
+    
+    # Check for development mode
+    if check_development_mode; then
+        print_error "Update blocked: ENV_MODE is set to 'development' in .env file."
+        print_error "This prevents accidental overwrites of development work."
+        echo ""
+        echo "To update anyway:"
+        echo "  1. Change ENV_MODE to 'production' in .env"
+        echo "  2. Commit/backup your changes first"
+        echo "  3. Run force-update again"
+        exit 1
+    fi
+    
+    # Check if git is available
+    if ! command -v git &>/dev/null; then
+        print_error "Git is not installed. Please install git first:"
+        echo "  sudo apt update && sudo apt install git"
+        exit 1
+    fi
+    
+    # Check if we're in a git repository
+    if [[ ! -d ".git" ]]; then
+        print_error "Not a git repository. Cannot update from GitHub."
+        echo "This command only works if JABS was cloned from GitHub."
+        exit 1
+    fi
+    
+    # Stop the application if running
+    local was_running=false
+    if is_running; then
+        print_status "Stopping JABS for force update..."
+        stop_jabs
+        was_running=true
+    fi
+    
+    # Backup current .env file
+    if [[ -f ".env" ]]; then
+        cp .env .env.backup.$(date +%Y%m%d_%H%M%S)
+        print_status "Backed up .env file"
+    fi
+    
+    # Save current branch
+    local current_branch=$(git branch --show-current 2>/dev/null || echo "main")
+    
+    # Fetch latest changes
+    print_status "Fetching latest changes from GitHub..."
+    if ! git fetch origin; then
+        print_error "Failed to fetch from GitHub. Check your internet connection."
+        exit 1
+    fi
+    
+    # Check if there are changes to apply
+    local commits_behind=$(git rev-list --count HEAD..origin/$current_branch 2>/dev/null || echo "0")
+    if [[ "$commits_behind" -eq "0" ]]; then
+        print_success "Already up to date with GitHub."
+        if $was_running; then
+            start_jabs
+        fi
+        return 0
+    fi
+    
+    print_warning "FORCE UPDATE: This will automatically handle any conflicts!"
+    print_status "$commits_behind commit(s) will be pulled from GitHub"
+    
+    # Show recent commits
+    echo ""
+    echo "Recent changes:"
+    git log --oneline -5 origin/$current_branch | head -5
+    echo ""
+    
+    # Handle untracked files that would conflict
+    local untracked_conflicts=$(git ls-files --others --exclude-standard | grep -E '\.(py|sh|yaml|yml|txt|md)$' | head -10)
+    if [[ -n "$untracked_conflicts" ]]; then
+        print_status "Backing up conflicting untracked files..."
+        local backup_dir="force_update_backup_$(date +%Y%m%d_%H%M%S)"
+        mkdir -p "$backup_dir"
+        echo "$untracked_conflicts" | while read file; do
+            if [[ -f "$file" ]]; then
+                cp "$file" "$backup_dir/" 2>/dev/null || true
+                rm -f "$file"
+                print_status "Backed up and removed: $file"
+            fi
+        done
+        print_status "Untracked files backed up to: $backup_dir"
+    fi
+    
+    # Check for modified files and stash them
+    if ! git diff --quiet || ! git diff --cached --quiet; then
+        print_status "Stashing local changes..."
+        git stash push -m "Auto-stash before force update $(date +%Y%m%d_%H%M%S)" --include-untracked
+        local stashed=true
+    else
+        local stashed=false
+    fi
+    
+    # Force pull changes
+    print_status "Force pulling latest changes..."
+    if ! git reset --hard origin/$current_branch; then
+        print_error "Failed to reset to origin/$current_branch"
+        exit 1
+    fi
+    
+    # Attempt to restore stashed changes
+    if $stashed; then
+        print_status "Attempting to restore your stashed changes..."
+        if git stash pop; then
+            print_success "Stashed changes restored successfully."
+        else
+            print_warning "Conflict restoring stashed changes. Your changes are still in stash."
+            print_status "To manually restore: git stash list && git stash apply stash@{0}"
+        fi
+    fi
+    
+    # Restore .env if it was overwritten
+    local latest_env_backup=$(ls -t .env.backup.* 2>/dev/null | head -1)
+    if [[ -n "$latest_env_backup" ]] && [[ -f "$latest_env_backup" ]]; then
+        if ! cmp -s ".env" "$latest_env_backup" 2>/dev/null; then
+            print_status "Restoring your .env file..."
+            cp "$latest_env_backup" ".env"
+        fi
+    fi
+    
+    # Update requirements if changed
+    if [[ -f "requirements.txt" ]]; then
+        print_status "Updating Python requirements..."
+        "$PYTHON_VENV" -m pip install --upgrade pip
+        "$PYTHON_VENV" -m pip install -r requirements.txt
+    fi
+    
+    print_success "Force update completed successfully!"
+    
+    # Restart if it was running
+    if $was_running; then
+        print_status "Restarting JABS..."
+        start_jabs
+    else
+        print_status "Run '$0 start' to start JABS with the updated version."
+    fi
+    
+    # Show version info if available
+    if [[ -f "app/settings.py" ]]; then
+        local version=$(grep '^VERSION = ' app/settings.py 2>/dev/null | cut -d'"' -f2 || echo "unknown")
+        print_status "Updated to version: $version"
     fi
     
     # Restore .env if it was overwritten
@@ -541,6 +862,9 @@ show_usage() {
     echo "  setup        - Run full setup process (safe to run multiple times)"
     echo "  check        - Validate current setup without making changes"
     echo "  update       - Update JABS from GitHub (blocked in development mode)"
+    echo "  force-update - Force update (stashes local changes automatically)"
+    echo "  fix-update   - Fix failed update (handles conflicting files)"
+    echo "  reset        - Reset to fresh install (⚠️  DELETES ALL DATA!)"
     echo ""
     echo "Application Commands:"
     echo "  start        - Start JABS web application in background"
@@ -565,14 +889,15 @@ show_usage() {
     echo "  Config dir:   $SCRIPT_DIR/config/"
     echo ""
     echo "Examples:"
-    echo "  $0 setup              # Initial setup"
-    echo "  $0 start              # Start web application"
-    echo "  $0 status             # Check if running"
-    echo "  $0 logs               # Monitor logs"
-    echo "  $0 stop               # Stop application"
+    echo "  bash $0 setup         # Initial setup"
+    echo "  bash $0 start         # Start web application"
+    echo "  bash $0 status        # Check if running"
+    echo "  bash $0 logs          # Monitor logs"
+    echo "  bash $0 stop          # Stop application"
+    echo "  bash $0 reset         # Reset to fresh install (⚠️  DANGER!)"
     echo ""
     echo "Web Interface:"
-    echo "  After starting, access JABS at: http://localhost:5000"
+    echo "  After starting, access JABS at: http://localhost:$(get_jabs_port) (dev mode: 5001, prod mode: 5000)"
 }
 
 # Main execution
@@ -597,6 +922,45 @@ main() {
             ;;
         update)
             update_from_github
+            ;;
+        force-update)
+            force_update_from_github
+            ;;
+        fix-update)
+            print_header "Fixing failed update..."
+            cd "$SCRIPT_DIR"
+            
+            # Check if we're in a git repository
+            if [[ ! -d ".git" ]]; then
+                print_error "Not a git repository. Cannot fix update."
+                exit 1
+            fi
+            
+            print_status "Backing up conflicting files..."
+            local backup_dir="update_conflict_backup_$(date +%Y%m%d_%H%M%S)"
+            mkdir -p "$backup_dir"
+            
+            # Backup jabs.sh if it exists and isn't tracked
+            if [[ -f "jabs.sh" ]] && ! git ls-files --error-unmatch jabs.sh >/dev/null 2>&1; then
+                cp jabs.sh "$backup_dir/" 2>/dev/null || true
+                rm -f jabs.sh
+                print_status "Backed up and removed untracked jabs.sh"
+            fi
+            
+            # Remove other conflicting untracked files
+            git ls-files --others --exclude-standard | grep -E '\.(py|sh|yaml|yml|txt|md)$' | while read file; do
+                if [[ -f "$file" ]]; then
+                    cp "$file" "$backup_dir/" 2>/dev/null || true
+                    rm -f "$file"
+                    print_status "Backed up and removed: $file"
+                fi
+            done
+            
+            print_status "Files backed up to: $backup_dir"
+            print_status "Now run: $0 update"
+            ;;
+        reset)
+            reset_to_fresh_install
             ;;
         start)
             start_jabs
