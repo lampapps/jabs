@@ -12,7 +12,7 @@ from flask import Blueprint, render_template, current_app
 from markupsafe import Markup
 import mistune
 
-from app.settings import BASE_DIR, CONFIG_DIR, ENV_MODE
+from app.settings import BASE_DIR, CONFIG_DIR, GLOBAL_CONFIG_PATH, ENV_MODE
 from app.utils.dashboard_helpers import ensure_minimum_scheduler_events
 
 dashboard_bp = Blueprint('dashboard', 'dashboard')
@@ -41,13 +41,11 @@ def dashboard():
         global_config = yaml.safe_load(f)
 
     # --- Load monitor targets but don't check them server-side ---
-    monitor_yaml_path = os.path.join(CONFIG_DIR, "monitor.yaml")
     targets = []
     try:
-        with open(monitor_yaml_path, "r", encoding="utf-8") as f:
-            monitor_cfg = yaml.safe_load(f)
-    except (OSError, IOError, yaml.YAMLError) as e:
-        current_app.logger.error(f"Error loading monitor.yaml: {e}")
+        monitor_cfg = global_config.get('monitoring', {})
+    except Exception as e:
+        current_app.logger.error(f"Error loading monitoring config: {e}")
     # --- End monitor badge logic (simplified) ---
 
     scheduled_jobs = []

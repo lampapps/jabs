@@ -133,24 +133,6 @@ setup_config_files() {
         print_success "config/global.yaml found."
     fi
     
-    # Check monitor.yaml
-    if [ ! -f config/monitor.yaml ]; then
-        if [ -f config/monitor-example.yaml ]; then
-            print_status "Creating config/monitor.yaml from example..."
-            if mv config/monitor-example.yaml config/monitor.yaml; then
-                print_success "config/monitor.yaml created from monitor-example.yaml."
-            else
-                print_error "Failed to create config/monitor.yaml from monitor-example.yaml."
-                echo "Please ensure you have the necessary permissions to rename files in the config directory."
-                exit 1
-            fi
-        else
-            print_error "Neither config/monitor.yaml nor config/monitor-example.yaml found."
-            exit 1
-        fi
-    else
-        print_success "config/monitor.yaml found."
-    fi
 }
 
 # Function to setup virtual environment
@@ -416,7 +398,7 @@ reset_to_fresh_install() {
     echo "  • Database file (jabs.sqlite)"
     echo ""
     echo "What will be preserved:"
-    echo "  • Configuration files (global.yaml, monitor.yaml, job configs)"
+    echo "  • Configuration files (global.yaml, job configs)"
     echo "  • Virtual environment and installed packages"
     echo "  • Backup archives in storage (not deleted)"
     echo ""

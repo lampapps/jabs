@@ -71,9 +71,6 @@ def edit_config(filename):
     elif filename == "common_exclude.yaml":
         file_path = os.path.join(os.path.dirname(GLOBAL_CONFIG_PATH), "common_exclude.yaml")
         cancel_url = url_for("config.config")
-    elif filename == "monitor.yaml":
-        file_path = os.path.join(os.path.dirname(GLOBAL_CONFIG_PATH), "monitor.yaml")
-        cancel_url = url_for("monitor.monitor")
     else:
         file_path = os.path.join(JOBS_DIR, filename)
         cancel_url = url_for("jobs.jobs_view")
@@ -101,8 +98,6 @@ def save_config(filename):
         file_path = GLOBAL_CONFIG_PATH
     elif filename == "common_exclude.yaml":
         file_path = os.path.join(os.path.dirname(GLOBAL_CONFIG_PATH), "common_exclude.yaml")
-    elif filename == "monitor.yaml":
-        file_path = os.path.join(os.path.dirname(GLOBAL_CONFIG_PATH), "monitor.yaml")
     else:
         file_path = os.path.join(JOBS_DIR, filename)
     new_content = request.form.get("content", "")

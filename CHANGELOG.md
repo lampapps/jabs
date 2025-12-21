@@ -1,3 +1,4 @@
+<!-- markdownlint-disable MD024 MD041 MD007 -->
 ## To do
 
 - reformat emails
@@ -8,6 +9,12 @@
 - Update/improve AWS credential setup on Security page, remove aws config option
 - Fix errors in terminal when AWS credetials are missing or incorrect.
 - Backup Archives in set on the manifest page lists only first 90 parts.
+
+## v0.9.0 - 2025-12-21
+
+### Fixed
+ 
+ - Monitoring logic fixes, moved all montoring settings to global.yaml
 
 ## v0.9.0 - 2025-12-18
 

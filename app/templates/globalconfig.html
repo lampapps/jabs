@@ -92,6 +92,21 @@
                                 </ul>
                             </li>
                         </ul>
+                        <strong>Monitoring Configuration:</strong>
+                        <ul class="mb-0 small">
+                            <li>
+                                Monitoring Enabled:
+                                {% if global_config.monitoring and global_config.monitoring.enable_monitoring %}
+                                    <span class="badge bg-success">True</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">False</span>
+                                {% endif %}
+                            </li>
+                            <li>Shared Monitor Directory: <code>{{ global_config.monitoring.shared_monitor_dir or 'Not set' }}</code></li>
+                            <li>IP Range: <code>{{ global_config.monitoring.ip_range_start or 'Not set' }}</code> - <code>{{ global_config.monitoring.ip_range_end or 'Not set' }}</code></li>
+                            <li>Port: <code>{{ global_config.monitoring.port or 'Not set' }}</code></li>
+                            <li>Default Grace Period: <code>{{ global_config.monitoring.default_grace_period or 'Not set' }}</code> minutes</li>
+                        </ul>
                         <strong>Email (SMTP) Configuration:</strong>
                         <ul class="mb-0 small">
                             <li>SMTP Server: <code>{{ global_config.email.smtp_server or 'Not set' }}</code></li>
@@ -160,7 +175,7 @@
                         <div class="alert alert-danger">{{ common_exclude_error }}</div>
                         <pre class="bg-light p-2 rounded" style="max-height: 350px; overflow:auto;">{{ common_exclude_raw }}</pre>
                     {% else %}
-                        <pre class="p-2 rounded" style="max-height: 750px; overflow:auto;">{{ common_exclude_raw }}</pre>
+                        <pre class="p-2 rounded" style="max-height: 900px; overflow:auto;">{{ common_exclude_raw }}</pre>
                     {% endif %}
                 </div>
                 <div class="card-footer text-end">

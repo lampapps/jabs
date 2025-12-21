@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 import yaml
 from flask import Blueprint, render_template, request, jsonify
 
-from app.settings import CONFIG_DIR, ENV_MODE
+from app.settings import CONFIG_DIR, GLOBAL_CONFIG_PATH, ENV_MODE
 from app.models.discovered_instances import DiscoveredInstance
 from app.utils.network_discovery import discover_jabs_instances, update_instance_status
 
@@ -18,9 +18,9 @@ monitor_bp = Blueprint('monitor', __name__)
 @monitor_bp.route("/monitor")
 def monitor():
     """Render the monitor page with status of all monitored targets."""
-    monitor_yaml_path = os.path.join(CONFIG_DIR, "monitor.yaml")
-    with open(monitor_yaml_path, "r", encoding="utf-8") as f:
-        monitor_cfg = yaml.safe_load(f)
+    with open(GLOBAL_CONFIG_PATH, "r", encoding="utf-8") as f:
+        global_config = yaml.safe_load(f)
+    monitor_cfg = global_config.get('monitoring', {})
     shared_monitor_dir = monitor_cfg.get("shared_monitor_dir")
 
     # Get discovered instances from database
@@ -33,7 +33,6 @@ def monitor():
         expected_paths={},  # Empty - will be populated by client-side JS
         problems={},  # Empty - will be populated by client-side JS
         hostname=socket.gethostname(),
-        monitor_yaml_path=monitor_yaml_path,
         env_mode=ENV_MODE,
         now=datetime.now(timezone.utc).timestamp(),
         discovered_instances=discovered_instances,
@@ -45,10 +44,10 @@ def monitor():
 def discover_instances():
     """Trigger network discovery of JABS instances."""
     try:
-        # Get configuration from monitor.yaml
-        monitor_yaml_path = os.path.join(CONFIG_DIR, "monitor.yaml")
-        with open(monitor_yaml_path, "r", encoding="utf-8") as f:
-            monitor_cfg = yaml.safe_load(f)
+        # Get configuration from global.yaml
+        with open(GLOBAL_CONFIG_PATH, "r", encoding="utf-8") as f:
+            global_config = yaml.safe_load(f)
+        monitor_cfg = global_config.get('monitoring', {})
         
         ip_range_start = monitor_cfg.get("ip_range_start", "192.168.1.1")
         ip_range_end = monitor_cfg.get("ip_range_end", "192.168.1.254")
@@ -56,11 +55,12 @@ def discover_instances():
         shared_monitor_dir = monitor_cfg.get("shared_monitor_dir")
         default_grace_period = monitor_cfg.get("default_grace_period", 60)
         
-        # Run discovery with CLI monitoring support
+        # Run discovery with CLI monitoring support, excluding current instance
         discovered_instances = discover_jabs_instances(
             ip_range_start, ip_range_end, port, 
             shared_monitor_dir=shared_monitor_dir,
-            default_grace_period=default_grace_period
+            default_grace_period=default_grace_period,
+            exclude_current_instance=True
         )
         
         return jsonify({
@@ -96,11 +96,11 @@ def get_discovered_instances_with_status():
         instances = DiscoveredInstance.get_all()
         
         # Get shared_monitor_dir from config
-        monitor_yaml_path = os.path.join(CONFIG_DIR, "monitor.yaml")
         shared_monitor_dir = None
         try:
-            with open(monitor_yaml_path, "r", encoding="utf-8") as f:
-                monitor_cfg = yaml.safe_load(f)
+            with open(GLOBAL_CONFIG_PATH, "r", encoding="utf-8") as f:
+                global_config = yaml.safe_load(f)
+            monitor_cfg = global_config.get('monitoring', {})
             shared_monitor_dir = monitor_cfg.get("shared_monitor_dir")
         except:
             pass

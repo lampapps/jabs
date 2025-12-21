@@ -210,7 +210,7 @@ def get_jabs_info(ip: str, port: int, timeout: int = 3, shared_monitor_dir: str 
 
 def discover_jabs_instances(ip_range_start: str, ip_range_end: str, port: int = 5000, 
                           max_workers: int = 50, shared_monitor_dir: str = None,
-                          default_grace_period: int = 60) -> List[DiscoveredInstance]:
+                          default_grace_period: int = 60, exclude_current_instance: bool = True) -> List[DiscoveredInstance]:
     """
     Discover JABS instances in the given IP range, checking both Flask API and CLI status.
     
@@ -221,6 +221,7 @@ def discover_jabs_instances(ip_range_start: str, ip_range_end: str, port: int = 
         max_workers: Maximum number of concurrent threads
         shared_monitor_dir: Path to shared monitor directory for CLI status
         default_grace_period: Default grace period in minutes
+        exclude_current_instance: Whether to exclude the current running instance
     
     Returns:
         List of discovered DiscoveredInstance objects
@@ -228,6 +229,17 @@ def discover_jabs_instances(ip_range_start: str, ip_range_end: str, port: int = 
     discovery_logger.info(f"Starting discovery: IP range {ip_range_start}-{ip_range_end}, port {port}, shared_dir={shared_monitor_dir}")
     discovered_instances = []
     discovered_hostnames = set()  # Track discovered hostnames to avoid duplicates
+    
+    # Get current instance details for exclusion if requested
+    current_hostname = None
+    current_port = None
+    if exclude_current_instance:
+        import os
+        current_hostname = socket.gethostname()
+        # Determine current port based on ENV_MODE (matches run.py logic)
+        env_mode = os.getenv("ENV_MODE", "production")
+        current_port = 5001 if env_mode == "development" else 5000
+        discovery_logger.info(f"Will exclude current instance: {current_hostname}:{current_port}")
     
     try:
         # Generate IP range
@@ -277,6 +289,14 @@ def discover_jabs_instances(ip_range_start: str, ip_range_end: str, port: int = 
                     jabs_info = future.result()
                     
                     if jabs_info['is_jabs']:
+                        # Check if this is the current instance and should be excluded
+                        # Exclude based on hostname only, as ports might differ between discovery config and actual runtime
+                        if (exclude_current_instance and 
+                            jabs_info['hostname'] == current_hostname):
+                            discovery_logger.info(f"Excluding current instance: {jabs_info['hostname']}:{checked_port}")
+                            print(f"Excluding current instance: {jabs_info['hostname']}:{checked_port}")
+                            continue
+                        
                         discovery_logger.info(f"Discovered JABS instance: {ip}:{checked_port} - {jabs_info['hostname']}")
                         print(f"Discovered JABS instance: {ip}:{checked_port} - {jabs_info['hostname']}")
                         
@@ -311,7 +331,7 @@ def discover_jabs_instances(ip_range_start: str, ip_range_end: str, port: int = 
             try:
                 cli_only_instances = discover_cli_only_instances(
                     shared_monitor_dir, discovered_hostnames, ip_range_start, ip_range_end, 
-                    port, default_grace_period
+                    port, default_grace_period, current_hostname if exclude_current_instance else None
                 )
                 discovered_instances.extend(cli_only_instances)
                 discovery_logger.info(f"Phase 3 complete: Found {len(cli_only_instances)} CLI-only instances")
@@ -332,7 +352,7 @@ def discover_jabs_instances(ip_range_start: str, ip_range_end: str, port: int = 
 
 def discover_cli_only_instances(shared_monitor_dir: str, existing_hostnames: set, 
                                ip_range_start: str, ip_range_end: str, port: int,
-                               default_grace_period: int) -> List[DiscoveredInstance]:
+                               default_grace_period: int, exclude_hostname: str = None) -> List[DiscoveredInstance]:
     """
     Discover CLI-only JABS instances by scanning the shared monitor directory for JSON files.
     
@@ -343,6 +363,7 @@ def discover_cli_only_instances(shared_monitor_dir: str, existing_hostnames: set
         ip_range_end: Ending IP address for hostname-to-IP mapping
         port: Port to use for the discovered instances
         default_grace_period: Default grace period in minutes
+        exclude_hostname: Hostname to exclude from discovery (current instance)
     
     Returns:
         List of discovered CLI-only DiscoveredInstance objects
@@ -377,6 +398,12 @@ def discover_cli_only_instances(shared_monitor_dir: str, existing_hostnames: set
         for json_file in json_files:
             hostname = json_file.replace('.json', '')
             discovery_logger.info(f"Processing JSON file: {json_file} (hostname: {hostname})")
+            
+            # Skip if this is the current instance hostname
+            if exclude_hostname and hostname == exclude_hostname:
+                discovery_logger.info(f"Skipping {hostname} - current instance")
+                print(f"Skipping {hostname} - current instance")
+                continue
             
             # Skip if we already discovered this hostname via Flask API
             if hostname in existing_hostnames:

@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 
 
 
-VERSION = "v0.9.0"
+VERSION = "v0.9.1"
 
 # --- Environment Configuration ---
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
@@ -35,7 +35,6 @@ PYTHON_EXECUTABLE = sys.executable or "python3"
 CONFIG_DIR = os.path.join(BASE_DIR, 'config')
 JOBS_DIR = os.path.join(CONFIG_DIR, 'jobs')
 GLOBAL_CONFIG_PATH = os.path.join(CONFIG_DIR, "global.yaml")
-MONITOR_CONFIG_PATH = os.path.join(CONFIG_DIR, "monitor.yaml")
 
 # --- Data Configuration ---
 DATA_DIR = os.path.join(BASE_DIR, 'data')
