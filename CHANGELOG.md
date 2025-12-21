@@ -10,7 +10,15 @@
 - Fix errors in terminal when AWS credetials are missing or incorrect.
 - Backup Archives in set on the manifest page lists only first 90 parts.
 
-## v0.9.0 - 2025-12-21
+## v0.9.2 - 2025-12-21
+
+### Fixed
+ 
+ - fixed scheduler.py to handle monitor correctly
+
+
+
+## v0.9.1 - 2025-12-21
 
 ### Fixed
  
