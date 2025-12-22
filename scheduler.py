@@ -13,6 +13,7 @@ from dotenv import load_dotenv
 
 from app.utils.logger import setup_logger, trim_all_logs
 from app.services.emailer import send_email_digest
+from app.utils.monitor_status import write_monitor_status
 from app.settings import CONFIG_DIR, LOG_DIR, CLI_SCRIPT, SCHEDULER_STATUS_FILE, SCHEDULE_TOLERANCE, VERSION, GLOBAL_CONFIG_PATH, ENV_PATH
 from app.models.scheduler_events import append_scheduler_event, trim_scheduler_events
 from app.services.emailer import email_logger
@@ -281,6 +282,21 @@ def main():
         
         trim_all_logs()
         trim_scheduler_events()
+
+        # Monitor status reporting
+        try:
+            with open(GLOBAL_CONFIG_PATH, encoding="utf-8") as f:
+                global_cfg = yaml.safe_load(f)
+            
+            monitor_cfg = global_cfg.get("monitoring", {})
+            if monitor_cfg.get("enable_monitoring"):
+                shared_dir = monitor_cfg.get("shared_monitor_dir")
+                write_monitor_status(
+                    shared_monitor_dir=shared_dir,
+                    last_run=datetime.now().isoformat()
+                )
+        except (OSError, IOError, yaml.YAMLError) as e:
+            logger.error(f"Failed to write monitor status: {e}")
 
 if __name__ == "__main__":
     main()
